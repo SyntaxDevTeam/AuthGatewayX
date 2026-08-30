@@ -16,6 +16,7 @@ dependencies {
     implementation(project(":authgatewayx-domain"))
     implementation(project(":authgatewayx-security"))
     implementation(libs.kotlin.stdlib)
+    testImplementation(kotlin("test"))
 }
 
 kotlin {
@@ -41,5 +42,9 @@ tasks {
 
     shadowJar {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+
+    test {
+        useJUnitPlatform()
     }
 }

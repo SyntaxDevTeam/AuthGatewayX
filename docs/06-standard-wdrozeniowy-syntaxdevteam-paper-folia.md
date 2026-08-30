@@ -924,3 +924,21 @@ MessageHandler.
 Controller nie jest jeszcze rejestrowany w aktywnym runtime, ponieważ PRE_AUTH
 isolation nie jest kompletne. Udostępnienie dialogu bez pełnych blokad świata naruszałoby
 Definition of Done; stan pozostaje `DEGRADED`.
+
+# 23. Implementacja PRE_AUTH isolation
+
+`PreAuthEntryListener` tworzy i przełącza sesję do PRE_AUTH przy wejściu.
+`PreAuthIsolationListener` egzekwuje blokady eventów niezależnie od klienta, a
+`PreAuthIsolationManager` odpowiada za invulnerability, collision, pickup, visibility
+i timeout. Operacje gracza oraz hide/show są kierowane przez EntityScheduler.
+
+`AuthenticationFormCoordinator` wywołuje hook aktywacji dopiero po udanym auth i
+atomowym `SessionRegistry.activate`. Hook przywraca zapisane flagi i widoczność. Quit
+usuwa snapshot oraz sesję, więc reconnect nie dziedziczy starego stanu.
+
+Listener blokuje wszystkie komendy PRE_AUTH. Natywne dialogi nie wymagają komend z
+hasłem, a pełna blokada eliminuje obejścia przez aliasy i namespace.
+
+Klasy kwarantanny kompilują się przeciw Paper 26.2, ale nie są jeszcze rejestrowane w
+runtime. Checkboxy ochrony świata i Folia pozostają otwarte do testów serwerowych oraz
+audytu plugin messaging na granicy proxy/backend.

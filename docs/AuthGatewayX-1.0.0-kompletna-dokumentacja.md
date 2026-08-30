@@ -1192,6 +1192,21 @@ Controller pozostaje niezarejestrowany w runtime do czasu ukończenia pełnej iz
 PRE_AUTH. Włączenie go wcześniej wpuszczałoby gracza do świata w niezweryfikowanym
 stanie, więc polityka fail-closed nadal obowiązuje.
 
+## 23. Stan implementacji — PRE_AUTH isolation
+
+`PreAuthEntryListener` tworzy sesję i ustawia PRE_AUTH przed uruchomieniem UI.
+`PreAuthIsolationListener` blokuje ruch, teleporty, interakcje, bloki, inventory,
+przedmioty, combat/damage, chat, portale, pojazdy i wszystkie komendy.
+`PreAuthIsolationManager` przez EntityScheduler ustawia invulnerability, wyłącza
+kolizję i pickup, ukrywa gracza oraz egzekwuje timeout.
+
+Po atomowej aktywacji sesji hook koordynatora przywraca zapisane flagi i widoczność.
+Disconnect usuwa snapshot oraz sesję. Pełna blokada komend zastępuje wcześniejszą
+przykładową allowlistę, ponieważ Dialog API nie wymaga przesyłania hasła w komendzie.
+
+Warstwa nie jest jeszcze aktywowana w composition root. Przed zmianą runtime na READY
+wymagane są testy na Paper/Folia i zamknięcie polityki plugin messaging/Velocity.
+
 ---
 
 # AuthGatewayX 1.0.0 — bezpieczeństwo, wydajność i integracje

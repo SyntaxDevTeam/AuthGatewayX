@@ -38,11 +38,16 @@ fun interface AuthenticationFormHandler {
         CompletableFuture.completedFuture(AuthenticationFormResult.IDENTITY_CONFLICT)
 }
 
+fun interface AuthenticationActivationListener {
+    fun activated(context: AuthenticationFormContext)
+}
+
 class AuthenticationFormCoordinator(
     private val loginService: OfflineLoginUseCase,
     private val registrationService: OfflineRegistrationUseCase,
     private val sessions: SessionRegistry,
     private val clock: Clock = Clock.systemUTC(),
+    private val activationListener: AuthenticationActivationListener = AuthenticationActivationListener {},
 ) : AuthenticationFormHandler {
     override fun submitLogin(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
         loginService.login(context.username, context.sourceAddress, password).thenApply { result ->
@@ -52,6 +57,7 @@ class AuthenticationFormCoordinator(
                         context.connectionId, result.account.id, result.account.minecraftUuid,
                         IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
                     )
+                    activationListener.activated(context)
                     AuthenticationFormResult.AUTHENTICATED
                 }
                 LoginResult.InvalidCredentials -> AuthenticationFormResult.INVALID_CREDENTIALS
@@ -68,6 +74,7 @@ class AuthenticationFormCoordinator(
                         context.connectionId, result.account.id, result.account.minecraftUuid,
                         IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
                     )
+                    activationListener.activated(context)
                     AuthenticationFormResult.AUTHENTICATED
                 }
                 RegistrationResult.UsernameAlreadyExists -> AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS

@@ -376,3 +376,19 @@ Komendy z hasłem nie powinny być domyślnym fallbackiem, ponieważ trafiają d
 klienta i mogą zostać przechwycone przez inne pluginy. Ewentualny fallback dla klientów
 bez Dialog API wymaga osobnej, jawnej decyzji bezpieczeństwa i nie może być dodany
 automatycznie.
+
+## 14. Egzekwowanie PRE_AUTH na Paper/Folia
+
+Wejście gracza offline tworzy sesję `CONNECTING`, natychmiast przełącza ją do
+`PRE_AUTH` i dopiero wtedy uruchamia UI. Kwarantanna blokuje ruch, teleporty,
+interakcje, bloki, inventory, drop/pickup, obrażenia zadawane i otrzymywane, chat,
+portale, pojazdy, zmianę trzymanego przedmiotu, użycie przedmiotu i wszystkie komendy.
+
+Dialog API usuwa potrzebę allowlisty `/login` i `/register`. Blokowanie wszystkich
+komend eliminuje obejścia przez aliasy i namespace; `/quit` nie wymaga komendy, ponieważ
+klient może rozłączyć się normalnie.
+
+Gracz jest invulnerable, bez kolizji i pickupów oraz wzajemnie ukryty względem graczy
+aktywnych. Zmiany player state i timeout korzystają z EntityScheduler. Oryginalne flagi
+są przywracane dopiero po atomowym `PRE_AUTH -> ACTIVE`. Disconnect usuwa sesję i
+snapshot kwarantanny.
