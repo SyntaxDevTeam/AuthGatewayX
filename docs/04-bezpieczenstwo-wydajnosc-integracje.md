@@ -529,3 +529,15 @@ musi być atomowe logicznie i wykonane w poprawnym execution context.
 - Telemetria SyntaxCore nie może być elementem krytycznej ścieżki auth.
 - Loader Paper powinien dostarczać biblioteki runtime bez niepotrzebnego shadingu.
 - Krytyczne biblioteki muszą mieć kontrolowane wersje i repozytoria.
+
+# 17. Zaimplementowana ochrona haseł i rejestracji
+
+`Argon2PasswordHasher` jawnie wybiera wariant Argon2id. Domyślne parametry pierwszego
+wydania implementacji to 3 iteracje, 65536 KiB pamięci i równoległość 1; przed wydaniem
+1.0.0 wymagają benchmarku na wspieranych platformach. Hasła są przyjmowane jako
+`CharArray` i zerowane po hash/verify, także na ścieżkach błędów.
+
+`RegistrationService` przekazuje Argon2 do osobnego bounded executora. Atomowość
+rejestracji nie opiera się na wcześniejszym `SELECT`: gwarantują ją ograniczenia UNIQUE
+w storage, a konflikt jest mapowany na neutralny wynik domenowy. Szczegóły te nie mogą
+być bezpośrednio ujawniane graczowi, aby nie ułatwiać enumeracji kont.

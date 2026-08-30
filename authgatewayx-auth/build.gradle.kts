@@ -6,7 +6,10 @@ repositories { mavenCentral() }
 
 dependencies {
     implementation(project(":authgatewayx-domain"))
+    implementation(project(":authgatewayx-security"))
+    implementation(project(":authgatewayx-storage-api"))
     testImplementation(kotlin("test"))
+    testRuntimeOnly(libs.argon2.jvm)
 }
 
 kotlin { jvmToolchain(25) }

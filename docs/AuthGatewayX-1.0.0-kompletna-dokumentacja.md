@@ -1141,6 +1141,20 @@ offline UUID, bounded executor, per-IP/global token bucket, ograniczoną kardyna
 stanu IP, limit PRE_AUTH oraz kontrakty CleanerX/PunisherX/audytu. Są to przetestowane
 prymitywy; checkboxy funkcji 1.0.0 pozostają otwarte do czasu integracji całego flow.
 
+## 20. Stan implementacji — SQLite, migracje i Argon2id
+
+Powstały moduły `authgatewayx-storage-api` i `authgatewayx-storage-jdbc` z pierwszym
+backendem `SqliteAccountStorage`. Operacje zwracają `CompletionStage` i wykonują JDBC
+przez ograniczony executor oraz pulę HikariCP. Migracja v1 jest idempotentna, a UNIQUE
+na kanonicznej nazwie i Minecraft UUID zapewnia atomową rejestrację. Test współbieżny
+potwierdza, że dwie jednoczesne próby tworzą dokładnie jedno konto.
+
+`RegistrationService` wykonuje Argon2id poza threadem gry i zeruje wejściową tablicę
+hasła po każdej ścieżce. Kontrolowane wersje to HikariCP 7.1.0, sqlite-jdbc 3.53.2.1 i
+argon2-jvm 2.12. Biblioteki natywne nie są shadowowane; mają zostać dostarczone przez
+`PluginLoader`. MySQL, MariaDB, PostgreSQL i pełne spięcie runtime pozostają otwarte,
+dlatego zbiorcze checkboxy storage i Argon2id nie są jeszcze oznaczone jako ukończone.
+
 ---
 
 # AuthGatewayX 1.0.0 — bezpieczeństwo, wydajność i integracje

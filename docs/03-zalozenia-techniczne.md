@@ -532,3 +532,24 @@ Elementy security są na tym etapie prymitywami używanymi przez przyszły login
 pipeline. Nie należy uznawać anti-flood, API ani session management za ukończone dla
 1.0.0, dopóki nie zostaną spięte z rzeczywistym wejściem połączenia, storage i
 adapterami platformowymi.
+
+## 20. Stan implementacji — SQLite i Argon2id
+
+Dodano `authgatewayx-storage-api` oraz `authgatewayx-storage-jdbc`. Pierwszym
+zaimplementowanym backendem jest SQLite:
+
+- `AccountStorage` udostępnia wyłącznie operacje asynchroniczne jako `CompletionStage`,
+- `SqliteAccountStorage` korzysta z ograniczonego HikariCP i `BoundedTaskExecutor`,
+- migracja v1 tworzy `accounts` oraz `schema_history` i jest idempotentna,
+- unikalne indeksy `canonical_username` i `minecraft_uuid` stanowią ostateczną ochronę
+  atomowej rejestracji,
+- test dwóch równoczesnych rejestracji potwierdza utworzenie dokładnie jednego konta,
+- `RegistrationService` wykonuje Argon2id poza threadem gry, a następnie wywołuje
+  asynchroniczne storage,
+- wejściowa tablica hasła jest zerowana również po błędzie lub odrzuceniu zadania.
+
+Kontrolowane wersje pierwszego backendu to HikariCP 7.1.0, sqlite-jdbc 3.53.2.1 oraz
+argon2-jvm 2.12. Argon2 i sterownik SQLite korzystają z bibliotek natywnych. Nie są
+shadowowane do głównego JAR-a; docelowo dostarczy je `PluginLoader`. Backendy MySQL,
+MariaDB i PostgreSQL oraz runtime composition root nadal pozostają do wykonania, więc
+checkboxy całej warstwy storage nie są jeszcze zamykane.
