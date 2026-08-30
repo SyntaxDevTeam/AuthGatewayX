@@ -14,6 +14,7 @@ class PreAuthEntryListener(
     private val sessions: SessionRegistry,
     private val isolation: PreAuthIsolationManager,
     private val clock: Clock = Clock.systemUTC(),
+    private val onEntered: (org.bukkit.entity.Player) -> Unit = {},
 ) : Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     fun onJoin(event: PlayerJoinEvent) {
@@ -29,5 +30,6 @@ class PreAuthEntryListener(
         check(created) { "Failed to create PRE_AUTH session for ${player.uniqueId}" }
         sessions.enterPreAuth(connectionId)
         isolation.enter(player)
+        onEntered(player)
     }
 }

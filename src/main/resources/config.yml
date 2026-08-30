@@ -1,0 +1,24 @@
+language: "PL"
+testing:
+  # Temporary first-server-test gate. Keep empty outside a controlled test server.
+  offline-username-allowlist: []
+authentication:
+  timeout-seconds: 120
+  password:
+    minimum-length: 8
+    maximum-length: 128
+    argon2:
+      iterations: 3
+      memory-kib: 65536
+      parallelism: 1
+  lockout:
+    attempts: 5
+    duration-seconds: 600
+storage:
+  sqlite-file: authgatewayx.db
+  pool-size: 2
+executors:
+  storage-threads: 2
+  storage-queue: 256
+  password-threads: 2
+  password-queue: 64

@@ -1,0 +1,6 @@
+libraries:
+  - pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT
+  - pl.syntaxdevteam:messageHandler-paper:1.2.2-R0.4-SNAPSHOT
+  - com.zaxxer:HikariCP:7.1.0
+  - org.xerial:sqlite-jdbc:3.53.2.1
+  - de.mkammerer:argon2-jvm:2.12

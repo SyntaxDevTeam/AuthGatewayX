@@ -900,14 +900,15 @@ Nie oznacza to jeszcze potwierdzonej zgodności platformowej; checkboxy schedule
 pozostają niezaznaczone do czasu testów Paper/Folia.
 
 Do chwili ukończenia adapterów uwierzytelniania `AuthenticationReadinessListener`
-utrzymuje start w stanie `DEGRADED` i odrzuca nowe logowania. Jest to świadoma polityka
+utrzymuje start w stanie `STARTING` i odrzuca nowe logowania. Jest to świadoma polityka
 fail-closed: nie wolno oznaczyć runtime jako `READY`, zanim storage, premium/offline
 decision pipeline, PRE_AUTH isolation oraz wymagane integracje startowe nie zostaną
 zainicjalizowane.
 
-Loader jest już jawnie podłączony w `paper-plugin.yml`, ale nie ładuje jeszcze bibliotek
-runtime. Wersje release SyntaxCore i MessageHandler muszą zostać ustalone przed dodaniem
-`paper-libraries.yml`; nie wolno wypełniać loadera niesprawdzonymi współrzędnymi.
+Loader jest jawnie podłączony w `paper-plugin.yml` i ładuje kontrolowaną listę bibliotek
+runtime z `paper-libraries.yml`. Wersje SNAPSHOT SyntaxCore i MessageHandler są
+tymczasowo dopuszczone tylko dla testów wydania WIP; przed stabilnym 1.0.0 należy
+ponownie sprawdzić i preferować dostępne wersje release.
 
 # 22. Natywne dialogi uwierzytelniania
 
@@ -917,13 +918,25 @@ typ formularza per gracz i ignoruje nieoczekiwane custom clicki. Rejestracja por
 dwa hasła bez wczesnego wyjścia zależnego od pierwszej różnicy.
 
 Callback domenowy wraca na `EntityScheduler` przed zamknięciem lub ponownym pokazaniem
-okna. Teksty są wstrzykiwane jako `AuthenticationDialogText`; nie są ładowane przez
-równoległy system wiadomości. Docelowy composition root ma dostarczyć je z
-MessageHandler.
+okna. Teksty są wstrzykiwane jako `AuthenticationDialogText` z MessageHandler; nie
+istnieje równoległy system wiadomości.
 
-Controller nie jest jeszcze rejestrowany w aktywnym runtime, ponieważ PRE_AUTH
-isolation nie jest kompletne. Udostępnienie dialogu bez pełnych blokad świata naruszałoby
-Definition of Done; stan pozostaje `DEGRADED`.
+Controller jest rejestrowany dopiero razem z izolacją PRE_AUTH po poprawnej migracji
+storage; błąd inicjalizacji przełącza stan na `FAILED`.
+
+Aktualny pionowy wycinek Paper przechodzi do `READY` dopiero po asynchronicznym
+utworzeniu storage, migracjach SQLite i przygotowaniu dummy hash Argon2id. Następnie
+rejestruje izolację PRE_AUTH, MessageHandler-backed Paper Dialogs i router wyboru
+logowania lub rejestracji. Zewnętrzne biblioteki są dostarczane przez `PluginLoader` z
+`paper-libraries.yml`; snapshoty SyntaxCore/MessageHandler są tymczasowo dopuszczone
+wyłącznie dla wersji WIP i wymagają zastąpienia wydaniami release przed stabilnym 1.0.0.
+
+Do czasu wdrożenia pełnego resolvera Mojang/premium pionowy wycinek nie dopuszcza
+dowolnych nicków offline. Tymczasowa `testing.offline-username-allowlist` jest domyślnie
+pusta i pozwala operatorowi wskazać wyłącznie kontrolowane konta pierwszego testu.
+Pozostałe nicki są odrzucane przed lookupem konta. Ta bramka nie jest docelowym
+zamiennikiem ochrony nicków premium i musi zostać usunięta wraz z wdrożeniem kompletnego
+identity decision pipeline.
 
 # 23. Implementacja PRE_AUTH isolation
 

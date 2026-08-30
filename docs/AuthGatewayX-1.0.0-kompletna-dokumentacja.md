@@ -2800,10 +2800,29 @@ Testy muszą objąć:
 
 ## 21. Bieżący stan implementacji lifecycle Paper
 
-Główna klasa, bootstrap i loader zostały przeniesione do docelowej przestrzeni nazw
+Główna klasa, bootstrap i loader znajdują się w docelowej przestrzeni nazw
 `pl.syntaxdevteam.authgatewayx.paper`. `PaperPlatformScheduler` jawnie rozdziela async,
-global, entity i region ownership. Do czasu ukończenia krytycznych adapterów auth
-runtime pozostaje w stanie `DEGRADED`, a `AuthenticationReadinessListener` odrzuca
-logowania zgodnie z polityką fail-closed. Loader nie pobiera jeszcze SyntaxCore ani
-MessageHandler, ponieważ ich kontrolowane współrzędne release nie zostały dotąd
-ustalone; nie dodano zależności SNAPSHOT na podstawie przypuszczenia.
+global, entity i region ownership. `AuthenticationReadinessListener` odrzuca logowania
+zgodnie z polityką fail-closed, dopóki asynchroniczne utworzenie puli JDBC, migracje
+SQLite i przygotowanie dummy hash Argon2id nie zakończą się poprawnie. Dopiero wtedy
+na globalnym schedulerze rejestrowane są izolacja PRE_AUTH, router login/register oraz
+kontroler natywnych Paper Dialogs i runtime przechodzi do `READY`.
+
+`PluginLoader` odczytuje kontrolowaną listę z `paper-libraries.yml` i dostarcza HikariCP,
+SQLite JDBC, Argon2 JVM, SyntaxCore oraz MessageHandler-Paper. Na etapie `1.0.0-WIP`
+używane są wersje SyntaxCore `1.4.1-R0.1-SNAPSHOT` i MessageHandler-Paper
+`1.2.2-R0.4-SNAPSHOT`, ponieważ są to współrzędne używane obecnie przez lokalne projekty
+SyntaxDevTeam. Jest to decyzja tymczasowa dla pierwszych testów serwerowych; przed
+stabilnym `1.0.0` należy ponownie sprawdzić dostępność wydań release. Błąd inicjalizacji
+którejkolwiek z tych warstw pozostawia runtime w `FAILED` i nie otwiera logowania.
+
+Tryb Paper standalone wymaga `online-mode=false`. Uruchomienie z `online-mode=true`
+pozostaje celowo fail-closed, aby nie mieszać tożsamości standalone z przyszłym
+pipeline premium/proxy. Workflow BuildExplorer publikuje obecny artefakt jako `Paper`
+i przed publikacją wykonuje `clean check shadowJar` oraz sprawdza deskryptor i obecność
+implementacji storage w wynikowym JAR-ze.
+
+Pierwszy kontrolowany test offline wymaga jawnego wpisania nicku testowego do
+`testing.offline-username-allowlist`. Lista jest domyślnie pusta. Do czasu wdrożenia
+pełnego resolvera Mojang/premium wszystkie pozostałe nicki są odrzucane, dzięki czemu
+tymczasowy pionowy wycinek nie tworzy niekontrolowanego premium-to-offline fallbacku.

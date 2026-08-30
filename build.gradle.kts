@@ -7,6 +7,8 @@ plugins {
 
 repositories {
     mavenCentral()
+    maven("https://nexus.syntaxdevteam.pl/repository/maven-snapshots/")
+    maven("https://nexus.syntaxdevteam.pl/repository/maven-releases/")
 }
 
 dependencies {
@@ -15,7 +17,11 @@ dependencies {
     implementation(project(":authgatewayx-auth"))
     implementation(project(":authgatewayx-domain"))
     implementation(project(":authgatewayx-security"))
+    implementation(project(":authgatewayx-storage-jdbc"))
+    implementation(project(":authgatewayx-storage-api"))
     implementation(libs.kotlin.stdlib)
+    compileOnly("pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT")
+    compileOnly("pl.syntaxdevteam:messageHandler-paper:1.2.2-R0.4-SNAPSHOT")
     testImplementation(kotlin("test"))
 }
 
@@ -34,7 +40,7 @@ tasks {
     }
 
     processResources {
-        val props = mapOf("version" to version, "description" to project.description)
+        val props = mapOf("version" to version)
         filesMatching("paper-plugin.yml") {
             expand(props)
         }
@@ -42,6 +48,7 @@ tasks {
 
     shadowJar {
         duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        archiveClassifier.set("")
     }
 
     test {

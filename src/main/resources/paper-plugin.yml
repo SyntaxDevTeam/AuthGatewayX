@@ -1,5 +1,5 @@
 name: AuthGatewayX
-description: $description
+description: Secure mixed-mode authentication gateway for Paper, Purpur, Folia and Velocity.
 prefix: AuthGatewayX
 version: '${version}'
 

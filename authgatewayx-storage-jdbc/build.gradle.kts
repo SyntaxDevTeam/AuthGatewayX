@@ -3,8 +3,10 @@ repositories { mavenCentral() }
 dependencies {
     implementation(project(":authgatewayx-storage-api"))
     implementation(project(":authgatewayx-security"))
-    implementation(libs.hikari)
-    runtimeOnly(libs.sqlite.jdbc)
+    compileOnly(libs.hikari)
+    compileOnly(libs.sqlite.jdbc)
+    testRuntimeOnly(libs.hikari)
+    testRuntimeOnly(libs.sqlite.jdbc)
     testImplementation(libs.sqlite.jdbc)
     testImplementation(kotlin("test"))
 }
