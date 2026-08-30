@@ -622,6 +622,17 @@ Administrator powinien otrzymać ten sam styl konfiguracji i komunikatów znany 
 
 Awaria stats/update check nie może wpływać na możliwość uwierzytelnienia.
 
+## 14. Natywne okno loginu i rejestracji
+
+Paper/Purpur/Folia używa natywnego Minecraft Dialog API zamiast czatu lub inventory
+GUI. Login zawiera jedno pole tekstowe, a rejestracja dwa pola z potwierdzeniem. Escape
+jest wyłączony w PRE_AUTH. Dialog API nie oferuje maskowania hasła, dlatego tekst jest
+widoczny lokalnie na ekranie, ale nie trafia do czatu, historii komend ani logów.
+Odpowiedź jest natychmiast zamieniana na czyszczoną `CharArray`.
+
+Automatyczny fallback do komendy z hasłem jest niedozwolony. Wymagałby osobnej decyzji
+bezpieczeństwa dla nieobsługiwanych klientów.
+
 ---
 
 # AuthGatewayX 1.0.0 — założenia techniczne
@@ -1168,6 +1179,18 @@ utracie inkrementacji przy równoległych próbach. Osiągnięcie progu ustawia
 implementuje asynchroniczny `SecurityAuditSink` bez pól na hasło lub hash. Integracja
 z komendami, sesjami i PRE_AUTH nadal pozostaje otwarta, więc checkboxy wydania nie są
 jeszcze zamykane.
+
+## 22. Stan implementacji — formularze Dialog API
+
+`AuthenticationDialogController` buduje natywne okna loginu i rejestracji, waliduje
+własne action keys oraz oczekiwany rodzaj formularza i wraca na `EntityScheduler` po
+zakończeniu async auth. `AuthenticationFormCoordinator` łączy wynik formularza z
+`LoginService`, `RegistrationService` i atomową aktywacją sesji. Teksty formularza są
+wstrzykiwane, aby docelowo pochodziły z MessageHandler.
+
+Controller pozostaje niezarejestrowany w runtime do czasu ukończenia pełnej izolacji
+PRE_AUTH. Włączenie go wcześniej wpuszczałoby gracza do świata w niezweryfikowanym
+stanie, więc polityka fail-closed nadal obowiązuje.
 
 ---
 

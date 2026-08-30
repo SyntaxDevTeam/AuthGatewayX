@@ -28,6 +28,10 @@ data class LockoutPolicy(val threshold: Int = 5, val duration: Duration = Durati
     init { require(threshold > 0 && !duration.isZero && !duration.isNegative) }
 }
 
+fun interface OfflineLoginUseCase {
+    fun login(username: AccountUsername, sourceAddress: InetAddress, password: CharArray): CompletionStage<LoginResult>
+}
+
 class LoginService(
     private val storage: AccountStorage,
     private val hasher: Argon2PasswordHasher,
@@ -37,8 +41,8 @@ class LoginService(
     private val dummyPasswordHash: String,
     private val lockoutPolicy: LockoutPolicy = LockoutPolicy(),
     private val clock: Clock = Clock.systemUTC(),
-) {
-    fun login(username: AccountUsername, sourceAddress: InetAddress, password: CharArray): CompletionStage<LoginResult> {
+) : OfflineLoginUseCase {
+    override fun login(username: AccountUsername, sourceAddress: InetAddress, password: CharArray): CompletionStage<LoginResult> {
         if (attemptGate.evaluate(sourceAddress) != LoginAttemptDecision.ALLOW) {
             password.fill('\u0000')
             audit(username, sourceAddress, null, SecurityEventType.LOGIN_FAILURE, "RATE_LIMITED")

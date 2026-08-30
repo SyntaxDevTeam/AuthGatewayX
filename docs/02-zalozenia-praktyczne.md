@@ -359,3 +359,20 @@ secure-by-default
 czyli bezpieczne mechanizmy są włączone domyślnie.
 
 Jeżeli administrator chce osłabić ochronę, powinien wykonać świadomą zmianę konfiguracji.
+
+## 13. Okno uwierzytelniania gracza
+
+Na Paper/Purpur/Folia podstawowym interfejsem wpisywania hasła jest natywne Minecraft
+Dialog API, a nie chat i nie inventory GUI. Logowanie pokazuje jedno pole tekstowe,
+rejestracja dwa pola z potwierdzeniem. Zamknięcie klawiszem Escape jest wyłączone w
+PRE_AUTH.
+
+Dialog API nie udostępnia obecnie trybu maskowania znaków pola tekstowego. Wpisane hasło
+jest więc widoczne lokalnie na ekranie gracza, ale nie trafia do czatu, historii komend
+ani logów. Adapter natychmiast konwertuje odpowiedź do `CharArray`; dalszy pipeline
+zeruje tablicę po każdej ścieżce. Ograniczenie klienta musi być opisane administratorowi.
+
+Komendy z hasłem nie powinny być domyślnym fallbackiem, ponieważ trafiają do historii
+klienta i mogą zostać przechwycone przez inne pluginy. Ewentualny fallback dla klientów
+bez Dialog API wymaga osobnej, jawnej decyzji bezpieczeństwa i nie może być dodany
+automatycznie.

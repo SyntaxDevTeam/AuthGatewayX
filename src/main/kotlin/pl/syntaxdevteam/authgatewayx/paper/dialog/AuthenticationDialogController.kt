@@ -1,0 +1,147 @@
+@file:Suppress("UnstableApiUsage")
+
+package pl.syntaxdevteam.authgatewayx.paper.dialog
+
+import io.papermc.paper.connection.PlayerGameConnection
+import io.papermc.paper.dialog.Dialog
+import io.papermc.paper.event.player.PlayerCustomClickEvent
+import io.papermc.paper.registry.data.dialog.ActionButton
+import io.papermc.paper.registry.data.dialog.DialogBase
+import io.papermc.paper.registry.data.dialog.action.DialogAction
+import io.papermc.paper.registry.data.dialog.input.DialogInput
+import io.papermc.paper.registry.data.dialog.type.DialogType
+import net.kyori.adventure.key.Key
+import net.kyori.adventure.text.Component
+import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerQuitEvent
+import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormContext
+import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormHandler
+import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormResult
+import pl.syntaxdevteam.authgatewayx.auth.ui.PasswordConfirmation
+import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
+import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
+import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+
+data class AuthenticationDialogText(
+    val loginTitle: Component,
+    val registrationTitle: Component,
+    val passwordLabel: Component,
+    val repeatPasswordLabel: Component,
+    val submitLabel: Component,
+    val cancelLabel: Component,
+)
+
+class AuthenticationDialogController(
+    private val handler: AuthenticationFormHandler,
+    private val scheduler: PaperPlatformScheduler,
+    private val text: AuthenticationDialogText,
+) : Listener {
+    private val expectedForms = ConcurrentHashMap<UUID, FormType>()
+
+    fun showLogin(player: Player) {
+        expectedForms[player.uniqueId] = FormType.LOGIN
+        player.showDialog(createDialog(FormType.LOGIN))
+    }
+
+    fun showRegistration(player: Player) {
+        expectedForms[player.uniqueId] = FormType.REGISTER
+        player.showDialog(createDialog(FormType.REGISTER))
+    }
+
+    @EventHandler
+    fun onCustomClick(event: PlayerCustomClickEvent) {
+        val connection = event.commonConnection as? PlayerGameConnection ?: return
+        val player = connection.player
+        if (event.identifier == CANCEL) {
+            when (expectedForms[player.uniqueId]) {
+                FormType.LOGIN -> scheduler.entity(player, Runnable { showLogin(player) })
+                FormType.REGISTER -> scheduler.entity(player, Runnable { showRegistration(player) })
+                null -> Unit
+            }
+            return
+        }
+        val type = when (event.identifier) {
+            LOGIN_SUBMIT -> FormType.LOGIN
+            REGISTER_SUBMIT -> FormType.REGISTER
+            else -> return
+        }
+        if (expectedForms[player.uniqueId] != type) return
+        val response = event.dialogResponseView ?: return
+        val password = response.getText(PASSWORD_KEY)?.toCharArray() ?: return
+        val context = context(player)
+
+        val outcome = if (type == FormType.REGISTER) {
+            val repeated = response.getText(REPEAT_PASSWORD_KEY)?.toCharArray()
+            if (repeated == null || !PasswordConfirmation.matches(password, repeated)) {
+                password.fill('\u0000')
+                repeated?.fill('\u0000')
+                scheduler.entity(player, Runnable { showRegistration(player) })
+                return
+            }
+            repeated.fill('\u0000')
+            handler.submitRegistration(context, password)
+        } else {
+            handler.submitLogin(context, password)
+        }
+
+        outcome.whenComplete { result, failure ->
+            scheduler.entity(player, Runnable {
+                if (!player.isOnline) return@Runnable
+                if (failure == null && result == AuthenticationFormResult.AUTHENTICATED) {
+                    expectedForms.remove(player.uniqueId)
+                    player.closeDialog()
+                } else if (type == FormType.LOGIN) {
+                    showLogin(player)
+                } else {
+                    showRegistration(player)
+                }
+            })
+        }
+    }
+
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) {
+        expectedForms.remove(event.player.uniqueId)
+    }
+
+    private fun context(player: Player) = AuthenticationFormContext(
+        ConnectionId(player.uniqueId),
+        AccountUsername.parse(player.name),
+        player.address.address,
+        player.uniqueId,
+    )
+
+    private fun createDialog(type: FormType): Dialog = Dialog.create { builder ->
+        val inputs = mutableListOf(
+            DialogInput.text(PASSWORD_KEY, text.passwordLabel).width(300).maxLength(128).build(),
+        )
+        if (type == FormType.REGISTER) {
+            inputs += DialogInput.text(REPEAT_PASSWORD_KEY, text.repeatPasswordLabel).width(300).maxLength(128).build()
+        }
+        val submitKey = if (type == FormType.LOGIN) LOGIN_SUBMIT else REGISTER_SUBMIT
+        builder.empty()
+            .base(DialogBase.builder(if (type == FormType.LOGIN) text.loginTitle else text.registrationTitle)
+                .canCloseWithEscape(false)
+                .pause(false)
+                .inputs(inputs)
+                .build())
+            .type(DialogType.confirmation(
+                ActionButton.builder(text.submitLabel).action(DialogAction.customClick(submitKey, null)).build(),
+                ActionButton.builder(text.cancelLabel).action(DialogAction.customClick(CANCEL, null)).build(),
+            ))
+    }
+
+    private enum class FormType { LOGIN, REGISTER }
+
+    companion object {
+        private const val PASSWORD_KEY = "password"
+        private const val REPEAT_PASSWORD_KEY = "repeat_password"
+        private val LOGIN_SUBMIT = Key.key("authgatewayx:login_submit")
+        private val REGISTER_SUBMIT = Key.key("authgatewayx:register_submit")
+        private val CANCEL = Key.key("authgatewayx:auth_cancel")
+    }
+}

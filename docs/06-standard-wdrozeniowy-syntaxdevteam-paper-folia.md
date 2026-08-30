@@ -908,3 +908,19 @@ zainicjalizowane.
 Loader jest już jawnie podłączony w `paper-plugin.yml`, ale nie ładuje jeszcze bibliotek
 runtime. Wersje release SyntaxCore i MessageHandler muszą zostać ustalone przed dodaniem
 `paper-libraries.yml`; nie wolno wypełniać loadera niesprawdzonymi współrzędnymi.
+
+# 22. Natywne dialogi uwierzytelniania
+
+`AuthenticationDialogController` implementuje formularze Paper Dialog API dla loginu
+i rejestracji. Obsługuje wyłącznie własne namespaced action keys, utrzymuje oczekiwany
+typ formularza per gracz i ignoruje nieoczekiwane custom clicki. Rejestracja porównuje
+dwa hasła bez wczesnego wyjścia zależnego od pierwszej różnicy.
+
+Callback domenowy wraca na `EntityScheduler` przed zamknięciem lub ponownym pokazaniem
+okna. Teksty są wstrzykiwane jako `AuthenticationDialogText`; nie są ładowane przez
+równoległy system wiadomości. Docelowy composition root ma dostarczyć je z
+MessageHandler.
+
+Controller nie jest jeszcze rejestrowany w aktywnym runtime, ponieważ PRE_AUTH
+isolation nie jest kompletne. Udostępnienie dialogu bez pełnych blokad świata naruszałoby
+Definition of Done; stan pozostaje `DEGRADED`.

@@ -12,6 +12,10 @@ import java.net.InetAddress
 import java.time.Clock
 import java.util.concurrent.CompletionStage
 
+fun interface OfflineRegistrationUseCase {
+    fun register(username: AccountUsername, sourceAddress: InetAddress, password: CharArray): CompletionStage<RegistrationResult>
+}
+
 data class PasswordPolicy(val minimumLength: Int = 8, val maximumLength: Int = 128) {
     init { require(minimumLength in 1..maximumLength) }
 
@@ -28,8 +32,8 @@ class RegistrationService(
     private val passwordExecutor: BoundedTaskExecutor,
     private val passwordPolicy: PasswordPolicy = PasswordPolicy(),
     private val clock: Clock = Clock.systemUTC(),
-) {
-    fun register(
+) : OfflineRegistrationUseCase {
+    override fun register(
         username: AccountUsername,
         sourceAddress: InetAddress,
         password: CharArray,
