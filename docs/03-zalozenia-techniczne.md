@@ -553,3 +553,27 @@ argon2-jvm 2.12. Argon2 i sterownik SQLite korzystają z bibliotek natywnych. Ni
 shadowowane do głównego JAR-a; docelowo dostarczy je `PluginLoader`. Backendy MySQL,
 MariaDB i PostgreSQL oraz runtime composition root nadal pozostają do wykonania, więc
 checkboxy całej warstwy storage nie są jeszcze zamykane.
+
+## 21. Stan implementacji — logowanie offline i lockout
+
+`LoginService` realizuje domenowy przepływ logowania offline:
+
+```text
+per-IP LoginAttemptGate
+    -> async credentials lookup
+    -> Argon2id na bounded executorze
+    -> atomowy success/failure update
+    -> SecurityAuditSink
+```
+
+Nieistniejące konto przechodzi weryfikację względem dostarczonego dummy Argon2id hash,
+aby ograniczyć różnicę kosztu względem błędnego hasła istniejącego konta. Wynik
+`InvalidCredentials` jest wspólny. Limiter działa przed storage i Argon2. Po osiągnięciu
+progu SQLite wykonuje pojedynczy atomowy `UPDATE ... RETURNING`, ustawiając
+`locked_until`; udane logowanie zeruje licznik i blokadę.
+
+Migracja v2 dodaje `failed_login_count`, a v3 tabelę `security_events`. Backend SQLite
+implementuje `SecurityAuditSink`; zapis obejmuje wyłącznie identyfikatory, nick, IP,
+typ zdarzenia i reason code. Nie zapisuje hasła ani hasha. Komendy Paper i aktywacja
+sesji pozostają do integracji, dlatego `/login`, account lockout i security audit log
+nie są jeszcze oznaczone jako kompletne w checkliście wydania.

@@ -9,10 +9,13 @@ import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2Parameters
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2PasswordHasher
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
+import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
+import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import java.net.InetAddress
 import java.time.Clock
+import java.time.Duration
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.CompletableFuture
@@ -78,6 +81,11 @@ class RegistrationServiceTest {
         }
         override fun findByUsername(username: AccountUsername) = CompletableFuture.completedFuture<AuthAccount?>(null)
         override fun findPasswordHash(accountId: AccountId) = CompletableFuture.completedFuture<String?>(null)
+        override fun findCredentials(username: AccountUsername) = CompletableFuture.completedFuture<AccountCredentials?>(null)
+        override fun recordLoginSuccess(accountId: AccountId, sourceAddress: InetAddress, authenticatedAt: Instant) =
+            CompletableFuture.completedFuture(Unit)
+        override fun recordLoginFailure(accountId: AccountId, failedAt: Instant, lockThreshold: Int, lockDuration: Duration) =
+            CompletableFuture.completedFuture(FailedLoginUpdate(1, null))
         override fun close() = Unit
     }
 }

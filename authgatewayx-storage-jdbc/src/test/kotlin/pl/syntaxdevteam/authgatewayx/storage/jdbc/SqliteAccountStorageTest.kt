@@ -4,11 +4,15 @@ import pl.syntaxdevteam.authgatewayx.domain.account.AccountId
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.OfflineIdentity
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
+import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import java.net.InetAddress
 import java.nio.file.Files
 import java.time.Instant
+import java.time.Duration
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import kotlin.test.Test
@@ -27,6 +31,10 @@ class SqliteAccountStorageTest {
         val stored = assertNotNull(storage.findByUsername(registration.username).toCompletableFuture().get())
         assertEquals(registration.accountId, stored.id)
         assertEquals(registration.passwordHash, storage.findPasswordHash(stored.id).toCompletableFuture().get())
+        storage.record(SecurityEvent(
+            registration.createdAt, stored.id.value, stored.minecraftUuid, stored.username.value,
+            registration.sourceAddress, SecurityEventType.REGISTER, "OFFLINE_PASSWORD",
+        )).toCompletableFuture().get()
     }
 
     @Test
@@ -45,6 +53,31 @@ class SqliteAccountStorageTest {
             val resolved = results.map { it.get() }
             assertEquals(1, resolved.count { it is RegistrationResult.Created })
             assertEquals(1, resolved.count { it is RegistrationResult.UsernameAlreadyExists })
+        } finally {
+            callers.shutdownNow()
+        }
+    }
+
+    @Test
+    fun `concurrent failures increment atomically and lock at threshold`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("LockPlayer")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        val start = CountDownLatch(1)
+        val callers = Executors.newFixedThreadPool(5)
+        try {
+            val updates = (1..5).map {
+                callers.submit<FailedLoginUpdate> {
+                    start.await()
+                    storage.recordLoginFailure(
+                        registration.accountId, registration.createdAt, 5, Duration.ofMinutes(10),
+                    ).toCompletableFuture().get()
+                }
+            }
+            start.countDown()
+            val resolved = updates.map { it.get() }
+            assertEquals(listOf(1, 2, 3, 4, 5), resolved.map { it.failedLoginCount }.sorted())
+            assertNotNull(resolved.single { it.failedLoginCount == 5 }.lockedUntil)
         } finally {
             callers.shutdownNow()
         }

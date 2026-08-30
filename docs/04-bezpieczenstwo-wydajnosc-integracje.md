@@ -541,3 +541,15 @@ wydania implementacji to 3 iteracje, 65536 KiB pamięci i równoległość 1; pr
 rejestracji nie opiera się na wcześniejszym `SELECT`: gwarantują ją ograniczenia UNIQUE
 w storage, a konflikt jest mapowany na neutralny wynik domenowy. Szczegóły te nie mogą
 być bezpośrednio ujawniane graczowi, aby nie ułatwiać enumeracji kont.
+
+# 18. Zaimplementowany login limiter i lockout
+
+`LoginAttemptGate` jest ograniczonym rozmiarem token bucket per IP i musi być wywołany
+przed lookupem konta. `LoginService` używa dummy Argon2id hash dla nieistniejącej nazwy
+i zwraca wspólny wynik `InvalidCredentials`. Szczegółowy stan istnieje wyłącznie dla
+logiki wewnętrznej i audytu.
+
+Licznik błędów jest zwiększany atomowo w storage. Domyślny próg domenowy to 5 prób, a
+blokada trwa 10 minut. Pomyślne logowanie zeruje licznik oraz `locked_until`. Próby
+odrzucone przez limiter nie wykonują JDBC ani Argon2 i również zerują wejściową tablicę
+hasła.

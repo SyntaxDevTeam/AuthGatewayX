@@ -1155,6 +1155,20 @@ argon2-jvm 2.12. Biblioteki natywne nie są shadowowane; mają zostać dostarczo
 `PluginLoader`. MySQL, MariaDB, PostgreSQL i pełne spięcie runtime pozostają otwarte,
 dlatego zbiorcze checkboxy storage i Argon2id nie są jeszcze oznaczone jako ukończone.
 
+## 21. Stan implementacji — login, lockout i audit persistence
+
+`LoginService` wykonuje per-IP cheap guard przed storage, asynchroniczny lookup danych
+uwierzytelniających i Argon2id na bounded executorze. Nieistniejące konto jest
+weryfikowane względem dummy hash i otrzymuje ten sam wynik `InvalidCredentials` co
+błędne hasło. Tablica hasła jest zerowana na wszystkich obsłużonych ścieżkach.
+
+Migracja v2 dodaje licznik błędów, a pojedynczy atomowy `UPDATE ... RETURNING` zapobiega
+utracie inkrementacji przy równoległych próbach. Osiągnięcie progu ustawia
+`locked_until`; sukces zeruje licznik. Migracja v3 dodaje `security_events`, a SQLite
+implementuje asynchroniczny `SecurityAuditSink` bez pól na hasło lub hash. Integracja
+z komendami, sesjami i PRE_AUTH nadal pozostaje otwarta, więc checkboxy wydania nie są
+jeszcze zamykane.
+
 ---
 
 # AuthGatewayX 1.0.0 — bezpieczeństwo, wydajność i integracje

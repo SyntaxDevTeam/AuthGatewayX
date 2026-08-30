@@ -8,12 +8,17 @@ import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.AuthAccount
 import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityAuditSink
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
+import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
+import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import java.sql.Connection
 import java.sql.SQLException
 import java.time.Instant
+import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CompletionStage
 
@@ -21,7 +26,7 @@ class SqliteAccountStorage(
     jdbcUrl: String,
     maximumPoolSize: Int,
     private val executor: BoundedTaskExecutor,
-) : AccountStorage {
+) : AccountStorage, SecurityAuditSink {
     init {
         require(jdbcUrl.startsWith("jdbc:sqlite:")) { "SqliteAccountStorage requires a jdbc:sqlite URL" }
     }
@@ -71,6 +76,37 @@ class SqliteAccountStorage(
                     it.setString(1, Instant.now().toString())
                     it.executeUpdate()
                 }
+                val hasVersion2 = connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = 2").use {
+                    it.executeQuery().use { result -> result.next() }
+                }
+                if (!hasVersion2) {
+                    connection.createStatement().use { it.executeUpdate("ALTER TABLE accounts ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0") }
+                    connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (2, ?)").use {
+                        it.setString(1, Instant.now().toString())
+                        it.executeUpdate()
+                    }
+                }
+                val hasVersion3 = connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = 3").use {
+                    it.executeQuery().use { result -> result.next() }
+                }
+                if (!hasVersion3) {
+                    connection.createStatement().use { statement ->
+                        statement.executeUpdate("""CREATE TABLE security_events (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            occurred_at VARCHAR(40) NOT NULL,
+                            account_id VARCHAR(36),
+                            minecraft_uuid VARCHAR(36),
+                            username VARCHAR(16) NOT NULL,
+                            source_ip VARCHAR(45) NOT NULL,
+                            event_type VARCHAR(40) NOT NULL,
+                            reason_code VARCHAR(64) NOT NULL
+                        )""".trimIndent())
+                    }
+                    connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (3, ?)").use {
+                        it.setString(1, Instant.now().toString())
+                        it.executeUpdate()
+                    }
+                }
                 connection.commit()
             } catch (failure: Throwable) {
                 connection.rollback()
@@ -112,7 +148,80 @@ class SqliteAccountStorage(
         }
     }
 
+    override fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("SELECT * FROM accounts WHERE canonical_username = ?").use { statement ->
+                statement.setString(1, username.canonical)
+                statement.executeQuery().use { results ->
+                    if (!results.next()) null else AccountCredentials(
+                        account = mapAccount(results),
+                        passwordHash = results.getString("password_hash"),
+                        failedLoginCount = results.getInt("failed_login_count"),
+                        lockedUntil = results.getString("locked_until")?.let(Instant::parse),
+                    )
+                }
+            }
+        }
+    }
+
+    override fun recordLoginSuccess(accountId: AccountId, sourceAddress: java.net.InetAddress, authenticatedAt: Instant): CompletionStage<Unit> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("""UPDATE accounts SET failed_login_count = 0, locked_until = NULL,
+                last_login_at = ?, last_login_ip = ?, updated_at = ? WHERE id = ?""".trimIndent()).use { statement ->
+                statement.setString(1, authenticatedAt.toString())
+                statement.setString(2, sourceAddress.hostAddress)
+                statement.setString(3, authenticatedAt.toString())
+                statement.setString(4, accountId.value.toString())
+                check(statement.executeUpdate() == 1) { "Account disappeared during login" }
+            }
+        }
+    }
+
+    override fun recordLoginFailure(
+        accountId: AccountId,
+        failedAt: Instant,
+        lockThreshold: Int,
+        lockDuration: Duration,
+    ): CompletionStage<FailedLoginUpdate> = executor.submit {
+        require(lockThreshold > 0 && !lockDuration.isNegative && !lockDuration.isZero)
+        dataSource.connection.use { connection ->
+            val lockUntil = failedAt.plus(lockDuration)
+            connection.prepareStatement("""UPDATE accounts
+                SET failed_login_count = failed_login_count + 1,
+                    locked_until = CASE WHEN failed_login_count + 1 >= ? THEN ? ELSE locked_until END,
+                    updated_at = ?
+                WHERE id = ?
+                RETURNING failed_login_count, locked_until""".trimIndent()).use { statement ->
+                statement.setInt(1, lockThreshold)
+                statement.setString(2, lockUntil.toString())
+                statement.setString(3, failedAt.toString())
+                statement.setString(4, accountId.value.toString())
+                statement.executeQuery().use { results ->
+                    check(results.next()) { "Account disappeared during failed login update" }
+                    FailedLoginUpdate(results.getInt(1), results.getString(2)?.let(Instant::parse))
+                }
+            }
+        }
+    }
+
     override fun close() = dataSource.close()
+
+    override fun record(event: SecurityEvent): CompletionStage<Void> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("""INSERT INTO security_events
+                (occurred_at, account_id, minecraft_uuid, username, source_ip, event_type, reason_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""".trimIndent()).use { statement ->
+                statement.setString(1, event.timestamp.toString())
+                statement.setString(2, event.accountId?.toString())
+                statement.setString(3, event.minecraftUuid?.toString())
+                statement.setString(4, event.username)
+                statement.setString(5, event.sourceAddress.hostAddress)
+                statement.setString(6, event.type.name)
+                statement.setString(7, event.reasonCode)
+                statement.executeUpdate()
+            }
+        }
+    }.thenApply<Void> { null }
 
     private fun insertOffline(connection: Connection, registration: OfflineRegistration): RegistrationResult {
         val sql = """INSERT INTO accounts
