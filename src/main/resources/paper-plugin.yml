@@ -1,0 +1,13 @@
+name: AuthGatewayX
+description: $description
+prefix: AuthGatewayX
+version: '${version}'
+
+main: pl.syntaxdevteam.agx.AuthGatewayX
+bootstrapper: pl.syntaxdevteam.agx.AuthGatewayXBootstrap
+loader: pl.syntaxdevteam.agx.AuthGatewayXLoader
+api-version: '26.2'
+load: STARTUP
+
+authors: [ SyntaxDevTeam ]
+website: https://syntaxdevteam.pl

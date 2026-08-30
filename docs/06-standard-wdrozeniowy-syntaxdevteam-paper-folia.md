@@ -1,0 +1,886 @@
+# AuthGatewayX 1.0.0 — standard wdrożeniowy SyntaxDevTeam, Paper i Folia
+
+## 1. Cel
+
+Implementacja AuthGatewayX 1.0.0 powinna wzorować się na strukturze i dobrych praktykach rozwijanych w `SyntaxDevTeam/PunisherX`, jednocześnie eliminując rozwiązania, które nie są optymalne dla krytycznego systemu uwierzytelniania.
+
+Obowiązkowe biblioteki SyntaxDevTeam:
+
+- `SyntaxDevTeam/MessageHandler`
+- `SyntaxDevTeam/SyntaxCore`
+
+Referencyjny projekt strukturalny:
+
+- `SyntaxDevTeam/PunisherX`
+
+AuthGatewayX nie powinien kopiować PunisherX 1:1. Ma przejąć jego model:
+
+- wielomodułowość,
+- osobną warstwę platformową,
+- runtime dependency loading,
+- centralną inicjalizację,
+- adaptery platformowe,
+- API,
+- cache,
+- hooki/integracje,
+- oddzielenie domeny od platformy,
+
+ale powinien zostać zaprojektowany od początku pod wymagania login protocol, security-first i pełną zgodność z Folia.
+
+---
+
+# 2. Docelowa struktura projektu
+
+```text
+AuthGatewayX/
+|
+├── authgatewayx-api
+├── authgatewayx-domain
+├── authgatewayx-auth
+├── authgatewayx-security
+├── authgatewayx-storage-api
+├── authgatewayx-storage-jdbc
+├── authgatewayx-integrations
+├── authgatewayx-platform-common
+|
+├── authgatewayx-paper
+|   ├── bootstrap
+|   ├── loader
+|   ├── lifecycle
+|   ├── scheduler
+|   ├── protocol
+|   └── listener
+|
+└── authgatewayx-velocity
+    ├── lifecycle
+    ├── scheduler
+    ├── listener
+    └── protocol
+```
+
+Moduły `domain`, `auth`, `security` i `storage-api` nie powinny posiadać zależności od Bukkit/Paper/Velocity.
+
+---
+
+# 3. MessageHandler — obowiązkowa warstwa wiadomości
+
+AuthGatewayX nie powinien implementować własnego systemu:
+
+- plików językowych,
+- MiniMessage,
+- placeholderów,
+- prefixów,
+- locale,
+- konwersji legacy,
+- cache wiadomości.
+
+Do tego należy używać `SyntaxDevTeam/MessageHandler`.
+
+## Paper/Purpur/Folia
+
+Artefakt:
+
+```kotlin
+compileOnly("pl.syntaxdevteam:messageHandler-paper:<version>")
+```
+
+Biblioteka ma zostać dostarczona w runtime przez `PluginLoader`, analogicznie do `PunisherX`.
+
+Inicjalizacja:
+
+```kotlin
+SyntaxMessages.initialize(plugin)
+messageHandler = SyntaxMessages.messages
+```
+
+AuthGatewayX powinien przechowywać otrzymany `MessageHandler` jako zależność serwisów UI/command/auth feedback zamiast wywoływać globalny singleton w każdej klasie.
+
+Przykład:
+
+```kotlin
+class LoginMessageService(
+    private val messages: MessageHandler
+)
+```
+
+## Velocity
+
+Artefakt:
+
+```kotlin
+compileOnly("pl.syntaxdevteam:messageHandler-velocity:<version>")
+```
+
+Velocity posiada osobny initializer:
+
+```kotlin
+SyntaxMessages.initialize(
+    pluginContainer = container,
+    dataDirectory = dataDirectory,
+    logger = logger
+)
+```
+
+Nie wolno próbować inicjalizować Velocity wariantem Bukkit:
+
+```kotlin
+SyntaxMessages.initialize(plugin)
+```
+
+ponieważ proxy nie posiada `JavaPlugin`.
+
+## Locale
+
+MessageHandler posiada locale-aware API. AuthGatewayX powinien używać go wszędzie, gdzie locale klienta jest już dostępne.
+
+Na bardzo wczesnym etapie pre-login locale może jeszcze nie istnieć. Wtedy należy użyć globalnego fallbacku.
+
+Przykład przepływu:
+
+```text
+pre-login:
+    locale unavailable
+    -> global configured language
+
+post-client-settings:
+    locale available
+    -> messages_<locale>.yml
+```
+
+## Cache wiadomości
+
+MessageHandler posiada własny mechanizm cache. AuthGatewayX nie powinien dokładać drugiego cache na gotowe wiadomości bez wykazanego problemu wydajnościowego.
+
+---
+
+# 4. SyntaxCore — obowiązkowy fundament infrastrukturalny
+
+AuthGatewayX powinien używać `SyntaxDevTeam/SyntaxCore` w zakresie, w którym biblioteka dostarcza wspólną infrastrukturę SyntaxDevTeam.
+
+## Paper/Purpur/Folia
+
+```kotlin
+SyntaxCore.registerUpdateSources(
+    GitHubSource("SyntaxDevTeam/AuthGatewayX")
+)
+
+SyntaxCore.init(
+    plugin,
+    versionType = "paper"
+)
+
+logger = SyntaxCore.logger
+pluginManager = SyntaxCore.pluginManagerx
+statsCollector = SyntaxCore.statsCollector
+```
+
+W razie publikacji na Modrinth/Hangar należy dodać odpowiednie źródła aktualizacji.
+
+## Velocity
+
+Należy użyć proxy API SyntaxCore:
+
+```kotlin
+ProxySyntaxCore.initVelocity(
+    proxy = proxyServer,
+    container = pluginContainer,
+    logger = slf4jLogger,
+    dataDirectory = dataDirectory.toFile(),
+    debugLevel = DebugLevel.OFF,
+    versionType = "velocity"
+)
+```
+
+## Zakres użycia SyntaxCore
+
+Preferowane elementy:
+
+- `Logger`
+- `DebugLevel`
+- `PluginManagerX`
+- `StatsCollector`
+- update checker
+- `ServerEnvironment`
+- wspólna infrastruktura baz danych, jeśli jej API spełnia wymagania AuthGatewayX
+- wspólne utility utrzymywane przez SyntaxDevTeam
+
+## Zasada
+
+AuthGatewayX nie powinien duplikować funkcji już utrzymywanych w SyntaxCore.
+
+Jednocześnie system uwierzytelniania nie może uzależniać krytycznej ścieżki loginu od funkcji telemetrycznych, update-checkera ani zewnętrznego endpointu SyntaxCore.
+
+```text
+authentication path
+        |
+        +-- MUST work without stats endpoint
+        +-- MUST work without update endpoint
+        +-- MUST work without telemetry
+```
+
+Awaria elementów niekrytycznych nie może blokować logowania.
+
+---
+
+# 5. Wzorzec zależności z PunisherX
+
+Aktualny moduł Paper PunisherX używa:
+
+```text
+compileOnly SyntaxCore
+compileOnly MessageHandler-Paper
+```
+
+a właściwe biblioteki są dostarczane podczas uruchamiania przez:
+
+```text
+paper-plugin.yml
+    |
+    v
+PluginLoader
+    |
+    v
+paper-libraries.yml
+    |
+    v
+MavenLibraryResolver
+```
+
+AuthGatewayX powinien zachować ten wzorzec.
+
+Przykładowe zasoby:
+
+```text
+authgatewayx-paper/src/main/resources/
+├── paper-plugin.yml
+├── paper-libraries.yml
+├── config.yml
+└── lang/
+```
+
+---
+
+# 6. PluginLoader — obowiązkowy dla modułu Paper
+
+Należy utworzyć klasę np.:
+
+```text
+pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+```
+
+implementującą:
+
+```java
+io.papermc.paper.plugin.loader.PluginLoader
+```
+
+Cel:
+
+- zbudowanie runtime classpath,
+- pobieranie zależności z Nexus SyntaxDevTeam,
+- pobieranie bibliotek z Maven Central/Paper,
+- ograniczenie rozmiaru shadow JAR,
+- niezależne wersjonowanie SyntaxCore/MessageHandler,
+- czytelne zarządzanie bibliotekami.
+
+Schemat:
+
+```text
+Paper starts
+   |
+   v
+AuthGatewayXLoader
+   |
+   v
+read paper-libraries.yml
+   |
+   v
+MavenLibraryResolver
+   |
+   +--> SyntaxCore
+   +--> MessageHandler-Paper
+   +--> Caffeine
+   +--> JDBC drivers / storage dependencies
+   +--> Argon2 implementation
+   +--> other runtime libraries
+```
+
+## Zasady loadera
+
+1. Loader nie może zawierać logiki biznesowej.
+2. Loader nie może przechowywać runtime state AuthGatewayX w `static`.
+3. Należy pamiętać, że `PluginLoader` może być wywołany z innego classloadera.
+4. Błąd pobrania krytycznej biblioteki musi przerwać start pluginu z jednoznacznym komunikatem.
+5. Repozytoria powinny być jawnie zdefiniowane.
+6. Snapshot repository nie powinno być używane w finalnym `1.0.0`, jeżeli dostępne są stabilne wydania bibliotek.
+
+Przykład wpisu:
+
+```yaml
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+```
+
+---
+
+# 7. PluginBootstrap — obowiązkowy dla modułu Paper
+
+AuthGatewayX powinien dodatkowo wykorzystywać:
+
+```java
+io.papermc.paper.plugin.bootstrap.PluginBootstrap
+```
+
+Klasa np.:
+
+```text
+pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
+```
+
+i:
+
+```yaml
+bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
+```
+
+## Odpowiedzialność bootstrappera
+
+Bootstrap nie zastępuje `onEnable()`.
+
+Ma odpowiadać wyłącznie za operacje, które rzeczywiście należą do wczesnego lifecycle Paper, np.:
+
+- rejestracja Paper Lifecycle API,
+- rejestracja natywnych Brigadier commands przez `LifecycleEvents.COMMANDS`,
+- przygotowanie bootstrap-safe metadanych,
+- walidacja krytycznych parametrów startowych, jeśli nie wymaga Bukkit runtime,
+- przekazanie immutable bootstrap state do instancji pluginu przez `createPlugin()` tam, gdzie ma to uzasadnienie.
+
+## Niedozwolone w bootstrap
+
+Nie wolno zakładać pełnej dostępności Bukkit API.
+
+W szczególności bootstrap nie jest miejscem na:
+
+- odczyty świata,
+- operacje graczami,
+- listener registration wymagający działającego serwera,
+- połączenia z bazą tylko dlatego, że „jest wcześniej”,
+- uruchamianie normalnej logiki auth.
+
+## Paper lifecycle
+
+Docelowo rejestracja komend Paper powinna odbywać się przez:
+
+```text
+PluginBootstrap
+    |
+    v
+LifecycleEventManager
+    |
+    v
+LifecycleEvents.COMMANDS
+```
+
+zamiast opierać nowy plugin Paper wyłącznie na starym `getCommand()`/`plugin.yml` command executor.
+
+---
+
+# 8. paper-plugin.yml
+
+Docelowy kierunek:
+
+```yaml
+name: AuthGatewayX
+version: ${version}
+main: pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
+api-version: '26.2'
+folia-supported: true
+
+bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+has-open-classloader: false
+```
+
+`api-version` powinno odpowiadać rzeczywistej minimalnej wersji wspieranej przez wydanie, a nie być kopiowane z PunisherX.
+
+## Dependencies
+
+Integracje:
+
+```yaml
+dependencies:
+  server:
+    CleanerX:
+      load: BEFORE
+      required: false
+      join-classpath: false
+
+    PunisherX:
+      load: BEFORE
+      required: false
+      join-classpath: false
+```
+
+Preferowane jest korzystanie z publicznego API/ServicesManager zamiast `join-classpath: true`.
+
+---
+
+# 9. Pełna optymalizacja Paper/Folia
+
+`folia-supported: true` jest wyłącznie deklaracją. Nie oznacza zgodności.
+
+AuthGatewayX musi być projektowany tak, aby każda operacja miała jawnie określone execution context.
+
+## 9.1 I/O i CPU-heavy
+
+Następujące operacje NIE mogą odbywać się na main thread, Global Region ani Entity Scheduler:
+
+- JDBC,
+- HTTP Mojang,
+- DNS,
+- odczyty dużych plików,
+- Argon2id,
+- kosztowne serializacje,
+- audit persistence,
+- zewnętrzne API.
+
+W Folia:
+
+```text
+AsyncScheduler
+```
+
+lub dedykowany bounded executor.
+
+W Paper:
+
+```text
+async scheduler
+```
+
+lub dedykowany executor.
+
+## 9.2 Gracz / entity
+
+Operacje na konkretnym graczu powinny korzystać z:
+
+```text
+player.getScheduler()
+```
+
+czyli `EntityScheduler`.
+
+Dotyczy m.in.:
+
+- freeze/unfreeze,
+- stan gracza,
+- visibility,
+- część inventory operations,
+- akcje wymagające ownership entity,
+- bezpieczne przejście PRE_AUTH -> ACTIVE.
+
+## 9.3 Lokacja / chunk / block
+
+Operacje związane z konkretną lokacją:
+
+```text
+RegionScheduler
+```
+
+## 9.4 Global server state
+
+Operacje naprawdę globalne:
+
+```text
+GlobalRegionScheduler
+```
+
+Nie należy traktować `GlobalRegionScheduler` jako odpowiednika `runTaskAsynchronously`.
+
+## 9.5 Async
+
+```text
+AsyncScheduler
+```
+
+dla pracy niezależnej od ticków i world state.
+
+---
+
+# 10. Scheduler abstraction
+
+AuthGatewayX powinien posiadać własny adapter, wzorowany na `PunisherX/SchedulerAdapter`, ale bardziej precyzyjny.
+
+Nie wystarczy:
+
+```kotlin
+runSync()
+runAsync()
+```
+
+ponieważ na Folii „sync” jest niejednoznaczne.
+
+Preferowane API:
+
+```kotlin
+interface PlatformScheduler {
+    fun async(task: Runnable)
+    fun global(task: Runnable)
+    fun entity(player: Player, task: Runnable)
+    fun region(location: Location, task: Runnable)
+    fun delayedEntity(player: Player, delayTicks: Long, task: Runnable)
+    fun delayedGlobal(delayTicks: Long, task: Runnable)
+}
+```
+
+Nazwy mają wymuszać prawidłowe myślenie o ownership.
+
+---
+
+# 11. Async auth pipeline
+
+Krytyczna ścieżka logowania powinna być pipeline'em asynchronicznym:
+
+```text
+connection
+   |
+   v
+cheap anti-flood
+   |
+   v
+anti-bot cache
+   |
+   v
+cached account policy
+   |
+   v
+async DB if required
+   |
+   v
+async Mojang verification if required
+   |
+   v
+async PunisherX query if required
+   |
+   v
+auth decision
+   |
+   v
+platform-safe state transition
+```
+
+Nie wolno:
+
+```text
+event thread
+   |
+   v
+blocking JDBC
+   |
+   v
+blocking HTTP
+   |
+   v
+Argon2
+```
+
+---
+
+# 12. Virtual threads / executors
+
+Jeżeli docelowa wersja Java i platforma pozwalają na bezpieczne użycie virtual threads, można je rozważyć dla blokującego I/O.
+
+Nie zwalnia to jednak z:
+
+- connection pool limits,
+- HTTP concurrency limits,
+- rate limitów,
+- bounded queues,
+- timeoutów.
+
+Tysiąc tanich wątków nie oznacza, że baza danych powinna dostać tysiąc równoległych zapytań.
+
+---
+
+# 13. Backpressure
+
+AuthGatewayX musi posiadać mechanizm backpressure.
+
+Przykład:
+
+```text
+max concurrent Mojang checks
+max concurrent Argon2 verifications
+max DB auth operations
+max PRE_AUTH sessions
+```
+
+Po przekroczeniu limitu:
+
+```text
+QUEUE WITH SHORT TIMEOUT
+```
+
+lub:
+
+```text
+DENY / TRY AGAIN
+```
+
+a nie nieograniczone tworzenie futures/tasks.
+
+---
+
+# 14. Cache
+
+Preferowany cache lokalny:
+
+```text
+Caffeine
+```
+
+Może być runtime dependency dostarczaną przez loader.
+
+Cache powinny być rozdzielone:
+
+```text
+PremiumIdentityCache
+AccountPolicyCache
+SessionCache
+PunishmentCache
+UsernamePolicyCache
+IpSecurityCache
+RateLimitCache
+```
+
+Każdy posiada własny TTL/size/eviction policy.
+
+---
+
+# 15. Dependency injection / composition root
+
+Główna klasa pluginu nie powinna tworzyć losowo serwisów w listenerach.
+
+Należy użyć centralnego composition root:
+
+```text
+AuthGatewayXPaper
+      |
+      v
+PluginInitializer / ServiceContainer
+      |
+      +--> AccountService
+      +--> AuthenticationService
+      +--> SessionService
+      +--> SecurityService
+      +--> PremiumIdentityService
+      +--> Storage
+      +--> MessageHandler
+      +--> SyntaxCore Logger
+      +--> CleanerX adapter
+      +--> PunisherX adapter
+```
+
+Może to być własny lekki container; framework DI nie jest wymagany.
+
+---
+
+# 16. Wzorzec inicjalizacji
+
+## Paper
+
+```text
+PluginLoader
+    |
+    v
+runtime libraries
+    |
+    v
+PluginBootstrap
+    |
+    v
+Paper Lifecycle registration
+    |
+    v
+JavaPlugin instance
+    |
+    v
+SyntaxCore.init()
+    |
+    v
+SyntaxMessages.initialize()
+    |
+    v
+config validation
+    |
+    v
+storage init ASYNC
+    |
+    v
+services
+    |
+    v
+listeners/hooks
+    |
+    v
+READY
+```
+
+Plugin nie powinien akceptować graczy, dopóki krytyczny auth subsystem nie osiągnie:
+
+```text
+READY
+```
+
+W czasie:
+
+```text
+STARTING
+DEGRADED
+FAILED
+```
+
+nowe połączenia muszą zostać obsłużone zgodnie z bezpieczną polityką, domyślnie fail-closed.
+
+## Velocity
+
+```text
+Velocity construction/injection
+    |
+    v
+ProxyInitializeEvent
+    |
+    v
+ProxySyntaxCore.initVelocity()
+    |
+    v
+SyntaxMessages.initialize(container, dataDir, logger)
+    |
+    v
+storage/security init
+    |
+    v
+register listeners
+    |
+    v
+READY
+```
+
+---
+
+# 17. Krytyczny lifecycle shutdown
+
+Wyłączenie:
+
+```text
+STOP_ACCEPTING_AUTH
+    |
+    v
+cancel pending verification
+    |
+    v
+invalidate pre-auth sessions
+    |
+    v
+flush audit queue
+    |
+    v
+close storage pools
+    |
+    v
+shutdown owned executors
+    |
+    v
+clear caches
+```
+
+Nie wolno pozostawiać:
+
+- własnych executorów,
+- scheduler tasks,
+- DB pools,
+- HTTP resources,
+- references do Player/Connection.
+
+---
+
+# 18. Integracje CleanerX i PunisherX
+
+Integracje powinny być adapterami, nie bezpośrednimi zależnościami domeny.
+
+```text
+authgatewayx-domain
+        |
+        v
+interfaces
+        |
+   +----+----+
+   |         |
+CleanerX  PunisherX
+adapter    adapter
+```
+
+Preferowane wykrywanie na Paper:
+
+```text
+ServicesManager / public API
+```
+
+a nie dostęp do prywatnych klas pluginów.
+
+---
+
+# 19. Testy platformowe
+
+Minimalna macierz:
+
+```text
+Paper latest
+Paper minimum supported
+Purpur latest
+Folia latest
+Velocity latest
+```
+
+Testy muszą objąć:
+
+- premium login,
+- offline register/login,
+- collision nicku premium,
+- failed Mojang auth,
+- DB latency,
+- Mojang timeout,
+- CleanerX unavailable,
+- PunisherX unavailable,
+- PunisherX ban,
+- reconnect flood,
+- bot burst,
+- simultaneous login,
+- disconnect during Argon2,
+- disconnect during Mojang request,
+- plugin disable with active sessions.
+
+---
+
+# 20. Checklista wdrożeniowa
+
+- [ ] `MessageHandler-Paper` używany na Paper/Purpur/Folia.
+- [ ] `MessageHandler-Velocity` używany na Velocity.
+- [ ] `SyntaxCore.init(..., versionType = "paper")` używany w module Paper.
+- [ ] `ProxySyntaxCore.initVelocity(...)` używany na Velocity.
+- [ ] `PluginLoader` dostarcza runtime dependencies.
+- [ ] `paper-libraries.yml` posiada kontrolowane repozytoria.
+- [ ] Stabilne 1.0.0 nie zależy bez potrzeby od SNAPSHOT bibliotek.
+- [ ] `PluginBootstrap` jest wpisany w `paper-plugin.yml`.
+- [ ] Paper commands korzystają z Lifecycle API tam, gdzie ma to sens.
+- [ ] `folia-supported: true` jest ustawione dopiero przy faktycznej zgodności.
+- [ ] JDBC nigdy nie działa na main/global/entity/region thread.
+- [ ] HTTP Mojang nigdy nie działa na main/global/entity/region thread.
+- [ ] Argon2id nigdy nie blokuje threadu gry.
+- [ ] Entity operations korzystają z `EntityScheduler`.
+- [ ] Location/chunk operations korzystają z `RegionScheduler`.
+- [ ] Global state korzysta z `GlobalRegionScheduler`.
+- [ ] I/O korzysta z `AsyncScheduler` lub bounded executora.
+- [ ] Istnieje backpressure dla DB/Mojang/Argon2.
+- [ ] Wszystkie cache mają size limit i TTL.
+- [ ] Shutdown zamyka wszystkie zasoby należące do AuthGatewayX.
+- [ ] Security path działa niezależnie od StatsCollector/update checker.

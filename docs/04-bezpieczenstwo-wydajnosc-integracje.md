@@ -1,0 +1,531 @@
+# AuthGatewayX 1.0.0 — bezpieczeństwo, wydajność i integracje
+
+## 1. Priorytet bezpieczeństwa
+
+Kolejność priorytetów projektu:
+
+```text
+1. bezpieczeństwo kont
+2. integralność świata i serwera
+3. odporność warstwy połączeń
+4. poprawność uwierzytelniania
+5. wydajność
+6. wygoda administratora
+```
+
+W przypadku konfliktu wygody z bezpieczeństwem domyślna konfiguracja powinna wybrać bezpieczeństwo.
+
+---
+
+# 2. Ochrona przed kradzieżą kont
+
+## MUST
+
+- brak fallbacku premium -> offline dla chronionej nazwy,
+- ochrona nazw premium,
+- bezpieczny KDF dla haseł,
+- rate limiting logowania,
+- tymczasowa blokada po wielu błędnych próbach,
+- brak informacji ułatwiających enumerację kont,
+- sesje z kontrolowanym czasem życia,
+- audit trail,
+- jednoznaczne rozróżnienie MOJANG/OFFLINE,
+- bezpieczna migracja OFFLINE -> MOJANG,
+- ochrona przed race condition dwóch jednoczesnych logowań.
+
+## Dodatkowe zabezpieczenia
+
+- opcjonalne blokowanie równoczesnych sesji tego samego konta,
+- invalidacja starej sesji po ponownym logowaniu,
+- wykrywanie gwałtownej zmiany IP,
+- configurable trusted sessions,
+- opcjonalne 2FA w przyszłości.
+
+---
+
+# 3. Ochrona świata przed niezalogowanym graczem
+
+Niezalogowany gracz non-premium powinien znajdować się w stanie:
+
+```text
+PRE_AUTH_QUARANTINE
+```
+
+Dozwolone tylko:
+
+```text
+/login
+/register
+/changepassword
+/quit
+```
+
+Reszta funkcjonalności świata ma być zablokowana.
+
+## MUST block
+
+- movement,
+- block break/place,
+- use/interact,
+- inventory,
+- drop/pickup,
+- damage,
+- combat,
+- portal,
+- vehicle,
+- entity interaction,
+- chat,
+- nieautoryzowane commands,
+- plugin message abuse,
+- command execution przez aliasy,
+- teleporty inicjowane przez inne pluginy, jeśli pozwalają ominąć izolację.
+
+Stan izolacji musi być egzekwowany niezależnie od klienta.
+
+---
+
+# 4. Premium username protection
+
+Konfiguracja:
+
+```yaml
+premium:
+  username-protection:
+    enabled: true
+    deny-offline-claim: true
+    deny-on-auth-failure: true
+```
+
+Algorytm:
+
+```text
+username candidate
+    |
+    v
+known premium?
+    |
+ +--+--+
+ |     |
+NO    YES
+ |     |
+ v     v
+offline policy      require Mojang auth
+                        |
+                 +------+------+
+                 |             |
+              SUCCESS        FAILURE
+                 |             |
+                 v             v
+               ALLOW          DENY
+```
+
+Wyjątki powinny być możliwe, ale oznaczone jako:
+
+```text
+SECURITY RISK
+```
+
+---
+
+# 5. CleanerX
+
+CleanerX może odpowiadać za:
+
+```text
+nickname policy
+```
+
+Przykład API:
+
+```kotlin
+interface UsernamePolicyProvider {
+    fun validate(username: String): UsernameVerdict
+}
+```
+
+Verdict:
+
+```text
+ALLOW
+DENY_PROFANITY
+DENY_PATTERN
+DENY_RESERVED
+```
+
+AuthGatewayX powinien:
+
+- wykonać tę walidację wcześnie,
+- cache'ować wynik przez rozsądny TTL,
+- nie wykonywać jej wielokrotnie dla tego samego login attempt,
+- mieć configurable fail-open/fail-closed.
+
+Dla bezpieczeństwa nazw zalecane:
+
+```text
+fail-closed
+```
+
+jeżeli CleanerX jest wymagany przez konfigurację.
+
+---
+
+# 6. PunisherX
+
+PunisherX może odpowiadać za:
+
+```text
+ban enforcement
+```
+
+Sprawdzane przed wejściem gracza do świata:
+
+- UUID ban,
+- username ban,
+- IP ban,
+- network/global ban,
+- czasowe kary.
+
+AuthGatewayX nie powinien samodzielnie kopiować pełnej domeny kar PunisherX.
+
+Przykład adaptera:
+
+```kotlin
+interface PunishmentProvider {
+    fun checkLogin(identity: LoginIdentity): CompletableFuture<LoginPunishmentResult>
+}
+```
+
+AuthGatewayX na podstawie wyniku:
+
+```text
+ALLOW
+DENY
+```
+
+Opcjonalne informacje:
+
+- reason,
+- expiry,
+- punishment id.
+
+---
+
+# 7. Anti-bot
+
+Anti-bot powinien być warstwowy.
+
+## Layer 1 — cheap guards
+
+- malformed connection rejection,
+- invalid username format,
+- impossible protocol state,
+- connection burst rate limiting.
+
+## Layer 2 — IP reputation lokalna
+
+- liczba połączeń,
+- liczba rozłączeń,
+- nieudane logowania,
+- liczba prób różnych nicków,
+- liczba rejestracji.
+
+## Layer 3 — behavioural scoring
+
+Przykład:
+
+```text
++10 10 połączeń w 2 sekundy
++20 5 różnych nicków z jednego IP
++30 10 błędnych haseł
++40 repeated reconnect loop
+```
+
+Próg:
+
+```text
+score >= threshold -> temporary quarantine/block
+```
+
+## Layer 4 — external integrations
+
+Opcjonalnie później:
+
+- proxy reputation,
+- ASN policy,
+- known datacenter networks,
+- external bot mitigation provider.
+
+Nie powinno to być wymagane w 1.0.0.
+
+---
+
+# 8. Connection anti-flood
+
+Anti-flood różni się od klasycznego anti-bot.
+
+Celem jest ochrona zasobów serwera przed zalewem samych połączeń.
+
+Mechanizmy:
+
+- token bucket per IP,
+- token bucket globalny,
+- per-subnet limits,
+- max concurrent pre-auth connections,
+- max login handshakes in progress,
+- timeout na niedokończony handshake,
+- szybkie zwalnianie zasobów,
+- early disconnect.
+
+Przykład:
+
+```yaml
+anti-flood:
+  enabled: true
+
+  per-ip:
+    connections-per-second: 3
+    burst: 8
+
+  global:
+    connections-per-second: 200
+    burst: 400
+
+  pre-auth:
+    max-concurrent: 500
+    handshake-timeout: 10s
+```
+
+---
+
+# 9. Wydajność
+
+## Zasada
+
+Najtańsza decyzja powinna być wykonywana jako pierwsza.
+
+Poprawnie:
+
+```text
+connection limit
+    ->
+IP limiter
+    ->
+cached account policy
+    ->
+cached punishment
+    ->
+storage lookup
+    ->
+external Mojang verification
+```
+
+Niepoprawnie:
+
+```text
+Mojang HTTP
+    ->
+database
+    ->
+dopiero anti-flood
+```
+
+## Async candidates
+
+- DB,
+- HTTP,
+- Argon2,
+- audit write,
+- remote PunisherX,
+- remote cache.
+
+## Sync / scheduler dependent
+
+- Bukkit/Paper/Folia entity/world operations,
+- teleport,
+- inventory,
+- visibility,
+- movement state.
+
+---
+
+# 10. Cache
+
+Przykładowe TTL:
+
+```text
+account policy              5-15 min
+premium positive lookup     kilka godzin
+premium negative lookup     krótki TTL
+punishment result           5-30 s
+username CleanerX verdict   kilka minut
+temporary IP block          wg kary
+session                     do końca sesji
+```
+
+Nie należy ustawiać jednego globalnego TTL dla wszystkich danych.
+
+---
+
+# 11. Race conditions
+
+AuthGatewayX musi być odporny m.in. na:
+
+```text
+2 jednoczesne logowania tego samego konta
+2 jednoczesne /register
+premium verification + offline registration race
+logout + reconnect race
+ban received during authentication
+disconnect podczas Argon2
+disconnect podczas DB lookup
+```
+
+Rozwiązania:
+
+- per-account locking,
+- atomic storage operations,
+- compare-and-set state,
+- idempotent session invalidation.
+
+---
+
+# 12. Fail-open vs fail-closed
+
+Dla każdej integracji trzeba określić zachowanie awaryjne.
+
+Przykłady:
+
+### Mojang verification
+
+```text
+fail-closed
+```
+
+dla kont wymagających premium authentication.
+
+### PunisherX
+
+Konfigurowalne:
+
+```text
+fail-closed
+```
+
+dla sieci wymagającej bezwzględnej egzekucji banów,
+
+lub:
+
+```text
+fail-open
+```
+
+dla serwerów preferujących dostępność.
+
+### CleanerX
+
+Konfigurowalne.
+
+---
+
+# 13. Audit i bezpieczeństwo operacyjne
+
+Minimalne zdarzenia audytowe:
+
+```text
+REGISTER
+LOGIN_SUCCESS
+LOGIN_FAILURE
+ACCOUNT_LOCK
+ACCOUNT_UNLOCK
+PREMIUM_VERIFIED
+PREMIUM_AUTH_FAILURE
+OFFLINE_TO_PREMIUM_MIGRATION
+USERNAME_POLICY_DENY
+PUNISHMENT_DENY
+ANTI_BOT_DENY
+ANTI_FLOOD_DENY
+SESSION_INVALIDATED
+```
+
+Każdy wpis:
+
+```text
+timestamp
+account_id?
+uuid?
+username
+source_ip
+event_type
+reason_code
+```
+
+Bez:
+
+```text
+password
+password_hash
+token
+shared secret
+```
+
+---
+
+# 14. Checklist bezpieczeństwa przed 1.0.0
+
+- [ ] Premium user cannot be downgraded to offline after failed Mojang auth.
+- [ ] Premium username protection działa przed rejestracją offline.
+- [ ] `/register` jest atomiczne.
+- [ ] Hasła są Argon2id.
+- [ ] Brak blokującego JDBC na main/region thread.
+- [ ] Anti-flood działa przed storage/API calls.
+- [ ] Anti-bot posiada per-IP i global limiter.
+- [ ] Pre-auth player nie może wpływać na świat.
+- [ ] Pre-auth player nie może użyć aliasu do obejścia command allowlist.
+- [ ] Plugin messaging nie pozwala ominąć auth.
+- [ ] PunisherX może odrzucić login przed aktywacją sesji.
+- [ ] CleanerX może odrzucić nick przed rejestracją.
+- [ ] Disconnect podczas auth czyści wszystkie zasoby.
+- [ ] Nie ma race condition przy równoczesnym logowaniu.
+- [ ] Logi nie ujawniają sekretów.
+- [ ] Cache posiada limity i invalidację.
+- [ ] Folia scheduler compliance jest przetestowane.
+- [ ] Velocity forwarding/backends są zabezpieczone.
+- [ ] Testy obciążeniowe obejmują reconnect flood.
+- [ ] Testy bezpieczeństwa obejmują próbę przejęcia premium nicku.
+
+# 15. Thread ownership jako wymaganie bezpieczeństwa
+
+W AuthGatewayX poprawne użycie schedulerów jest częścią bezpieczeństwa, a nie jedynie optymalizacji.
+
+Błąd thread ownership może doprowadzić do:
+
+- race condition sesji,
+- częściowego zdjęcia PRE_AUTH isolation,
+- równoczesnej aktywacji dwóch sesji,
+- błędnego teleportu/unfreeze,
+- niespójności cache i storage.
+
+Dlatego:
+
+```text
+JDBC / HTTP / Argon2 -> AsyncScheduler / bounded executor
+Player state         -> EntityScheduler
+Location state       -> RegionScheduler
+Global server state  -> GlobalRegionScheduler
+```
+
+Każde przejście:
+
+```text
+PRE_AUTH -> AUTHENTICATED -> ACTIVE
+```
+
+musi być atomowe logicznie i wykonane w poprawnym execution context.
+
+# 16. Biblioteki infrastrukturalne
+
+- MessageHandler odpowiada za messages/lang/locale.
+- SyntaxCore odpowiada za wspólny logging/platform utilities.
+- Telemetria SyntaxCore nie może być elementem krytycznej ścieżki auth.
+- Loader Paper powinien dostarczać biblioteki runtime bez niepotrzebnego shadingu.
+- Krytyczne biblioteki muszą mieć kontrolowane wersje i repozytoria.
