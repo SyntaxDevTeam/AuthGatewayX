@@ -8,6 +8,7 @@ import io.papermc.paper.event.player.PlayerCustomClickEvent
 import io.papermc.paper.registry.data.dialog.ActionButton
 import io.papermc.paper.registry.data.dialog.DialogBase
 import io.papermc.paper.registry.data.dialog.action.DialogAction
+import io.papermc.paper.registry.data.dialog.body.DialogBody
 import io.papermc.paper.registry.data.dialog.input.DialogInput
 import io.papermc.paper.registry.data.dialog.type.DialogType
 import net.kyori.adventure.key.Key
@@ -29,6 +30,8 @@ import java.util.concurrent.ConcurrentHashMap
 data class AuthenticationDialogText(
     val loginTitle: Component,
     val registrationTitle: Component,
+    val loginPrompt: Component,
+    val registrationPrompt: Component,
     val passwordLabel: Component,
     val repeatPasswordLabel: Component,
     val submitLabel: Component,
@@ -50,14 +53,14 @@ class AuthenticationDialogController(
     private val expectedForms = ConcurrentHashMap<UUID, FormType>()
     private val submissions = ConcurrentHashMap.newKeySet<UUID>()
 
-    fun showLogin(player: Player) {
+    fun showLogin(player: Player, feedback: Component? = null) {
         expectedForms[player.uniqueId] = FormType.LOGIN
-        player.showDialog(createDialog(FormType.LOGIN))
+        player.showDialog(createDialog(FormType.LOGIN, feedback))
     }
 
-    fun showRegistration(player: Player) {
+    fun showRegistration(player: Player, feedback: Component? = null) {
         expectedForms[player.uniqueId] = FormType.REGISTER
-        player.showDialog(createDialog(FormType.REGISTER))
+        player.showDialog(createDialog(FormType.REGISTER, feedback))
     }
 
     @EventHandler
@@ -87,7 +90,7 @@ class AuthenticationDialogController(
             if (repeated == null || !PasswordConfirmation.matches(password, repeated)) {
                 password.fill('\u0000')
                 repeated?.fill('\u0000')
-                scheduler.entity(player, Runnable { player.sendActionBar(text.passwordMismatch); showRegistration(player) })
+                scheduler.entity(player, Runnable { showRegistration(player, text.passwordMismatch) })
                 return
             }
             repeated.fill('\u0000')
@@ -102,8 +105,7 @@ class AuthenticationDialogController(
         } catch (_: Throwable) {
             submissions.remove(player.uniqueId)
             password.fill('\u0000')
-            player.sendActionBar(text.internalFailure)
-            if (type == FormType.REGISTER) showRegistration(player) else showLogin(player)
+            if (type == FormType.REGISTER) showRegistration(player, text.internalFailure) else showLogin(player, text.internalFailure)
             return
         }
 
@@ -115,11 +117,9 @@ class AuthenticationDialogController(
                     expectedForms.remove(player.uniqueId)
                     player.closeDialog()
                 } else if (type == FormType.LOGIN) {
-                    player.sendActionBar(if (failure == null) feedback(result) else text.internalFailure)
-                    showLogin(player)
+                    showLogin(player, if (failure == null) feedback(result) else text.internalFailure)
                 } else {
-                    player.sendActionBar(if (failure == null) feedback(result) else text.internalFailure)
-                    showRegistration(player)
+                    showRegistration(player, if (failure == null) feedback(result) else text.internalFailure)
                 }
             })
         }
@@ -138,7 +138,7 @@ class AuthenticationDialogController(
         player.uniqueId,
     )
 
-    private fun createDialog(type: FormType): Dialog = Dialog.create { builder ->
+    private fun createDialog(type: FormType, feedback: Component?): Dialog = Dialog.create { builder ->
         val inputs = mutableListOf(
             DialogInput.text(PASSWORD_KEY, text.passwordLabel).width(300).maxLength(128).build(),
         )
@@ -146,10 +146,15 @@ class AuthenticationDialogController(
             inputs += DialogInput.text(REPEAT_PASSWORD_KEY, text.repeatPasswordLabel).width(300).maxLength(128).build()
         }
         val submitKey = if (type == FormType.LOGIN) LOGIN_SUBMIT else REGISTER_SUBMIT
+        val body = mutableListOf(DialogBody.plainMessage(
+            if (type == FormType.LOGIN) text.loginPrompt else text.registrationPrompt, 360,
+        ))
+        if (feedback != null) body += DialogBody.plainMessage(feedback, 360)
         builder.empty()
             .base(DialogBase.builder(if (type == FormType.LOGIN) text.loginTitle else text.registrationTitle)
                 .canCloseWithEscape(false)
                 .pause(false)
+                .body(body)
                 .inputs(inputs)
                 .build())
             .type(DialogType.confirmation(

@@ -924,6 +924,11 @@ istnieje równoległy system wiadomości.
 Controller jest rejestrowany dopiero razem z izolacją PRE_AUTH po poprawnej migracji
 storage; błąd inicjalizacji przełącza stan na `FAILED`.
 
+Cały feedback uwierzytelniania pozostaje wewnątrz Paper Dialog API. Prompt oraz wynik
+poprzedniej próby są budowane jako `DialogBody.plainMessage`, a pola hasła jako
+`DialogInput.text`. Auth flow nie wysyła instrukcji ani błędów przez chat, komendy,
+action bar lub inventory GUI.
+
 Aktualny pionowy wycinek Paper przechodzi do `READY` dopiero po asynchronicznym
 utworzeniu storage, migracjach SQLite i przygotowaniu dummy hash Argon2id. Następnie
 rejestruje izolację PRE_AUTH, MessageHandler-backed Paper Dialogs i router wyboru

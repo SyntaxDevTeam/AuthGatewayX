@@ -2,6 +2,8 @@ prefix: "<gradient:#55ffff:#5555ff>[<b>AuthGatewayX</b>]</gradient>"
 auth:
   login_title: "<aqua>Zaloguj się</aqua>"
   registration_title: "<aqua>Zarejestruj konto</aqua>"
+  login_prompt: "<gray>Wprowadź hasło do swojego konta.</gray>"
+  registration_prompt: "<gray>Utwórz hasło i wpisz je ponownie.</gray>"
   password_label: "Hasło"
   repeat_password_label: "Powtórz hasło"
   submit_label: "Potwierdź"

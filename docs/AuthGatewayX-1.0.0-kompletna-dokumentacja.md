@@ -2864,5 +2864,6 @@ kanału proxy-backend jest odłożone do późniejszego etapu.
 Runtime Paper posiada teraz admission control dla PRE_AUTH. Konfigurowalny limit jest
 rezerwowany przed utworzeniem sesji, a lease zwalniany po aktywacji, disconnect lub
 błędzie wejścia. Natywny dialog blokuje równoległe submitowanie wielu operacji Argon2
-przez jednego gracza i pokazuje feedback przez action bar dla błędnych danych, blokady,
-rate-limitera, niezgodnych haseł oraz konfliktów rejestracji.
+przez jednego gracza. Błędne dane, blokada, rate-limit, niezgodne hasła i konflikty
+rejestracji są pokazywane bezpośrednio w body ponownie otwartego Minecraft Dialog.
+Chat, komendy, action bar i inventory GUI nie są częścią interfejsu auth.

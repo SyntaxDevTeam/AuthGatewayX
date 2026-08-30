@@ -402,5 +402,5 @@ połączenie przed uruchomieniem storage, HTTP i Argon2.
 
 Formularz nie przyjmuje równoległych submitów tego samego gracza. Wynik błędnego hasła,
 blokady, rate-limitera, niezgodnego potwierdzenia lub konfliktu rejestracji jest
-wyświetlany jako action bar i formularz otwiera się ponownie. Hasło nadal nie trafia do
-czatu ani komendy.
+wyświetlany bezpośrednio w treści ponownie otwartego Minecraft Dialog. Plugin nie używa
+do uwierzytelniania czatu, komend, action bara ani inventory GUI.

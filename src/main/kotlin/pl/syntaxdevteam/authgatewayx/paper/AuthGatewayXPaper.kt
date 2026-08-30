@@ -106,6 +106,8 @@ class AuthGatewayXPaper : JavaPlugin() {
         val dialogs = AuthenticationDialogController(coordinator, scheduler, AuthenticationDialogText(
             messages.stringMessageToComponentNoPrefix("auth", "login_title"),
             messages.stringMessageToComponentNoPrefix("auth", "registration_title"),
+            messages.stringMessageToComponentNoPrefix("auth", "login_prompt"),
+            messages.stringMessageToComponentNoPrefix("auth", "registration_prompt"),
             messages.stringMessageToComponentNoPrefix("auth", "password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "repeat_password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
