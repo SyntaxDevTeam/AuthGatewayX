@@ -2854,3 +2854,15 @@ wygaśnięcie albo rozbieżność kończą połączenie. Moduł korzysta z
 Nie jest to jeszcze kompletna integracja proxy-backend. Następny etap musi przekazać
 zweryfikowany principal premium do Paper przez uwierzytelniony, odporny na replay kanał.
 Zwykła wiadomość pluginowa bez podpisu nie może zdejmować izolacji PRE_AUTH.
+
+## 23. Aktualny priorytet rozwoju
+
+Dalszy rozwój został skierowany na Paper/Purpur/Folia standalone oraz serwery
+backendowe. Moduł Velocity pozostaje odseparowanym artefaktem WIP; rozszerzanie proxy i
+kanału proxy-backend jest odłożone do późniejszego etapu.
+
+Runtime Paper posiada teraz admission control dla PRE_AUTH. Konfigurowalny limit jest
+rezerwowany przed utworzeniem sesji, a lease zwalniany po aktywacji, disconnect lub
+błędzie wejścia. Natywny dialog blokuje równoległe submitowanie wielu operacji Argon2
+przez jednego gracza i pokazuje feedback przez action bar dla błędnych danych, blokady,
+rate-limitera, niezgodnych haseł oraz konfliktów rejestracji.

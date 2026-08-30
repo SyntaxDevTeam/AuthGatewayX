@@ -564,3 +564,11 @@ Wyłącznie jednoznaczny brak profilu pozwala przejść do formularza offline.
 Connection flood limiter działa wcześniej niż lookup Mojang i posiada limity per-IP,
 globalny oraz liczby śledzonych adresów. Pełne logowanie premium pozostaje zadaniem
 adaptera Velocity i nie jest zastępowane niebezpiecznym fallbackiem w module Paper.
+
+# 20. Admission control PRE_AUTH
+
+`PreAuthAdmission` opiera się na `PreAuthCapacity` i przechowuje pojedynczy lease per
+UUID połączenia. Limit jest sprawdzany przed utworzeniem sesji i uruchomieniem UI.
+Lease jest zwalniany przy `PRE_AUTH -> ACTIVE`, disconnect lub błędzie tworzenia sesji.
+Kontroler dialogów dodatkowo dopuszcza najwyżej jedną kosztowną operację hasłową per
+gracz, co ogranicza spam custom-clickami i tworzenie równoległych zadań Argon2.

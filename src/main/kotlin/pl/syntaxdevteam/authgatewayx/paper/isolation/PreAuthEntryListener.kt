@@ -13,12 +13,18 @@ import java.time.Clock
 class PreAuthEntryListener(
     private val sessions: SessionRegistry,
     private val isolation: PreAuthIsolationManager,
+    private val admission: PreAuthAdmission,
+    private val capacityMessage: net.kyori.adventure.text.Component,
     private val clock: Clock = Clock.systemUTC(),
     private val onEntered: (org.bukkit.entity.Player) -> Unit = {},
 ) : Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     fun onJoin(event: PlayerJoinEvent) {
         val player = event.player
+        if (!admission.acquire(player.uniqueId)) {
+            player.kick(capacityMessage)
+            return
+        }
         val connectionId = ConnectionId(player.uniqueId)
         sessions.disconnect(connectionId)
         val created = sessions.create(AuthSession.connecting(
@@ -27,7 +33,11 @@ class PreAuthEntryListener(
             sourceAddress = player.address.address,
             createdAt = clock.instant(),
         ))
-        check(created) { "Failed to create PRE_AUTH session for ${player.uniqueId}" }
+        if (!created) {
+            admission.release(player.uniqueId)
+            player.kick(capacityMessage)
+            return
+        }
         sessions.enterPreAuth(connectionId)
         isolation.enter(player)
         onEntered(player)

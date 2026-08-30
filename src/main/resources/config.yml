@@ -7,6 +7,7 @@ premium:
     maximum-cache-size: 50000
 authentication:
   timeout-seconds: 120
+  maximum-pre-auth-players: 500
   password:
     minimum-length: 8
     maximum-length: 128

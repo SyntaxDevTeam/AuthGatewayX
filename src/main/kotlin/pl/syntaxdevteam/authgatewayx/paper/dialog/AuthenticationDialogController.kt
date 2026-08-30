@@ -33,6 +33,13 @@ data class AuthenticationDialogText(
     val repeatPasswordLabel: Component,
     val submitLabel: Component,
     val cancelLabel: Component,
+    val passwordMismatch: Component,
+    val invalidCredentials: Component,
+    val accountLocked: Component,
+    val rateLimited: Component,
+    val accountExists: Component,
+    val identityConflict: Component,
+    val internalFailure: Component,
 )
 
 class AuthenticationDialogController(
@@ -41,6 +48,7 @@ class AuthenticationDialogController(
     private val text: AuthenticationDialogText,
 ) : Listener {
     private val expectedForms = ConcurrentHashMap<UUID, FormType>()
+    private val submissions = ConcurrentHashMap.newKeySet<UUID>()
 
     fun showLogin(player: Player) {
         expectedForms[player.uniqueId] = FormType.LOGIN
@@ -74,29 +82,43 @@ class AuthenticationDialogController(
         val password = response.getText(PASSWORD_KEY)?.toCharArray() ?: return
         val context = context(player)
 
-        val outcome = if (type == FormType.REGISTER) {
+        if (type == FormType.REGISTER) {
             val repeated = response.getText(REPEAT_PASSWORD_KEY)?.toCharArray()
             if (repeated == null || !PasswordConfirmation.matches(password, repeated)) {
                 password.fill('\u0000')
                 repeated?.fill('\u0000')
-                scheduler.entity(player, Runnable { showRegistration(player) })
+                scheduler.entity(player, Runnable { player.sendActionBar(text.passwordMismatch); showRegistration(player) })
                 return
             }
             repeated.fill('\u0000')
-            handler.submitRegistration(context, password)
-        } else {
-            handler.submitLogin(context, password)
+        }
+        if (!submissions.add(player.uniqueId)) {
+            password.fill('\u0000')
+            return
+        }
+        val outcome = try {
+            if (type == FormType.REGISTER) handler.submitRegistration(context, password)
+            else handler.submitLogin(context, password)
+        } catch (_: Throwable) {
+            submissions.remove(player.uniqueId)
+            password.fill('\u0000')
+            player.sendActionBar(text.internalFailure)
+            if (type == FormType.REGISTER) showRegistration(player) else showLogin(player)
+            return
         }
 
         outcome.whenComplete { result, failure ->
             scheduler.entity(player, Runnable {
+                submissions.remove(player.uniqueId)
                 if (!player.isOnline) return@Runnable
                 if (failure == null && result == AuthenticationFormResult.AUTHENTICATED) {
                     expectedForms.remove(player.uniqueId)
                     player.closeDialog()
                 } else if (type == FormType.LOGIN) {
+                    player.sendActionBar(if (failure == null) feedback(result) else text.internalFailure)
                     showLogin(player)
                 } else {
+                    player.sendActionBar(if (failure == null) feedback(result) else text.internalFailure)
                     showRegistration(player)
                 }
             })
@@ -106,6 +128,7 @@ class AuthenticationDialogController(
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
         expectedForms.remove(event.player.uniqueId)
+        submissions.remove(event.player.uniqueId)
     }
 
     private fun context(player: Player) = AuthenticationFormContext(
@@ -136,6 +159,15 @@ class AuthenticationDialogController(
     }
 
     private enum class FormType { LOGIN, REGISTER }
+
+    private fun feedback(result: AuthenticationFormResult?): Component = when (result) {
+        AuthenticationFormResult.INVALID_CREDENTIALS -> text.invalidCredentials
+        AuthenticationFormResult.ACCOUNT_LOCKED -> text.accountLocked
+        AuthenticationFormResult.RATE_LIMITED -> text.rateLimited
+        AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS -> text.accountExists
+        AuthenticationFormResult.IDENTITY_CONFLICT -> text.identityConflict
+        else -> text.internalFailure
+    }
 
     companion object {
         private const val PASSWORD_KEY = "password"

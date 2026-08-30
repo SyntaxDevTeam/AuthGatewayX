@@ -24,6 +24,7 @@ class PreAuthIsolationListener(
     private val access: PreAuthAccess,
     private val isolation: PreAuthIsolationManager,
     private val sessions: SessionRegistry,
+    private val admission: PreAuthAdmission,
 ) : Listener {
     private fun blocked(player: Player) = access.isPreAuth(player.uniqueId)
 
@@ -100,6 +101,7 @@ class PreAuthIsolationListener(
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
         isolation.forget(event.player.uniqueId)
+        admission.release(event.player.uniqueId)
         sessions.disconnect(ConnectionId(event.player.uniqueId))
     }
 }

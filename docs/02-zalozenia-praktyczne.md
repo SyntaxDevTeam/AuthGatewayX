@@ -392,3 +392,15 @@ Gracz jest invulnerable, bez kolizji i pickupów oraz wzajemnie ukryty względem
 aktywnych. Zmiany player state i timeout korzystają z EntityScheduler. Oryginalne flagi
 są przywracane dopiero po atomowym `PRE_AUTH -> ACTIVE`. Disconnect usuwa sesję i
 snapshot kwarantanny.
+
+## 15. Limit i feedback PRE_AUTH
+
+Liczba jednoczesnych graczy oczekujących na uwierzytelnienie jest ograniczona przez
+`authentication.maximum-pre-auth-players`. Miejsce jest rezerwowane przed utworzeniem
+sesji i zwalniane dokładnie raz po aktywacji albo disconnect. Brak miejsca kończy
+połączenie przed uruchomieniem storage, HTTP i Argon2.
+
+Formularz nie przyjmuje równoległych submitów tego samego gracza. Wynik błędnego hasła,
+blokady, rate-limitera, niezgodnego potwierdzenia lub konfliktu rejestracji jest
+wyświetlany jako action bar i formularz otwiera się ponownie. Hasło nadal nie trafia do
+czatu ani komendy.

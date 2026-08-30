@@ -13,6 +13,7 @@ import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationManager
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.SessionPreAuthAccess
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeReadiness
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeState
@@ -90,6 +91,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         messages: MessageHandler, scheduler: PaperPlatformScheduler, sessions: InMemorySessionRegistry,
         passwordExecutor: BoundedTaskExecutor, mojangExecutor: BoundedTaskExecutor) {
         val access = SessionPreAuthAccess(sessions)
+        val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
         val isolation = PreAuthIsolationManager(this, scheduler, access, positive("authentication.timeout-seconds") * 20L,
             messages.stringMessageToComponentNoPrefix("auth", "timeout"))
         val login = LoginService(storage, hasher, passwordExecutor,
@@ -97,14 +99,24 @@ class AuthGatewayXPaper : JavaPlugin() {
             LockoutPolicy(positive("authentication.lockout.attempts"), Duration.ofSeconds(positive("authentication.lockout.duration-seconds").toLong())))
         val registration = RegistrationService(storage, hasher, passwordExecutor,
             PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")))
-        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = isolation)
+        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
+            admission.release(context.connectionId.value)
+            isolation.activated(context)
+        })
         val dialogs = AuthenticationDialogController(coordinator, scheduler, AuthenticationDialogText(
             messages.stringMessageToComponentNoPrefix("auth", "login_title"),
             messages.stringMessageToComponentNoPrefix("auth", "registration_title"),
             messages.stringMessageToComponentNoPrefix("auth", "password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "repeat_password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
-            messages.stringMessageToComponentNoPrefix("auth", "cancel_label")))
+            messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "password_mismatch"),
+            messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+            messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+            messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+            messages.stringMessageToComponentNoPrefix("auth", "account_exists"),
+            messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+            messages.stringMessageToComponentNoPrefix("auth", "internal_failure")))
         val premiumLookup = MojangProfileLookup(
             mojangExecutor,
             Duration.ofMillis(positive("premium.lookup.timeout-millis").toLong()),
@@ -119,8 +131,12 @@ class AuthGatewayXPaper : JavaPlugin() {
             lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
-        server.pluginManager.registerEvents(PreAuthIsolationListener(access, isolation, sessions), this)
-        server.pluginManager.registerEvents(PreAuthEntryListener(sessions, isolation, onEntered = router::route), this)
+        server.pluginManager.registerEvents(PreAuthIsolationListener(access, isolation, sessions, admission), this)
+        server.pluginManager.registerEvents(PreAuthEntryListener(
+            sessions, isolation, admission,
+            messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
+            onEntered = router::route,
+        ), this)
     }
 
     private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
