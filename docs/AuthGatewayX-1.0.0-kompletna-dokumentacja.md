@@ -1122,6 +1122,18 @@ JDBC, Mojang HTTP i Argon2id nie mogą wykonywać się na Global Region Schedule
 
 Pełny opis znajduje się w `06-standard-wdrozeniowy-syntaxdevteam-paper-folia.md`.
 
+## 19. Stan implementacji — fundament domenowy
+
+Pierwszy etap implementacji wydziela niezależny od platformy moduł
+`authgatewayx-domain`. Moduł zawiera modele konta i sesji, walidację nazw oraz testowane
+przejścia stanów połączenia. Reguły domenowe zabraniają aktywowania tożsamości `MOJANG`
+hasłem offline, wymagają kompletu zweryfikowanych danych dla stanu `ACTIVE` i traktują
+`DISCONNECTED` jako stan terminalny z idempotentnym rozłączeniem.
+
+Nie oznacza to jeszcze ukończenia pozycji `session management` ani publicznego API z
+checklisty 1.0.0: cache, storage, ochrona współbieżnych logowań i adaptery platformowe
+pozostają do wdrożenia.
+
 ---
 
 # AuthGatewayX 1.0.0 — bezpieczeństwo, wydajność i integracje

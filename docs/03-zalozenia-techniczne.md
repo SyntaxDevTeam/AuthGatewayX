@@ -495,3 +495,20 @@ AsyncScheduler        -> I/O i praca poza tickiem
 JDBC, Mojang HTTP i Argon2id nie mogą wykonywać się na Global Region Scheduler.
 
 Pełny opis znajduje się w `06-standard-wdrozeniowy-syntaxdevteam-paper-folia.md`.
+
+## 19. Stan implementacji — fundament domenowy
+
+Pierwszy etap implementacji wydziela moduł `authgatewayx-domain`, który nie zależy od
+API Paper, Bukkit ani Velocity. Zawiera on:
+
+- `AccountId`, `AccountUsername`, `AuthAccount`, `IdentityType` i `AccountState`,
+- `ConnectionId`, `AuthSession`, `ConnectionState` i `AuthenticationMethod`,
+- walidację formatu nazwy przed uruchomieniem kosztownych elementów pipeline'u,
+- jawne i testowane przejścia `CONNECTING -> PRE_AUTH -> ACTIVE -> DISCONNECTED`,
+- bezpośrednie `CONNECTING -> ACTIVE` wyłącznie jako ścieżkę zweryfikowanej tożsamości,
+- inwariant zabraniający aktywacji tożsamości `MOJANG` metodą hasłową,
+- idempotentne przejście do `DISCONNECTED`.
+
+Ten etap nie implementuje jeszcze session cache, storage ani współbieżnej koordynacji
+logowań. Odpowiada wyłącznie za niezmienne modele i reguły domenowe, na których będą
+budowane serwisy auth oraz adaptery Paper/Velocity.

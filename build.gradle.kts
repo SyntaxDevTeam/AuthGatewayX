@@ -11,6 +11,7 @@ repositories {
 
 dependencies {
     paperweight.paperDevBundle(libs.versions.paper.api.get())
+    implementation(project(":authgatewayx-domain"))
     implementation(libs.kotlin.stdlib)
 }
 
