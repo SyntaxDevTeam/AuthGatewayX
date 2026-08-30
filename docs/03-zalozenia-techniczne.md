@@ -496,7 +496,7 @@ JDBC, Mojang HTTP i Argon2id nie mogą wykonywać się na Global Region Schedule
 
 Pełny opis znajduje się w `06-standard-wdrozeniowy-syntaxdevteam-paper-folia.md`.
 
-## 19. Stan implementacji — fundament domenowy
+## 19. Stan implementacji — fundament domenowy i bezpieczeństwa
 
 Pierwszy etap implementacji wydziela moduł `authgatewayx-domain`, który nie zależy od
 API Paper, Bukkit ani Velocity. Zawiera on:
@@ -509,6 +509,26 @@ API Paper, Bukkit ani Velocity. Zawiera on:
 - inwariant zabraniający aktywacji tożsamości `MOJANG` metodą hasłową,
 - idempotentne przejście do `DISCONNECTED`.
 
-Ten etap nie implementuje jeszcze session cache, storage ani współbieżnej koordynacji
-logowań. Odpowiada wyłącznie za niezmienne modele i reguły domenowe, na których będą
-budowane serwisy auth oraz adaptery Paper/Velocity.
+Pierwsza część etapu nie implementowała jeszcze session cache, storage ani
+współbieżnej koordynacji logowań. Dostarczyła niezmienne modele i reguły domenowe, na
+których następnie zbudowano serwisy auth oraz adaptery platformowe.
+
+Kolejny etap dodał moduły `authgatewayx-api`, `authgatewayx-auth`,
+`authgatewayx-security` i `authgatewayx-integrations`. Aktualnie dostępne są:
+
+- `AuthGatewayApi` jako kontrakt publiczny bez zależności od platformy,
+- `InMemorySessionRegistry` z atomowym przejściem sesji oraz blokadą dwóch aktywnych
+  sesji tego samego `account_id`,
+- `PremiumLoginPolicy`, która dla chronionej nazwy zawsze kończy nieudane Mojang auth
+  decyzją `DENY_PREMIUM_AUTHENTICATION_FAILED`, bez ścieżki offline,
+- zgodne z serwerem offline UUID generowane przez `OfflineIdentity`,
+- per-IP i globalny token bucket, ograniczenie liczby śledzonych adresów oraz limit
+  równoczesnych sesji PRE_AUTH,
+- `BoundedTaskExecutor` z ograniczoną kolejką i jawnym odrzuceniem po przeciążeniu,
+- kontrakty `UsernamePolicyProvider`, `PunishmentProvider` i `SecurityAuditSink`,
+- adapter schedulerów Paper/Folia rozróżniający async, global, entity i region.
+
+Elementy security są na tym etapie prymitywami używanymi przez przyszły login
+pipeline. Nie należy uznawać anti-flood, API ani session management za ukończone dla
+1.0.0, dopóki nie zostaną spięte z rzeczywistym wejściem połączenia, storage i
+adapterami platformowymi.

@@ -11,7 +11,10 @@ repositories {
 
 dependencies {
     paperweight.paperDevBundle(libs.versions.paper.api.get())
+    implementation(project(":authgatewayx-api"))
+    implementation(project(":authgatewayx-auth"))
     implementation(project(":authgatewayx-domain"))
+    implementation(project(":authgatewayx-security"))
     implementation(libs.kotlin.stdlib)
 }
 
@@ -34,5 +37,9 @@ tasks {
         filesMatching("paper-plugin.yml") {
             expand(props)
         }
+    }
+
+    shadowJar {
+        duplicatesStrategy = DuplicatesStrategy.INCLUDE
     }
 }

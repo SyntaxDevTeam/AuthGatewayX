@@ -3,11 +3,12 @@ description: $description
 prefix: AuthGatewayX
 version: '${version}'
 
-main: pl.syntaxdevteam.agx.AuthGatewayX
-bootstrapper: pl.syntaxdevteam.agx.AuthGatewayXBootstrap
-loader: pl.syntaxdevteam.agx.AuthGatewayXLoader
+main: pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
+bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
 api-version: '26.2'
 load: STARTUP
+has-open-classloader: false
 
 authors: [ SyntaxDevTeam ]
 website: https://syntaxdevteam.pl

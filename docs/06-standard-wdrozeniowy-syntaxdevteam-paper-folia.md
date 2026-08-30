@@ -884,3 +884,27 @@ Testy muszą objąć:
 - [ ] Wszystkie cache mają size limit i TTL.
 - [ ] Shutdown zamyka wszystkie zasoby należące do AuthGatewayX.
 - [ ] Security path działa niezależnie od StatsCollector/update checker.
+
+# 21. Bieżący stan implementacji lifecycle
+
+Klasy modułu Paper używają docelowej przestrzeni nazw:
+
+```text
+pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
+pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
+pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+```
+
+`PaperPlatformScheduler` posiada osobne operacje async, global, entity i region.
+Nie oznacza to jeszcze potwierdzonej zgodności platformowej; checkboxy schedulerów
+pozostają niezaznaczone do czasu testów Paper/Folia.
+
+Do chwili ukończenia adapterów uwierzytelniania `AuthenticationReadinessListener`
+utrzymuje start w stanie `DEGRADED` i odrzuca nowe logowania. Jest to świadoma polityka
+fail-closed: nie wolno oznaczyć runtime jako `READY`, zanim storage, premium/offline
+decision pipeline, PRE_AUTH isolation oraz wymagane integracje startowe nie zostaną
+zainicjalizowane.
+
+Loader jest już jawnie podłączony w `paper-plugin.yml`, ale nie ładuje jeszcze bibliotek
+runtime. Wersje release SyntaxCore i MessageHandler muszą zostać ustalone przed dodaniem
+`paper-libraries.yml`; nie wolno wypełniać loadera niesprawdzonymi współrzędnymi.

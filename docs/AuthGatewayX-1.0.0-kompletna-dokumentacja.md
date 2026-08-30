@@ -1122,7 +1122,7 @@ JDBC, Mojang HTTP i Argon2id nie mogą wykonywać się na Global Region Schedule
 
 Pełny opis znajduje się w `06-standard-wdrozeniowy-syntaxdevteam-paper-folia.md`.
 
-## 19. Stan implementacji — fundament domenowy
+## 19. Stan implementacji — fundament domenowy i bezpieczeństwa
 
 Pierwszy etap implementacji wydziela niezależny od platformy moduł
 `authgatewayx-domain`. Moduł zawiera modele konta i sesji, walidację nazw oraz testowane
@@ -1133,6 +1133,13 @@ hasłem offline, wymagają kompletu zweryfikowanych danych dla stanu `ACTIVE` i 
 Nie oznacza to jeszcze ukończenia pozycji `session management` ani publicznego API z
 checklisty 1.0.0: cache, storage, ochrona współbieżnych logowań i adaptery platformowe
 pozostają do wdrożenia.
+
+Kolejny etap wprowadza moduły `authgatewayx-api`, `authgatewayx-auth`,
+`authgatewayx-security` i `authgatewayx-integrations`. Zaimplementowano atomowy rejestr
+sesji z ochroną pojedynczej aktywnej sesji konta, politykę premium bez fallbacku,
+offline UUID, bounded executor, per-IP/global token bucket, ograniczoną kardynalność
+stanu IP, limit PRE_AUTH oraz kontrakty CleanerX/PunisherX/audytu. Są to przetestowane
+prymitywy; checkboxy funkcji 1.0.0 pozostają otwarte do czasu integracji całego flow.
 
 ---
 
@@ -2724,3 +2731,13 @@ Testy muszą objąć:
 - [ ] Wszystkie cache mają size limit i TTL.
 - [ ] Shutdown zamyka wszystkie zasoby należące do AuthGatewayX.
 - [ ] Security path działa niezależnie od StatsCollector/update checker.
+
+## 21. Bieżący stan implementacji lifecycle Paper
+
+Główna klasa, bootstrap i loader zostały przeniesione do docelowej przestrzeni nazw
+`pl.syntaxdevteam.authgatewayx.paper`. `PaperPlatformScheduler` jawnie rozdziela async,
+global, entity i region ownership. Do czasu ukończenia krytycznych adapterów auth
+runtime pozostaje w stanie `DEGRADED`, a `AuthenticationReadinessListener` odrzuca
+logowania zgodnie z polityką fail-closed. Loader nie pobiera jeszcze SyntaxCore ani
+MessageHandler, ponieważ ich kontrolowane współrzędne release nie zostały dotąd
+ustalone; nie dodano zależności SNAPSHOT na podstawie przypuszczenia.
