@@ -577,3 +577,15 @@ implementuje `SecurityAuditSink`; zapis obejmuje wyłącznie identyfikatory, nic
 typ zdarzenia i reason code. Nie zapisuje hasła ani hasha. Komendy Paper i aktywacja
 sesji pozostają do integracji, dlatego `/login`, account lockout i security audit log
 nie są jeszcze oznaczone jako kompletne w checkliście wydania.
+
+## 22. Stan implementacji — lookup premium i wejście Paper
+
+`MojangProfileLookup` używa Java HttpClient wyłącznie na osobnym bounded executorze.
+Rozróżnia `PREMIUM`, `NOT_PREMIUM` i `UNAVAILABLE`; tylko potwierdzony brak profilu
+otwiera ścieżkę hasłową offline. Cache ma limit rozmiaru, osobne TTL positive/negative,
+invalidację i współdzielenie jednego requestu dla równoległych prób tego samego nicku.
+
+Paper standalone nie wykonuje jeszcze Mojang session authentication, ponieważ poprawna
+realizacja wymaga kontroli fazy login przed utworzeniem gracza. Do czasu adaptera
+Velocity profile premium jest odrzucany bez fallbacku offline. `ConnectionFloodGate`
+działa już w `AsyncPlayerPreLoginEvent`, przed HTTP, JDBC i Argon2.

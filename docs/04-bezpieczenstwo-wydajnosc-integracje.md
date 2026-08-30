@@ -553,3 +553,14 @@ Licznik błędów jest zwiększany atomowo w storage. Domyślny próg domenowy t
 blokada trwa 10 minut. Pomyślne logowanie zeruje licznik oraz `locked_until`. Próby
 odrzucone przez limiter nie wykonują JDBC ani Argon2 i również zerują wejściową tablicę
 hasła.
+
+# 19. Zaimplementowana ochrona nicków na Paper standalone
+
+Przed lookupem konta offline wykonywany jest ograniczony i deduplikowany lookup profilu
+Minecraft Services. Odpowiedź potwierdzająca konto premium zawsze kończy połączenie;
+timeout, przeciążenie kolejki, 429, 5xx i błąd transportu również kończą się DENY.
+Wyłącznie jednoznaczny brak profilu pozwala przejść do formularza offline.
+
+Connection flood limiter działa wcześniej niż lookup Mojang i posiada limity per-IP,
+globalny oraz liczby śledzonych adresów. Pełne logowanie premium pozostaje zadaniem
+adaptera Velocity i nie jest zastępowane niebezpiecznym fallbackiem w module Paper.

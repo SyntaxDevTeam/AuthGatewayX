@@ -931,12 +931,16 @@ logowania lub rejestracji. Zewnętrzne biblioteki są dostarczane przez `PluginL
 `paper-libraries.yml`; snapshoty SyntaxCore/MessageHandler są tymczasowo dopuszczone
 wyłącznie dla wersji WIP i wymagają zastąpienia wydaniami release przed stabilnym 1.0.0.
 
-Do czasu wdrożenia pełnego resolvera Mojang/premium pionowy wycinek nie dopuszcza
-dowolnych nicków offline. Tymczasowa `testing.offline-username-allowlist` jest domyślnie
-pusta i pozwala operatorowi wskazać wyłącznie kontrolowane konta pierwszego testu.
-Pozostałe nicki są odrzucane przed lookupem konta. Ta bramka nie jest docelowym
-zamiennikiem ochrony nicków premium i musi zostać usunięta wraz z wdrożeniem kompletnego
-identity decision pipeline.
+Paper standalone wykonuje ograniczony bounded executorem lookup Minecraft Services
+przed wejściem do ścieżki offline. Potwierdzony brak profilu dopuszcza formularz
+offline, istniejący profil premium jest odrzucany bez fallbacku, a timeout lub awaria
+usługi kończy się DENY. Lookup ma bounded cache, oddzielne positive/negative TTL i
+deduplikację zapytań per nick. Pełne uwierzytelnienie sesji premium nadal wymaga adaptera
+fazy login po stronie Velocity; do tego czasu Paper standalone nie próbuje udawać
+online authentication po zakończeniu handshake.
+
+`ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage,
+Mojang HTTP i Argon2. Dzięki temu droższe etapy nie są pierwszą linią obsługi floodu.
 
 # 23. Implementacja PRE_AUTH isolation
 

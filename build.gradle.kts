@@ -19,6 +19,7 @@ dependencies {
     implementation(project(":authgatewayx-security"))
     implementation(project(":authgatewayx-storage-jdbc"))
     implementation(project(":authgatewayx-storage-api"))
+    implementation(project(":authgatewayx-integrations"))
     implementation(libs.kotlin.stdlib)
     compileOnly("pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT")
     compileOnly("pl.syntaxdevteam:messageHandler-paper:1.2.2-R0.4-SNAPSHOT")

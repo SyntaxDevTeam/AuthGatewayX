@@ -3,5 +3,8 @@ plugins {
 }
 
 repositories { mavenCentral() }
-dependencies { api(project(":authgatewayx-domain")) }
+dependencies {
+    api(project(":authgatewayx-domain"))
+    implementation(project(":authgatewayx-security"))
+}
 kotlin { jvmToolchain(25) }

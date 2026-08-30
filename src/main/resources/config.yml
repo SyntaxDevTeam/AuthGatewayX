@@ -1,7 +1,10 @@
 language: "PL"
-testing:
-  # Temporary first-server-test gate. Keep empty outside a controlled test server.
-  offline-username-allowlist: []
+premium:
+  lookup:
+    timeout-millis: 3000
+    positive-ttl-seconds: 21600
+    negative-ttl-seconds: 300
+    maximum-cache-size: 50000
 authentication:
   timeout-seconds: 120
   password:
@@ -22,3 +25,5 @@ executors:
   storage-queue: 256
   password-threads: 2
   password-queue: 64
+  mojang-threads: 4
+  mojang-queue: 128

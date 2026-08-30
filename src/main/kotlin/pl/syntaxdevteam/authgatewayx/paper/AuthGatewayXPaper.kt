@@ -20,6 +20,7 @@ import pl.syntaxdevteam.authgatewayx.paper.listener.AuthenticationReadinessListe
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.flood.FloodLimit
+import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
 import pl.syntaxdevteam.authgatewayx.security.login.LoginAttemptGate
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2Parameters
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2PasswordHasher
@@ -27,6 +28,7 @@ import pl.syntaxdevteam.authgatewayx.storage.jdbc.SqliteAccountStorage
 import pl.syntaxdevteam.core.SyntaxCore
 import pl.syntaxdevteam.message.MessageHandler
 import pl.syntaxdevteam.message.SyntaxMessages
+import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
 import java.time.Duration
 
 class AuthGatewayXPaper : JavaPlugin() {
@@ -35,7 +37,10 @@ class AuthGatewayXPaper : JavaPlugin() {
 
     override fun onEnable() {
         saveDefaultConfig()
-        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness), this)
+        val floodGate = ConnectionFloodGate(
+            FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
+        )
+        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, floodGate), this)
         if (server.onlineMode) {
             readiness.force(RuntimeState.FAILED)
             logger.severe("Paper standalone requires online-mode=false; authentication remains fail-closed")
@@ -44,18 +49,19 @@ class AuthGatewayXPaper : JavaPlugin() {
         try {
             SyntaxCore.init(this, versionType = "paper")
             SyntaxMessages.initialize(this)
-            startRuntime(SyntaxMessages.messages)
+            startRuntime(SyntaxMessages.messages, floodGate)
         } catch (failure: Throwable) {
             fail("AuthGatewayX bootstrap failed", failure)
         }
     }
 
-    private fun startRuntime(messages: MessageHandler) {
+    private fun startRuntime(messages: MessageHandler, floodGate: ConnectionFloodGate) {
         val scheduler = PaperPlatformScheduler(this)
         val sessions = InMemorySessionRegistry()
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
-        val components = RuntimeComponents(sessions, storageExecutor, passwordExecutor)
+        val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
+        val components = RuntimeComponents(sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate)
         runtime = components
         val hasher = Argon2PasswordHasher(Argon2Parameters(
             positive("authentication.password.argon2.iterations"), positive("authentication.password.argon2.memory-kib"),
@@ -73,7 +79,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             scheduler.global(Runnable {
                 if (!isEnabled || readiness.current() == RuntimeState.STOPPING) return@Runnable
                 if (failure != null) return@Runnable fail("Storage migration or password subsystem failed", failure)
-                runCatching { installAuthentication(initialized.first, initialized.second, hasher, messages, scheduler, sessions, passwordExecutor) }
+                runCatching { installAuthentication(initialized.first, initialized.second, hasher, messages, scheduler, sessions, passwordExecutor, mojangExecutor) }
                     .onSuccess { readiness.force(RuntimeState.READY); logger.info("AuthGatewayX authentication runtime is READY") }
                     .onFailure { fail("Authentication adapters failed to install", it) }
             })
@@ -82,7 +88,7 @@ class AuthGatewayXPaper : JavaPlugin() {
 
     private fun installAuthentication(storage: SqliteAccountStorage, dummyHash: String, hasher: Argon2PasswordHasher,
         messages: MessageHandler, scheduler: PaperPlatformScheduler, sessions: InMemorySessionRegistry,
-        passwordExecutor: BoundedTaskExecutor) {
+        passwordExecutor: BoundedTaskExecutor, mojangExecutor: BoundedTaskExecutor) {
         val access = SessionPreAuthAccess(sessions)
         val isolation = PreAuthIsolationManager(this, scheduler, access, positive("authentication.timeout-seconds") * 20L,
             messages.stringMessageToComponentNoPrefix("auth", "timeout"))
@@ -99,11 +105,18 @@ class AuthGatewayXPaper : JavaPlugin() {
             messages.stringMessageToComponentNoPrefix("auth", "repeat_password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
             messages.stringMessageToComponentNoPrefix("auth", "cancel_label")))
-        val allowedTestNames = config.getStringList("testing.offline-username-allowlist").map(String::lowercase).toSet()
+        val premiumLookup = MojangProfileLookup(
+            mojangExecutor,
+            Duration.ofMillis(positive("premium.lookup.timeout-millis").toLong()),
+            Duration.ofSeconds(positive("premium.lookup.positive-ttl-seconds").toLong()),
+            Duration.ofSeconds(positive("premium.lookup.negative-ttl-seconds").toLong()),
+            positive("premium.lookup.maximum-cache-size"),
+        )
         val router = AuthenticationDialogRouter(
             storage, dialogs, access, scheduler,
-            offlineTestAllowed = { it.lowercase() in allowedTestNames },
-            identityUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_unavailable"),
+            premiumLookup = premiumLookup,
+            premiumAuthenticationRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
+            lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
         server.pluginManager.registerEvents(PreAuthIsolationListener(access, isolation, sessions), this)
@@ -117,7 +130,8 @@ class AuthGatewayXPaper : JavaPlugin() {
 }
 
 private class RuntimeComponents(val sessions: InMemorySessionRegistry, val storageExecutor: BoundedTaskExecutor,
-    val passwordExecutor: BoundedTaskExecutor) : AutoCloseable {
+    val passwordExecutor: BoundedTaskExecutor, val mojangExecutor: BoundedTaskExecutor,
+    val floodGate: ConnectionFloodGate) : AutoCloseable {
     @Volatile var storage: SqliteAccountStorage? = null
-    override fun close() { sessions.clear(); storage?.close(); storageExecutor.close(); passwordExecutor.close() }
+    override fun close() { sessions.clear(); storage?.close(); storageExecutor.close(); passwordExecutor.close(); mojangExecutor.close(); floodGate.clear() }
 }

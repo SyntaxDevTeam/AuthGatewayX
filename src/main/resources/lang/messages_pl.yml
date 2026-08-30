@@ -8,4 +8,5 @@ auth:
   cancel_label: "Wróć"
   timeout: "<red>Przekroczono czas uwierzytelnienia.</red>"
   startup_failed: "<red>Uwierzytelnianie jest chwilowo niedostępne.</red>"
-  identity_unavailable: "<red>Ten nick nie został dopuszczony do kontrolowanego testu offline.</red>"
+  premium_authentication_required: "<red>Ten nick należy do konta premium. Połącz się przez skonfigurowany gateway premium.</red>"
+  mojang_unavailable: "<red>Nie można bezpiecznie zweryfikować statusu nicku. Spróbuj ponownie później.</red>"

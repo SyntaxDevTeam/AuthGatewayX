@@ -2822,7 +2822,18 @@ pipeline premium/proxy. Workflow BuildExplorer publikuje obecny artefakt jako `P
 i przed publikacją wykonuje `clean check shadowJar` oraz sprawdza deskryptor i obecność
 implementacji storage w wynikowym JAR-ze.
 
-Pierwszy kontrolowany test offline wymaga jawnego wpisania nicku testowego do
-`testing.offline-username-allowlist`. Lista jest domyślnie pusta. Do czasu wdrożenia
-pełnego resolvera Mojang/premium wszystkie pozostałe nicki są odrzucane, dzięki czemu
-tymczasowy pionowy wycinek nie tworzy niekontrolowanego premium-to-offline fallbacku.
+Pionowy wycinek Paper standalone wykonuje przed pokazaniem formularza asynchroniczny
+lookup profilu w Minecraft Services. Status `PREMIUM` jest odrzucany z informacją o
+konieczności wejścia przez przyszły gateway premium; status `NOT_PREMIUM` przechodzi do
+logowania lub rejestracji offline. Timeout, przeciążenie bounded executora, błąd HTTP,
+429 i 5xx dają `UNAVAILABLE` oraz DENY — nigdy fallback offline.
+
+`MojangProfileLookup` posiada osobne TTL dla trafień pozytywnych i negatywnych,
+ograniczenie rozmiaru, invalidację i deduplikację równoległych lookupów tego samego
+nicku. Nie zastępuje to jeszcze właściwego Mojang session authentication: konta premium
+pozostają bezpiecznie zablokowane na Paper standalone do czasu wdrożenia fazy login po
+stronie Velocity. Tymczasowa allowlista testowa została usunięta.
+
+Connection flood gate jest podłączony do `AsyncPlayerPreLoginEvent` przed readiness i
+przed jakimkolwiek storage/HTTP/Argon2. Obowiązują limity per-IP, globalny oraz limit
+liczby śledzonych adresów.
