@@ -589,3 +589,18 @@ Paper standalone nie wykonuje jeszcze Mojang session authentication, ponieważ p
 realizacja wymaga kontroli fazy login przed utworzeniem gracza. Do czasu adaptera
 Velocity profile premium jest odrzucany bez fallbacku offline. `ConnectionFloodGate`
 działa już w `AsyncPlayerPreLoginEvent`, przed HTTP, JDBC i Argon2.
+
+## 23. Stan implementacji — selektor uwierzytelnienia Velocity
+
+Powstał osobny moduł `authgatewayx-velocity`. W `PreLoginEvent` wykonuje tani
+connection flood guard, walidację nazwy i asynchroniczny `MojangProfileLookup`, a
+następnie używa natywnego `forceOnlineMode()` dla profilu premium lub
+`forceOfflineMode()` dla potwierdzonego braku profilu. `UNAVAILABLE` zawsze oznacza
+DENY.
+
+Wybrany tryb jest zapisywany w ograniczonym rozmiarem i TTL rejestrze oczekujących
+połączeń. `LoginEvent` odbiera wpis dokładnie raz i sprawdza `Player.isOnlineMode`;
+brak wpisu, wygaśnięcie lub rozbieżność trybu kończą połączenie. Moduł inicjalizuje
+`ProxySyntaxCore` oraz MessageHandler-Velocity i ma niezależny fail-closed readiness.
+Przekazanie zweryfikowanej tożsamości premium do backendu Paper pozostaje następnym
+etapem i wymaga uwierzytelnionego kanału, nie zwykłej ufności do plugin message.

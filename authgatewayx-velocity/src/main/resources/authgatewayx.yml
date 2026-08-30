@@ -1,0 +1,12 @@
+premium:
+  lookup:
+    timeout-millis: 3000
+    positive-ttl-seconds: 21600
+    negative-ttl-seconds: 300
+    maximum-cache-size: 50000
+connections:
+  pending-ttl-seconds: 30
+  maximum-pending: 10000
+executors:
+  mojang-threads: 4
+  mojang-queue: 128

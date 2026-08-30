@@ -942,6 +942,21 @@ online authentication po zakończeniu handshake.
 `ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage,
 Mojang HTTP i Argon2. Dzięki temu droższe etapy nie są pierwszą linią obsługi floodu.
 
+# 24. Bieżący stan adaptera Velocity
+
+Moduł `authgatewayx-velocity` używa konstrukcji przez Guice oraz
+`ProxyInitializeEvent`. Inicjalizuje `ProxySyntaxCore.initVelocity(...)` i
+`SyntaxMessages.initialize(container, dataDirectory, logger)`, po czym rejestruje
+fail-closed listener. `PreLoginEvent` wybiera natywnie `forceOnlineMode()` lub
+`forceOfflineMode()` dopiero po limiterze i asynchronicznym lookupie polityki premium.
+
+Decyzja ma ograniczony rejestr z TTL i jest ponownie weryfikowana w `LoginEvent` wobec
+rzeczywistego `Player.isOnlineMode`. Shutdown zamyka executor oraz czyści rejestry.
+Artefakt kompiluje wspólne moduły domain/security/integrations, SyntaxCore i
+MessageHandler-Velocity. Nie oznaczono jeszcze pełnej integracji Velocity jako
+ukończonej, ponieważ brakuje zabezpieczonego przekazania principal do Paper i testu na
+uruchomionym proxy.
+
 # 23. Implementacja PRE_AUTH isolation
 
 `PreAuthEntryListener` tworzy i przełącza sesję do PRE_AUTH przy wejściu.

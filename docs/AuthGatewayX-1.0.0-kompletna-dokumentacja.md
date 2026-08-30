@@ -2837,3 +2837,20 @@ stronie Velocity. Tymczasowa allowlista testowa została usunięta.
 Connection flood gate jest podłączony do `AsyncPlayerPreLoginEvent` przed readiness i
 przed jakimkolwiek storage/HTTP/Argon2. Obowiązują limity per-IP, globalny oraz limit
 liczby śledzonych adresów.
+
+## 22. Bieżący stan modułu Velocity
+
+Dodano artefakt `authgatewayx-velocity`. Listener `PreLoginEvent` wykonuje connection
+flood guard, walidację nazwy i bounded lookup Minecraft Services. Następnie używa
+natywnego `forceOnlineMode()` dla kont premium oraz `forceOfflineMode()` dla
+potwierdzonych kont offline. Awaria lookupu pozostaje fail-closed.
+
+`PendingConnectionRegistry` ma limit rozmiaru i TTL. Decyzja jest konsumowana w
+`LoginEvent`, gdzie tryb jest porównywany z rzeczywistym `Player.isOnlineMode`; brak,
+wygaśnięcie albo rozbieżność kończą połączenie. Moduł korzysta z
+`ProxySyntaxCore.initVelocity` i MessageHandler-Velocity oraz zamyka własny executor na
+`ProxyShutdownEvent`.
+
+Nie jest to jeszcze kompletna integracja proxy-backend. Następny etap musi przekazać
+zweryfikowany principal premium do Paper przez uwierzytelniony, odporny na replay kanał.
+Zwykła wiadomość pluginowa bez podpisu nie może zdejmować izolacji PRE_AUTH.

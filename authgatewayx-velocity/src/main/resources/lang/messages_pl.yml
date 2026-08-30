@@ -1,0 +1,7 @@
+prefix: "<gradient:#55ffff:#5555ff>[<b>AuthGatewayX</b>]</gradient>"
+auth:
+  unavailable: "<red>Usługa uwierzytelniania nie jest gotowa. Spróbuj ponownie później.</red>"
+  rate_limited: "<red>Zbyt wiele prób połączenia. Spróbuj ponownie później.</red>"
+  invalid_username: "<red>Nieprawidłowa nazwa gracza.</red>"
+  mojang_unavailable: "<red>Nie można bezpiecznie sprawdzić statusu konta Mojang.</red>"
+  state_mismatch: "<red>Stan uwierzytelnienia połączenia jest nieprawidłowy.</red>"

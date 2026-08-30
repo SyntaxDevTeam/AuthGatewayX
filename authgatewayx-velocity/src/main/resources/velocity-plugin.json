@@ -1,0 +1,9 @@
+{
+  "id": "authgatewayx",
+  "name": "AuthGatewayX",
+  "version": "${version}",
+  "description": "Secure mixed-mode authentication gateway for Velocity",
+  "url": "https://syntaxdevteam.pl",
+  "authors": ["SyntaxDevTeam"],
+  "main": "pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity"
+}
