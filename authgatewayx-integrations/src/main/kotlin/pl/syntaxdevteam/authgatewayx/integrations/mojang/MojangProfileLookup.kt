@@ -82,7 +82,7 @@ class MojangProfileLookup(
         val response = client.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8))
         when (response.statusCode()) {
             200 -> parsePremiumUuid(response.body())
-                ?.let(MojangProfileLookupResult::Premium)
+                ?.let { MojangProfileLookupResult.Premium(it) }
                 ?: MojangProfileLookupResult.Unavailable
             204, 404 -> MojangProfileLookupResult.NotPremium
             else -> MojangProfileLookupResult.Unavailable
