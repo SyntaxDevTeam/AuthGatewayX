@@ -107,6 +107,30 @@ class SqliteAccountStorage(
                         it.executeUpdate()
                     }
                 }
+                val hasVersion4 = connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = 4").use {
+                    it.executeQuery().use { result -> result.next() }
+                }
+                if (!hasVersion4) {
+                    connection.createStatement().use { statement ->
+                        statement.executeUpdate("""CREATE TABLE registration_ip_slots (
+                            source_ip VARCHAR(45) NOT NULL,
+                            slot INTEGER NOT NULL,
+                            account_id VARCHAR(36) NOT NULL UNIQUE,
+                            PRIMARY KEY (source_ip, slot),
+                            FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+                        )""".trimIndent())
+                        statement.executeUpdate("""INSERT INTO registration_ip_slots(source_ip, slot, account_id)
+                            SELECT last_login_ip,
+                                   ROW_NUMBER() OVER (PARTITION BY last_login_ip ORDER BY created_at, id),
+                                   id
+                            FROM accounts
+                            WHERE identity_type = 'OFFLINE' AND last_login_ip IS NOT NULL""".trimIndent())
+                    }
+                    connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (4, ?)").use {
+                        it.setString(1, Instant.now().toString())
+                        it.executeUpdate()
+                    }
+                }
                 connection.commit()
             } catch (failure: Throwable) {
                 connection.rollback()
@@ -116,11 +140,21 @@ class SqliteAccountStorage(
     }
 
     override fun registerOffline(registration: OfflineRegistration): CompletionStage<RegistrationResult> = executor.submit {
-        try {
-            dataSource.connection.use { connection -> insertOffline(connection, registration) }
-        } catch (failure: SQLException) {
-            if (!isConstraintViolation(failure)) throw failure
-            dataSource.connection.use { connection ->
+        require(registration.maximumAccountsPerAddress > 0)
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                val created = insertOffline(connection, registration)
+                if (!claimRegistrationSlot(connection, registration)) {
+                    connection.rollback()
+                    RegistrationResult.AddressLimitReached
+                } else {
+                    connection.commit()
+                    created
+                }
+            } catch (failure: SQLException) {
+                connection.rollback()
+                if (!isConstraintViolation(failure)) throw failure
                 when {
                     exists(connection, "canonical_username", registration.username.canonical) -> RegistrationResult.UsernameAlreadyExists
                     exists(connection, "minecraft_uuid", registration.minecraftUuid.toString()) -> RegistrationResult.MinecraftUuidAlreadyExists
@@ -242,6 +276,19 @@ class SqliteAccountStorage(
             registration.accountId, registration.username, IdentityType.OFFLINE,
             registration.minecraftUuid, AccountState.REGISTERED, registration.createdAt, registration.createdAt,
         ))
+    }
+
+    private fun claimRegistrationSlot(connection: Connection, registration: OfflineRegistration): Boolean {
+        val sql = "INSERT OR IGNORE INTO registration_ip_slots(source_ip, slot, account_id) VALUES (?, ?, ?)"
+        connection.prepareStatement(sql).use { statement ->
+            for (slot in 1..registration.maximumAccountsPerAddress) {
+                statement.setString(1, registration.sourceAddress.hostAddress)
+                statement.setInt(2, slot)
+                statement.setString(3, registration.accountId.value.toString())
+                if (statement.executeUpdate() == 1) return true
+            }
+        }
+        return false
     }
 
     private fun exists(connection: Connection, column: String, value: String): Boolean {

@@ -16,12 +16,14 @@ data class OfflineRegistration(
     val passwordHash: String,
     val sourceAddress: InetAddress,
     val createdAt: Instant,
+    val maximumAccountsPerAddress: Int,
 )
 
 sealed interface RegistrationResult {
     data class Created(val account: AuthAccount) : RegistrationResult
     data object UsernameAlreadyExists : RegistrationResult
     data object MinecraftUuidAlreadyExists : RegistrationResult
+    data object AddressLimitReached : RegistrationResult
 }
 
 data class AccountCredentials(

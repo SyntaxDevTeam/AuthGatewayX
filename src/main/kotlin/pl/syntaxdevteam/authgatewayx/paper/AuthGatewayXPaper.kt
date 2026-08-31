@@ -131,7 +131,8 @@ class AuthGatewayXPaper : JavaPlugin() {
             LockoutPolicy(positive("authentication.lockout.attempts"), Duration.ofSeconds(positive("authentication.lockout.duration-seconds").toLong())))
         val registration = RegistrationService(storage, hasher, passwordExecutor,
             PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
-            attemptGate = registrationAttemptGate, auditSink = storage)
+            attemptGate = registrationAttemptGate, auditSink = storage,
+            maximumAccountsPerAddress = positive("anti-bot.registration-attempts.maximum-accounts-per-address"))
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)

@@ -416,8 +416,8 @@ Stan ma limit adresów, wygasa po okresie bezczynności i jest czyszczony przy s
 Parametry znajdują się w `anti-bot.username-burst`. Ten sam ograniczony stan zlicza
 rozłączenia następujące jeszcze w PRE_AUTH. Przekroczenie
 `anti-bot.reconnect-loop.maximum-pre-auth-disconnects` w oknie nakłada kwarantannę na
-kolejny reconnect. Wyjścia graczy ACTIVE nie są liczone. Ochrona nadużyć rejestracji
-i pełny behavioural scoring pozostają do wykonania.
+kolejny reconnect. Wyjścia graczy ACTIVE nie są liczone. Pełny behavioural scoring
+pozostaje do wykonania.
 
 ## 17. Ograniczenie prób rejestracji
 
@@ -427,6 +427,8 @@ liczbę śledzonych adresów oraz TTL nieaktywnego stanu. Odrzucenie zeruje wej�
 tablicę hasła, nie uruchamia kosztownej pracy i zapisuje zdarzenie `ANTI_BOT_DENY` z
 reason code `REGISTRATION_RATE_LIMITED`.
 
-Udana rejestracja zapisuje audit `REGISTER`. Ten etap ogranicza tempo prób, ale nie jest
-jeszcze trwałym limitem liczby kont utworzonych z IP; taki limit wymaga atomowego modelu
-storage odpornego na równoległe rejestracje i restart procesu.
+Udana rejestracja zapisuje audit `REGISTER`. SQLite posiada także trwały limit liczby
+kont utworzonych z IP. Konto i jeden z atomowych slotów adresu powstają w tej samej
+transakcji, więc równoległe próby nie przekraczają limitu, a restart go nie zeruje.
+Limit określa `anti-bot.registration-attempts.maximum-accounts-per-address`. Odmowa
+wycofuje insert konta i wraca jako neutralny feedback w Minecraft Dialog.

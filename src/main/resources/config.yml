@@ -14,6 +14,7 @@ anti-bot:
   reconnect-loop:
     maximum-pre-auth-disconnects: 5
   registration-attempts:
+    maximum-accounts-per-address: 3
     capacity: 3
     refill-tokens: 1
     refill-seconds: 60

@@ -19,7 +19,8 @@ obowiązuje nowsza, bardziej szczegółowa i jawnie uzasadniona decyzja.
 
 Projekt jest aktywnym `1.0.0-WIP`, a nie gotowym wydaniem. Istnieją fundament domenowy,
 SQLite, Argon2id, login i rejestracja offline, audit, limitery, Paper Dialog API,
-aktywna izolacja PRE_AUTH, bezpieczny lookup nazw premium oraz selektor trybu Velocity.
+aktywna izolacja PRE_AUTH, trwały limit rejestracji per IP, bezpieczny lookup nazw
+premium oraz selektor trybu Velocity.
 Otwarte pozostają między innymi testy serwerowe Paper/Purpur/Folia/Velocity, pełne
 uwierzytelnienie premium end-to-end, bezpieczny kanał proxy-backend, pozostałe backendy
 JDBC, kompletne anti-bot, integracje CleanerX/PunisherX i obserwowalność.

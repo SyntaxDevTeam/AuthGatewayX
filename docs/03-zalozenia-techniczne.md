@@ -631,4 +631,9 @@ jest mapowany przez koordynator formularza na neutralny feedback bez aktywacji s
 Odrzucenie zeruje `CharArray` i emituje `ANTI_BOT_DENY`; utworzenie konta emituje
 `REGISTER`. Testy potwierdzają brak wywołania storage na ścieżce limitera, zerowanie
 hasła, audit, refill tokenów, TTL rejestru oraz pozostanie sesji w PRE_AUTH.
-Trwały `max-accounts-per-ip` pozostaje osobnym etapem migracji storage.
+Migracja SQLite v4 tworzy `registration_ip_slots`. `registerOffline` zapisuje konto i
+przydziela pierwszy wolny slot `(source_ip, slot)` w jednej transakcji. Klucz główny
+uniemożliwia przekroczenie limitu przez równoległe rejestracje, a rollback usuwa konto
+po odmowie. Migracja przypisuje istniejącym kontom offline sloty na podstawie
+`last_login_ip`, więc restart nie zeruje limitu. Pozostałe backendy JDBC muszą zapewnić
+równoważną atomowość przed oznaczeniem całej warstwy jako ukończonej.

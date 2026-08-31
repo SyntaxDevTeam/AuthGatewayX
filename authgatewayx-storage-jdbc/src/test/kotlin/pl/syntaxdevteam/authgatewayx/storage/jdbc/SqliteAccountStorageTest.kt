@@ -19,6 +19,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 
 class SqliteAccountStorageTest {
     @Test
@@ -59,6 +60,17 @@ class SqliteAccountStorageTest {
     }
 
     @Test
+    fun `registration address limit rolls back the rejected account`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration("SlotOne", 2)).toCompletableFuture().get())
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration("SlotTwo", 2)).toCompletableFuture().get())
+        assertIs<RegistrationResult.AddressLimitReached>(
+            storage.registerOffline(registration("SlotThree", 2)).toCompletableFuture().get(),
+        )
+        assertNull(storage.findByUsername(AccountUsername.parse("SlotThree")).toCompletableFuture().get())
+    }
+
+    @Test
     fun `concurrent failures increment atomically and lock at threshold`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         val registration = registration("LockPlayer")
@@ -83,11 +95,12 @@ class SqliteAccountStorageTest {
         }
     }
 
-    private fun registration(usernameValue: String): OfflineRegistration {
+    private fun registration(usernameValue: String, maximumAccountsPerAddress: Int = 3): OfflineRegistration {
         val username = AccountUsername.parse(usernameValue)
         return OfflineRegistration(
             AccountId.random(), username, OfflineIdentity.minecraftUuid(username),
             "\$argon2id\$test-hash", InetAddress.getLoopbackAddress(), Instant.parse("2026-08-30T10:00:00Z"),
+            maximumAccountsPerAddress = maximumAccountsPerAddress,
         )
     }
 

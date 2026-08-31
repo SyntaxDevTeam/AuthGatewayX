@@ -585,8 +585,7 @@ rozłączeń w jednym oknie kończy się tą samą czasową kwarantanną, zanim 
 dotrze do HTTP, JDBC lub Argon2. Zwykłe rozłączenie sesji ACTIVE nie wpływa na licznik.
 
 Jest to nadal część warstwowego anti-bot. Checkbox reconnect loop pozostaje otwarty do
-testów obciążeniowych na serwerze, a pełny scoring i trwały limit kont na IP nie są
-jeszcze zaimplementowane.
+testów obciążeniowych na serwerze, a pełny scoring nie jest jeszcze zaimplementowany.
 
 # 22. Registration attempt rate limiting
 
@@ -595,6 +594,10 @@ przed Argon2id i JDBC, więc spam formularzem nie tworzy kosztownych zadań. Sta
 limit adresów i jest czyszczony podczas shutdownu. Zarówno rate limit, jak i brak miejsca
 na śledzenie są obsługiwane fail-closed oraz audytowane bez hasła i hasha.
 
-Nie oznacza to ukończenia całego `registration abuse protection`: trwały limit liczby
-kont na IP, atomowy przy równoległych rejestracjach i odporny na restart, nadal pozostaje
-do wdrożenia i testów storage.
+SQLite egzekwuje dodatkowo trwały limit liczby kont na IP. Konto i rekord slotu IP są
+tworzone w jednej transakcji; brak wolnego slotu powoduje rollback. Unikalny klucz
+`(source_ip, slot)` serializuje decyzję także dla równoległych prób, a migracja v4
+zachowuje historię istniejących kont. Odmowa jest audytowana jako
+`ANTI_BOT_DENY/REGISTRATION_ADDRESS_LIMIT` bez sekretów. Checkbox całej ochrony
+pozostaje otwarty do testu obciążeniowego oraz implementacji równoważnej polityki w
+przyszłych backendach MySQL/MariaDB/PostgreSQL.

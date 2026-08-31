@@ -48,7 +48,10 @@ class RegistrationService(
     private val clock: Clock = Clock.systemUTC(),
     private val attemptGate: RegistrationAttemptGate? = null,
     private val auditSink: SecurityAuditSink? = null,
+    private val maximumAccountsPerAddress: Int = 3,
 ) : OfflineRegistrationUseCase {
+    init { require(maximumAccountsPerAddress > 0) }
+
     override fun register(
         username: AccountUsername,
         sourceAddress: InetAddress,
@@ -77,6 +80,7 @@ class RegistrationService(
                 passwordHash = passwordHash,
                 sourceAddress = sourceAddress,
                 createdAt = clock.instant(),
+                maximumAccountsPerAddress = maximumAccountsPerAddress,
             )).thenApply { result ->
                 when (result) {
                     is RegistrationResult.Created -> {
@@ -85,6 +89,10 @@ class RegistrationService(
                     }
                     RegistrationResult.UsernameAlreadyExists -> RegistrationOutcome.UsernameAlreadyExists
                     RegistrationResult.MinecraftUuidAlreadyExists -> RegistrationOutcome.IdentityConflict
+                    RegistrationResult.AddressLimitReached -> {
+                        audit(username, sourceAddress, SecurityEventType.ANTI_BOT_DENY, "REGISTRATION_ADDRESS_LIMIT")
+                        RegistrationOutcome.RateLimited
+                    }
                 }
             }
         }

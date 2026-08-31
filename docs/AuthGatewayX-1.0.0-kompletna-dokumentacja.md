@@ -2875,12 +2875,21 @@ oraz Argon2, nakłada czasową kwarantannę i utrzymuje ograniczony, wygasający
 Testy jednostkowe obejmują reset okna, wygaśnięcie kwarantanny i odzyskanie miejsca po
 wygasłym adresie. Rozłączenia następujące w PRE_AUTH są zliczane w tym samym oknie;
 przekroczenie konfigurowalnego maksimum nakłada kwarantannę na kolejny reconnect, bez
-karania wyjść graczy ACTIVE. Pełny behavioural scoring i registration abuse pozostają
-następnymi elementami. Checkbox reconnect loop czeka na test obciążeniowy serwera.
+karania wyjść graczy ACTIVE. Pełny behavioural scoring pozostaje następnym elementem.
+Checkbox reconnect loop czeka na test obciążeniowy serwera.
 
 `RegistrationService` posiada teraz osobny, ograniczony `RegistrationAttemptGate` per
 IP działający przed walidacją hasła, Argon2 i storage. Stan ma TTL i token refill;
 odrzucenie zeruje hasło, nie wywołuje storage, pozostawia sesję w PRE_AUTH i emituje
 `ANTI_BOT_DENY/REGISTRATION_RATE_LIMITED`. Udane utworzenie konta emituje `REGISTER`.
 Testy obejmują refill, limit kardynalności, wygaszanie, brak kosztownej pracy po deny i
-mapowanie feedbacku. Trwały, atomowy limit liczby kont na IP nadal pozostaje otwarty.
+mapowanie feedbacku.
+
+SQLite posiada migrację v4 z tabelą `registration_ip_slots`. Rejestracja konta i
+przydział jednego z `maximum-accounts-per-address` slotów odbywają się w pojedynczej
+transakcji. Unikalny klucz `(source_ip, slot)` zapobiega przekroczeniu limitu przy
+równoległych żądaniach; brak slotu wycofuje również insert konta. Istniejące konta
+offline są przypisywane do slotów podczas migracji, więc restart nie resetuje polityki.
+Odmowa trafia do audytu jako `REGISTRATION_ADDRESS_LIMIT`, a gracz otrzymuje neutralny
+feedback wyłącznie w natywnym Minecraft Dialog. Checkbox całej ochrony rejestracji
+pozostaje otwarty do testów serwerowych i implementacji pozostałych backendów JDBC.
