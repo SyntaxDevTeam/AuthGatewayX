@@ -1,2 +1,20 @@
 # AuthGatewayX
-Plugin uwierzytelniającym, który umożliwia jednoczesną obsługę: graczy premium/online — uwierzytelnionych przez oficjalny system Microsoft/Mojang,  graczy non-premium/offline — uwierzytelnianych przez AuthGatewayX przy pomocy /register i /login.
+
+Plugin uwierzytelniający umożliwiający obsługę graczy premium/online przez oficjalny
+system Microsoft/Mojang oraz graczy non-premium/offline przez AuthGatewayX.
+
+Projekt główny jest agregatorem Gradle. Implementacje platformowe znajdują się w:
+
+- `authgatewayx-paper` — standalone Paper/Purpur/Folia,
+- `authgatewayx-velocity` — odseparowany moduł proxy WIP.
+
+Pozostałe moduły zawierają domenę, API, bezpieczeństwo, uwierzytelnianie, integracje i
+storage bez mieszania ich z kodem platformowym.
+
+Budowa artefaktu standalone:
+
+```bash
+./gradlew :authgatewayx-paper:build
+```
+
+Wynik: `authgatewayx-paper/build/libs/AuthGatewayX-1.0.0-WIP.jar`.

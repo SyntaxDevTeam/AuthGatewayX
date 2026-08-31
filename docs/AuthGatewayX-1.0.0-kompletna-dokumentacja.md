@@ -2801,6 +2801,14 @@ Testy muszą objąć:
 
 ## 21. Bieżący stan implementacji lifecycle Paper
 
+Kod standalone został wydzielony z projektu głównego do fizycznego modułu
+`authgatewayx-paper`. Moduł posiada własny build, źródła, zasoby, testy, zadanie
+`runServer` i artefakt `authgatewayx-paper/build/libs/AuthGatewayX-*.jar`. Root nie jest
+już ukrytym modułem platformowym: agreguje wyłącznie `clean`, `check` i `build` dla
+wszystkich modułów. Workflow BuildExplorer wskazuje jawnie zadania oraz katalog JAR
+modułu Paper. Katalog testowego serwera pozostaje wspólny w root `run`, aby zmiana
+struktury nie porzuciła istniejącej konfiguracji i bazy testowej.
+
 Główna klasa, bootstrap i loader znajdują się w docelowej przestrzeni nazw
 `pl.syntaxdevteam.authgatewayx.paper`. `PaperPlatformScheduler` jawnie rozdziela async,
 global, entity i region ownership. `AuthenticationReadinessListener` odrzuca logowania
@@ -2820,8 +2828,8 @@ którejkolwiek z tych warstw pozostawia runtime w `FAILED` i nie otwiera logowan
 Tryb Paper standalone wymaga `online-mode=false`. Uruchomienie z `online-mode=true`
 pozostaje celowo fail-closed, aby nie mieszać tożsamości standalone z przyszłym
 pipeline premium/proxy. Workflow BuildExplorer publikuje obecny artefakt jako `Paper`
-i przed publikacją wykonuje `clean check shadowJar` oraz sprawdza deskryptor i obecność
-implementacji storage w wynikowym JAR-ze.
+i przed publikacją wykonuje `clean check :authgatewayx-paper:shadowJar` oraz sprawdza
+deskryptor i obecność implementacji storage w wynikowym JAR-ze.
 
 Pionowy wycinek Paper standalone wykonuje przed pokazaniem formularza asynchroniczny
 lookup profilu w Minecraft Services. Status `PREMIUM` jest odrzucany z informacją o

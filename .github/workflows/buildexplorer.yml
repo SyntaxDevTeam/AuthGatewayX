@@ -14,9 +14,9 @@ env:
   BUILD_CHANNEL: dev
   BUILD_SLUG: authgatewayx
   BUILD_SERVER: Paper
-  BUILD_GRADLE_TASK: build
+  BUILD_GRADLE_TASK: :authgatewayx-paper:build
   BUILD_GRADLE_PROPERTIES_TASK: properties
-  BUILD_JAR_DIR: build/libs
+  BUILD_JAR_DIR: authgatewayx-paper/build/libs
   BUILD_ARTIFACT_PREFIX: AuthGatewayX-
 
 jobs:
@@ -39,11 +39,11 @@ jobs:
       - name: Test
         run: |
           chmod +x ./gradlew
-          ./gradlew clean check shadowJar --console=plain --no-daemon
+          ./gradlew clean check :authgatewayx-paper:shadowJar --console=plain --no-daemon
 
       - name: Verify distributable JAR
         run: |
-          jar="$(find build/libs -maxdepth 1 -name 'AuthGatewayX-*.jar' ! -name '*-plain.jar' | head -n 1)"
+          jar="$(find authgatewayx-paper/build/libs -maxdepth 1 -name 'AuthGatewayX-*.jar' ! -name '*-plain.jar' | head -n 1)"
           test -n "${jar}"
           unzip -p "${jar}" paper-plugin.yml | grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader$'
           unzip -l "${jar}" | grep -q 'pl/syntaxdevteam/authgatewayx/storage/jdbc/SqliteAccountStorage.class'

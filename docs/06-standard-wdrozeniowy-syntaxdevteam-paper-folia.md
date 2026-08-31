@@ -887,6 +887,12 @@ Testy muszą objąć:
 
 # 21. Bieżący stan implementacji lifecycle
 
+Implementacja platformowa znajduje się fizycznie w module `authgatewayx-paper` wraz z
+własnym `build.gradle.kts`, źródłami, zasobami i testami. Projekt główny jest wyłącznie
+agregatorem zadań `clean`, `check` i `build`; nie zawiera już platformowego katalogu
+`src`. Artefakt Paper powstaje w `authgatewayx-paper/build/libs`, a `runServer` zachowuje
+wspólny katalog testowy `${rootProject.projectDir}/run`.
+
 Klasy modułu Paper używają docelowej przestrzeni nazw:
 
 ```text
