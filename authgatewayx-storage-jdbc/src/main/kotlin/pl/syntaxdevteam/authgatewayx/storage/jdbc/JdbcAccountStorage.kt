@@ -13,8 +13,10 @@ import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
+import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
+import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
 import java.sql.Connection
 import java.sql.SQLException
 import java.time.Instant
@@ -90,18 +92,16 @@ class SqliteAccountStorage(
                     it.executeQuery().use { result -> result.next() }
                 }
                 if (!hasVersion3) {
-                    connection.createStatement().use { statement ->
-                        statement.executeUpdate("""CREATE TABLE security_events (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            occurred_at VARCHAR(40) NOT NULL,
-                            account_id VARCHAR(36),
-                            minecraft_uuid VARCHAR(36),
-                            username VARCHAR(16) NOT NULL,
-                            source_ip VARCHAR(45) NOT NULL,
-                            event_type VARCHAR(40) NOT NULL,
-                            reason_code VARCHAR(64) NOT NULL
-                        )""".trimIndent())
-                    }
+                    connection.createStatement().use { it.executeUpdate("""CREATE TABLE security_events (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        occurred_at VARCHAR(40) NOT NULL,
+                        account_id VARCHAR(36),
+                        minecraft_uuid VARCHAR(36),
+                        username VARCHAR(16) NOT NULL,
+                        source_ip VARCHAR(45) NOT NULL,
+                        event_type VARCHAR(40) NOT NULL,
+                        reason_code VARCHAR(64) NOT NULL
+                    )""".trimIndent()) }
                     connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (3, ?)").use {
                         it.setString(1, Instant.now().toString())
                         it.executeUpdate()
@@ -164,6 +164,9 @@ class SqliteAccountStorage(
         }
     }
 
+    override fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity): CompletionStage<MojangIdentityBindingResult> =
+        executor.submit { bindVerifiedMojangIdentityBlocking(identity) }
+
     override fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?> = executor.submit {
         dataSource.connection.use { connection ->
             connection.prepareStatement("SELECT * FROM accounts WHERE canonical_username = ?").use { statement ->
@@ -184,7 +187,9 @@ class SqliteAccountStorage(
 
     override fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?> = executor.submit {
         dataSource.connection.use { connection ->
-            connection.prepareStatement("SELECT * FROM accounts WHERE canonical_username = ?").use { statement ->
+            connection.prepareStatement(
+                "SELECT * FROM accounts WHERE canonical_username = ? AND identity_type = 'OFFLINE' AND password_hash IS NOT NULL",
+            ).use { statement ->
                 statement.setString(1, username.canonical)
                 statement.executeQuery().use { results ->
                     if (!results.next()) null else AccountCredentials(
@@ -257,6 +262,120 @@ class SqliteAccountStorage(
         }
     }.thenApply<Void> { null }
 
+    private fun bindVerifiedMojangIdentityBlocking(identity: VerifiedMojangIdentity): MojangIdentityBindingResult {
+        dataSource.connection.use { connection ->
+            for (attempt in 0..1) {
+                connection.autoCommit = false
+                try {
+                    val result = bindMojangInTransaction(connection, identity)
+                    if (result == MojangIdentityBindingResult.IdentityConflict) connection.rollback() else connection.commit()
+                    return result
+                } catch (failure: SQLException) {
+                    connection.rollback()
+                    if (!isConstraintViolation(failure) || attempt == 1) throw failure
+                } catch (failure: Throwable) {
+                    connection.rollback()
+                    throw failure
+                }
+            }
+        }
+        error("Unable to bind verified Mojang identity")
+    }
+
+    private fun bindMojangInTransaction(connection: Connection, identity: VerifiedMojangIdentity): MojangIdentityBindingResult {
+        val byName = findAccount(connection, "canonical_username", identity.username.canonical)
+        val byUuid = findAccount(connection, "minecraft_uuid", identity.minecraftUuid.toString())
+        if (byName != null && byUuid != null && byName.id != byUuid.id) {
+            return MojangIdentityBindingResult.IdentityConflict
+        }
+        return when {
+            byName != null -> bindNamedAccount(connection, byName, identity)
+            byUuid != null -> bindUuidAccount(connection, byUuid, identity)
+            else -> createMojangAccount(connection, identity)
+        }
+    }
+
+    private fun bindNamedAccount(
+        connection: Connection,
+        account: AuthAccount,
+        identity: VerifiedMojangIdentity,
+    ): MojangIdentityBindingResult {
+        if (account.identityType == IdentityType.MOJANG && account.minecraftUuid != identity.minecraftUuid) {
+            return MojangIdentityBindingResult.IdentityConflict
+        }
+        val migrated = account.identityType == IdentityType.OFFLINE
+        val updated = updateMojangAccount(connection, account, identity)
+        return MojangIdentityBindingResult.Bound(updated, migrated)
+    }
+
+    private fun bindUuidAccount(
+        connection: Connection,
+        account: AuthAccount,
+        identity: VerifiedMojangIdentity,
+    ): MojangIdentityBindingResult {
+        if (account.identityType != IdentityType.MOJANG) return MojangIdentityBindingResult.IdentityConflict
+        return MojangIdentityBindingResult.Bound(updateMojangAccount(connection, account, identity), false)
+    }
+
+    private fun updateMojangAccount(
+        connection: Connection,
+        account: AuthAccount,
+        identity: VerifiedMojangIdentity,
+    ): AuthAccount {
+        connection.prepareStatement("""UPDATE accounts
+            SET username = ?, canonical_username = ?, identity_type = 'MOJANG', minecraft_uuid = ?,
+                password_hash = NULL, state = 'REGISTERED', failed_login_count = 0, locked_until = NULL,
+                last_login_at = ?, last_login_ip = ?, premium_verified_at = ?, updated_at = ?
+            WHERE id = ?""".trimIndent()).use { statement ->
+            statement.setString(1, identity.username.value)
+            statement.setString(2, identity.username.canonical)
+            statement.setString(3, identity.minecraftUuid.toString())
+            statement.setString(4, identity.verifiedAt.toString())
+            statement.setString(5, identity.sourceAddress.hostAddress)
+            statement.setString(6, identity.verifiedAt.toString())
+            statement.setString(7, identity.verifiedAt.toString())
+            statement.setString(8, account.id.value.toString())
+            check(statement.executeUpdate() == 1) { "Account disappeared during Mojang identity binding" }
+        }
+        connection.prepareStatement("DELETE FROM registration_ip_slots WHERE account_id = ?").use { statement ->
+            statement.setString(1, account.id.value.toString())
+            statement.executeUpdate()
+        }
+        return account.copy(
+            username = identity.username,
+            identityType = IdentityType.MOJANG,
+            minecraftUuid = identity.minecraftUuid,
+            state = AccountState.REGISTERED,
+            updatedAt = identity.verifiedAt,
+        )
+    }
+
+    private fun createMojangAccount(
+        connection: Connection,
+        identity: VerifiedMojangIdentity,
+    ): MojangIdentityBindingResult.Bound {
+        val account = AuthAccount(
+            AccountId.random(), identity.username, IdentityType.MOJANG, identity.minecraftUuid,
+            AccountState.REGISTERED, identity.verifiedAt, identity.verifiedAt,
+        )
+        connection.prepareStatement("""INSERT INTO accounts
+            (id, username, canonical_username, identity_type, minecraft_uuid, password_hash, state,
+             created_at, updated_at, last_login_at, last_login_ip, premium_verified_at, failed_login_count)
+            VALUES (?, ?, ?, 'MOJANG', ?, NULL, 'REGISTERED', ?, ?, ?, ?, ?, 0)""".trimIndent()).use { statement ->
+            statement.setString(1, account.id.value.toString())
+            statement.setString(2, identity.username.value)
+            statement.setString(3, identity.username.canonical)
+            statement.setString(4, identity.minecraftUuid.toString())
+            statement.setString(5, identity.verifiedAt.toString())
+            statement.setString(6, identity.verifiedAt.toString())
+            statement.setString(7, identity.verifiedAt.toString())
+            statement.setString(8, identity.sourceAddress.hostAddress)
+            statement.setString(9, identity.verifiedAt.toString())
+            statement.executeUpdate()
+        }
+        return MojangIdentityBindingResult.Bound(account, false)
+    }
+
     private fun insertOffline(connection: Connection, registration: OfflineRegistration): RegistrationResult {
         val sql = """INSERT INTO accounts
             (id, username, canonical_username, identity_type, minecraft_uuid, password_hash, state, created_at, updated_at, last_login_ip)
@@ -289,6 +408,14 @@ class SqliteAccountStorage(
             }
         }
         return false
+    }
+
+    private fun findAccount(connection: Connection, column: String, value: String): AuthAccount? {
+        val allowedColumn = requireNotNull(mapOf("canonical_username" to "canonical_username", "minecraft_uuid" to "minecraft_uuid")[column])
+        connection.prepareStatement("SELECT * FROM accounts WHERE $allowedColumn = ?").use { statement ->
+            statement.setString(1, value)
+            statement.executeQuery().use { results -> return if (results.next()) mapAccount(results) else null }
+        }
     }
 
     private fun exists(connection: Connection, column: String, value: String): Boolean {

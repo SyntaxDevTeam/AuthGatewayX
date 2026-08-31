@@ -2,17 +2,21 @@ package pl.syntaxdevteam.authgatewayx.storage.jdbc
 
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountId
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
+import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.domain.account.OfflineIdentity
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
+import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
+import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
-import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
+import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
 import java.net.InetAddress
 import java.nio.file.Files
-import java.time.Instant
 import java.time.Duration
+import java.time.Instant
+import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import kotlin.test.Test
@@ -20,6 +24,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class SqliteAccountStorageTest {
     @Test
@@ -95,6 +100,56 @@ class SqliteAccountStorageTest {
         }
     }
 
+    @Test
+    fun `verified Mojang identity creates a premium account without password credentials`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val identity = verifiedIdentity("PremiumOnly", "01234567-89ab-cdef-0123-456789abcdef")
+
+        val result = assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+
+        assertEquals(IdentityType.MOJANG, result.account.identityType)
+        assertEquals(identity.minecraftUuid, result.account.minecraftUuid)
+        assertNull(storage.findPasswordHash(result.account.id).toCompletableFuture().get())
+        assertNull(storage.findCredentials(identity.username).toCompletableFuture().get())
+    }
+
+    @Test
+    fun `verified Mojang identity migrates offline account and preserves internal account id`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("UpgradeMe")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        val identity = verifiedIdentity("UpgradeMe", "11111111-2222-3333-4444-555555555555")
+
+        val result = assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+
+        assertTrue(result.migratedFromOffline)
+        assertEquals(registration.accountId, result.account.id)
+        assertEquals(IdentityType.MOJANG, result.account.identityType)
+        assertEquals(identity.minecraftUuid, result.account.minecraftUuid)
+        assertNull(storage.findPasswordHash(result.account.id).toCompletableFuture().get())
+        assertNull(storage.findCredentials(identity.username).toCompletableFuture().get())
+    }
+
+    @Test
+    fun `premium username already bound to another Mojang uuid fails closed`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(
+                verifiedIdentity("ProtectedName", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"),
+            ).toCompletableFuture().get(),
+        )
+
+        assertIs<MojangIdentityBindingResult.IdentityConflict>(
+            storage.bindVerifiedMojangIdentity(
+                verifiedIdentity("ProtectedName", "aaaaaaaa-bbbb-cccc-dddd-ffffffffffff"),
+            ).toCompletableFuture().get(),
+        )
+    }
+
     private fun registration(usernameValue: String, maximumAccountsPerAddress: Int = 3): OfflineRegistration {
         val username = AccountUsername.parse(usernameValue)
         return OfflineRegistration(
@@ -103,6 +158,11 @@ class SqliteAccountStorageTest {
             maximumAccountsPerAddress = maximumAccountsPerAddress,
         )
     }
+
+    private fun verifiedIdentity(usernameValue: String, uuid: String): VerifiedMojangIdentity = VerifiedMojangIdentity(
+        AccountUsername.parse(usernameValue), UUID.fromString(uuid), InetAddress.getLoopbackAddress(),
+        Instant.parse("2026-08-31T18:00:00Z"),
+    )
 
     private fun withStorage(test: (SqliteAccountStorage) -> Unit) {
         val file = Files.createTempFile("authgatewayx-", ".sqlite")
