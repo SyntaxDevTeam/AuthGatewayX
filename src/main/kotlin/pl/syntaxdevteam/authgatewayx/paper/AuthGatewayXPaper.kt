@@ -96,7 +96,12 @@ class AuthGatewayXPaper : JavaPlugin() {
             scheduler.global(Runnable {
                 if (!isEnabled || readiness.current() == RuntimeState.STOPPING) return@Runnable
                 if (failure != null) return@Runnable fail("Storage migration or password subsystem failed", failure)
-                runCatching { installAuthentication(initialized.first, initialized.second, hasher, messages, scheduler, sessions, passwordExecutor, mojangExecutor) }
+                runCatching {
+                    installAuthentication(
+                        initialized.first, initialized.second, hasher, messages, scheduler, sessions,
+                        passwordExecutor, mojangExecutor, usernameBurstGate,
+                    )
+                }
                     .onSuccess { readiness.force(RuntimeState.READY); logger.info("AuthGatewayX authentication runtime is READY") }
                     .onFailure { fail("Authentication adapters failed to install", it) }
             })
@@ -105,7 +110,8 @@ class AuthGatewayXPaper : JavaPlugin() {
 
     private fun installAuthentication(storage: SqliteAccountStorage, dummyHash: String, hasher: Argon2PasswordHasher,
         messages: MessageHandler, scheduler: PaperPlatformScheduler, sessions: InMemorySessionRegistry,
-        passwordExecutor: BoundedTaskExecutor, mojangExecutor: BoundedTaskExecutor) {
+        passwordExecutor: BoundedTaskExecutor, mojangExecutor: BoundedTaskExecutor,
+        usernameBurstGate: UsernameBurstGate) {
         val access = SessionPreAuthAccess(sessions)
         val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
         val registrationAttemptGate = RegistrationAttemptGate(
