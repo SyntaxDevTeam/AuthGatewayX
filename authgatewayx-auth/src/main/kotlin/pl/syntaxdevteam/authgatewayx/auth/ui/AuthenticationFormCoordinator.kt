@@ -3,12 +3,12 @@ package pl.syntaxdevteam.authgatewayx.auth.ui
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginResult
 import pl.syntaxdevteam.authgatewayx.auth.login.OfflineLoginUseCase
 import pl.syntaxdevteam.authgatewayx.auth.registration.OfflineRegistrationUseCase
+import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationOutcome
 import pl.syntaxdevteam.authgatewayx.auth.session.SessionRegistry
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.domain.session.AuthenticationMethod
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
-import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import java.net.InetAddress
 import java.time.Clock
 import java.util.UUID
@@ -69,7 +69,7 @@ class AuthenticationFormCoordinator(
     override fun submitRegistration(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
         registrationService.register(context.username, context.sourceAddress, password).thenApply { result ->
             when (result) {
-                is RegistrationResult.Created -> {
+                is RegistrationOutcome.Created -> {
                     sessions.activate(
                         context.connectionId, result.account.id, result.account.minecraftUuid,
                         IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
@@ -77,8 +77,9 @@ class AuthenticationFormCoordinator(
                     activationListener.activated(context)
                     AuthenticationFormResult.AUTHENTICATED
                 }
-                RegistrationResult.UsernameAlreadyExists -> AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS
-                RegistrationResult.MinecraftUuidAlreadyExists -> AuthenticationFormResult.IDENTITY_CONFLICT
+                RegistrationOutcome.UsernameAlreadyExists -> AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS
+                RegistrationOutcome.IdentityConflict -> AuthenticationFormResult.IDENTITY_CONFLICT
+                RegistrationOutcome.RateLimited -> AuthenticationFormResult.RATE_LIMITED
             }
         }
 }

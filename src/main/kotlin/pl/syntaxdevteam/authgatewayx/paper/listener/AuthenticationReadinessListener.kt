@@ -5,17 +5,31 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.player.AsyncPlayerPreLoginEvent
+import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeReadiness
+import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstDecision
+import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionDecision
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
 
 class AuthenticationReadinessListener(
     private val readiness: RuntimeReadiness,
     private val floodGate: ConnectionFloodGate,
+    private val usernameBurstGate: UsernameBurstGate?,
 ) : Listener {
     @EventHandler(priority = EventPriority.LOWEST)
     fun onPreLogin(event: AsyncPlayerPreLoginEvent) {
         if (floodGate.evaluate(event.address) != ConnectionDecision.ALLOW) {
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text("Too many connection attempts. Try again later."))
+            return
+        }
+        val username = try {
+            AccountUsername.parse(event.name)
+        } catch (_: IllegalArgumentException) {
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text("Connection rejected."))
+            return
+        }
+        if (usernameBurstGate != null && usernameBurstGate.evaluate(event.address, username.value) != UsernameBurstDecision.ALLOW) {
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text("Too many connection attempts. Try again later."))
             return
         }

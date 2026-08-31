@@ -604,3 +604,31 @@ brak wpisu, wygaśnięcie lub rozbieżność trybu kończą połączenie. Moduł
 `ProxySyntaxCore` oraz MessageHandler-Velocity i ma niezależny fail-closed readiness.
 Przekazanie zweryfikowanej tożsamości premium do backendu Paper pozostaje następnym
 etapem i wymaga uwierzytelnionego kanału, nie zwykłej ufności do plugin message.
+
+## 24. Stan implementacji — username burst anti-bot
+
+Moduł security zawiera ograniczony `UsernameBurstGate`. Dla każdego IP przechowuje
+wyłącznie zbiór kanonicznych nazw w konfigurowalnym oknie, czas kwarantanny i czas
+ostatniej aktywności. Limit kardynalności zapobiega nieograniczonemu wzrostowi pamięci,
+a wygasłe wpisy są usuwane przy osiągnięciu limitu.
+
+Adapter Paper wywołuje gate po token bucketach connection flood i przed wszystkimi
+kosztownymi etapami. Testy pokrywają powtarzanie tej samej nazwy, burst różnych nazw,
+wygaśnięcie kwarantanny, reset okna oraz odzyskanie miejsca w ograniczonym rejestrze.
+`PreAuthIsolationListener` przekazuje dodatkowo sygnał disconnect tylko wtedy, gdy
+sesja nadal jest w PRE_AUTH. Gate zlicza takie rozłączenia w tym samym oknie i po
+przekroczeniu konfigurowalnego maksimum nakłada kwarantannę na następny reconnect.
+Testy obejmują próg oraz wygaśnięcie historii disconnectów. Nie zamyka to całego
+zakresu anti-bot 1.0.0.
+
+## 25. Stan implementacji — registration attempt gate
+
+`RegistrationAttemptGate` jest osobnym token bucketiem per IP używanym wyłącznie przez
+`RegistrationService`. Działa przed Argon2 i `AccountStorage`, ma size limit, TTL oraz
+jawny wynik fail-closed po wyczerpaniu kardynalności. `RegistrationOutcome.RateLimited`
+jest mapowany przez koordynator formularza na neutralny feedback bez aktywacji sesji.
+
+Odrzucenie zeruje `CharArray` i emituje `ANTI_BOT_DENY`; utworzenie konta emituje
+`REGISTER`. Testy potwierdzają brak wywołania storage na ścieżce limitera, zerowanie
+hasła, audit, refill tokenów, TTL rejestru oraz pozostanie sesji w PRE_AUTH.
+Trwały `max-accounts-per-ip` pozostaje osobnym etapem migracji storage.

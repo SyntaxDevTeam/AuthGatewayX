@@ -947,6 +947,18 @@ online authentication po zakończeniu handshake.
 `ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage,
 Mojang HTTP i Argon2. Dzięki temu droższe etapy nie są pierwszą linią obsługi floodu.
 
+Za limiterem połączeń działa ograniczony `UsernameBurstGate`. Wykrywa wiele różnych
+kanonicznych nazw z jednego IP, nakłada czasową kwarantannę i wygasza nieaktywny stan.
+Jest wykonywany przed readiness, HTTP, JDBC i Argon2 oraz czyszczony przy shutdownie.
+Listener PRE_AUTH rejestruje w tym samym ograniczonym stanie szybkie disconnecty przed
+uwierzytelnieniem; przekroczenie limitu nakłada kwarantannę na kolejny reconnect.
+Pełna warstwa anti-bot nadal wymaga szerszego scoringu i ochrony registration abuse.
+
+Próby rejestracji przechodzą dodatkowo przez `RegistrationAttemptGate` zanim zostanie
+zaplanowany Argon2 lub JDBC. Gate ma własny token bucket, TTL i limit śledzonych IP;
+odrzucenie zeruje hasło oraz zapisuje `ANTI_BOT_DENY`. Runtime czyści ten rejestr przy
+shutdownie. Trwały limit liczby kont na IP pozostaje otwarty.
+
 # 24. Bieżący stan adaptera Velocity
 
 Moduł `authgatewayx-velocity` używa konstrukcji przez Guice oraz

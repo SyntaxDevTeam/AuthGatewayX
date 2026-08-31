@@ -572,3 +572,29 @@ UUID połączenia. Limit jest sprawdzany przed utworzeniem sesji i uruchomieniem
 Lease jest zwalniany przy `PRE_AUTH -> ACTIVE`, disconnect lub błędzie tworzenia sesji.
 Kontroler dialogów dodatkowo dopuszcza najwyżej jedną kosztowną operację hasłową per
 gracz, co ogranicza spam custom-clickami i tworzenie równoległych zadań Argon2.
+
+# 21. Username burst i reconnect-loop guard
+
+`UsernameBurstGate` wykrywa próby wielu różnych nicków z jednego IP przed Minecraft
+Services, JDBC i Argon2. Po przekroczeniu limitu nakłada czasową kwarantannę. Rejestr
+jest ograniczony rozmiarem, wpisy mają politykę wygaszania, a stan jest czyszczony przy
+shutdownie. Gate nie przechowuje haseł ani trwałych danych kont.
+
+Disconnect jest zliczany tylko dla gracza pozostającego w PRE_AUTH. Seria takich
+rozłączeń w jednym oknie kończy się tą samą czasową kwarantanną, zanim kolejna próba
+dotrze do HTTP, JDBC lub Argon2. Zwykłe rozłączenie sesji ACTIVE nie wpływa na licznik.
+
+Jest to nadal część warstwowego anti-bot. Checkbox reconnect loop pozostaje otwarty do
+testów obciążeniowych na serwerze, a pełny scoring i trwały limit kont na IP nie są
+jeszcze zaimplementowane.
+
+# 22. Registration attempt rate limiting
+
+Próby rejestracji posiadają osobny bounded token bucket per IP. Guard jest wykonywany
+przed Argon2id i JDBC, więc spam formularzem nie tworzy kosztownych zadań. Stan ma TTL,
+limit adresów i jest czyszczony podczas shutdownu. Zarówno rate limit, jak i brak miejsca
+na śledzenie są obsługiwane fail-closed oraz audytowane bez hasła i hasha.
+
+Nie oznacza to ukończenia całego `registration abuse protection`: trwały limit liczby
+kont na IP, atomowy przy równoległych rejestracjach i odporny na restart, nadal pozostaje
+do wdrożenia i testów storage.

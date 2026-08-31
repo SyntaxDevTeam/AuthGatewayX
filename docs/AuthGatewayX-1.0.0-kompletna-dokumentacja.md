@@ -1188,9 +1188,9 @@ zakończeniu async auth. `AuthenticationFormCoordinator` łączy wynik formularz
 `LoginService`, `RegistrationService` i atomową aktywacją sesji. Teksty formularza są
 wstrzykiwane, aby docelowo pochodziły z MessageHandler.
 
-Controller pozostaje niezarejestrowany w runtime do czasu ukończenia pełnej izolacji
-PRE_AUTH. Włączenie go wcześniej wpuszczałoby gracza do świata w niezweryfikowanym
-stanie, więc polityka fail-closed nadal obowiązuje.
+Controller jest rejestrowany w composition root dopiero po poprawnej inicjalizacji
+storage, Argon2 i izolacji PRE_AUTH. Runtime przechodzi do `READY` po zainstalowaniu
+listenerów, więc formularz nie działa bez aktywnej kwarantanny.
 
 ## 23. Stan implementacji — PRE_AUTH isolation
 
@@ -1204,8 +1204,9 @@ Po atomowej aktywacji sesji hook koordynatora przywraca zapisane flagi i widoczn
 Disconnect usuwa snapshot oraz sesję. Pełna blokada komend zastępuje wcześniejszą
 przykładową allowlistę, ponieważ Dialog API nie wymaga przesyłania hasła w komendzie.
 
-Warstwa nie jest jeszcze aktywowana w composition root. Przed zmianą runtime na READY
-wymagane są testy na Paper/Folia i zamknięcie polityki plugin messaging/Velocity.
+Warstwa jest aktywowana w composition root przed zmianą runtime na `READY`. Testy na
+uruchomionych Paper/Folia oraz zamknięcie polityki plugin messaging/Velocity nadal są
+wymagane przed oznaczeniem checklist ochrony świata jako ukończonych.
 
 ---
 
@@ -2867,3 +2868,19 @@ błędzie wejścia. Natywny dialog blokuje równoległe submitowanie wielu opera
 przez jednego gracza. Błędne dane, blokada, rate-limit, niezgodne hasła i konflikty
 rejestracji są pokazywane bezpośrednio w body ponownie otwartego Minecraft Dialog.
 Chat, komendy, action bar i inventory GUI nie są częścią interfejsu auth.
+
+Pierwsza warstwa anti-bot Paper wykrywa burst różnych kanonicznych nazw z jednego IP.
+`UsernameBurstGate` działa po connection token bucketach i przed readiness, HTTP, JDBC
+oraz Argon2, nakłada czasową kwarantannę i utrzymuje ograniczony, wygasający stan.
+Testy jednostkowe obejmują reset okna, wygaśnięcie kwarantanny i odzyskanie miejsca po
+wygasłym adresie. Rozłączenia następujące w PRE_AUTH są zliczane w tym samym oknie;
+przekroczenie konfigurowalnego maksimum nakłada kwarantannę na kolejny reconnect, bez
+karania wyjść graczy ACTIVE. Pełny behavioural scoring i registration abuse pozostają
+następnymi elementami. Checkbox reconnect loop czeka na test obciążeniowy serwera.
+
+`RegistrationService` posiada teraz osobny, ograniczony `RegistrationAttemptGate` per
+IP działający przed walidacją hasła, Argon2 i storage. Stan ma TTL i token refill;
+odrzucenie zeruje hasło, nie wywołuje storage, pozostawia sesję w PRE_AUTH i emituje
+`ANTI_BOT_DENY/REGISTRATION_RATE_LIMITED`. Udane utworzenie konta emituje `REGISTER`.
+Testy obejmują refill, limit kardynalności, wygaszanie, brak kosztownej pracy po deny i
+mapowanie feedbacku. Trwały, atomowy limit liczby kont na IP nadal pozostaje otwarty.

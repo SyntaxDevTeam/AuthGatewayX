@@ -20,9 +20,12 @@ import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeState
 import pl.syntaxdevteam.authgatewayx.paper.listener.AuthenticationReadinessListener
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
+import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstPolicy
 import pl.syntaxdevteam.authgatewayx.security.flood.FloodLimit
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
 import pl.syntaxdevteam.authgatewayx.security.login.LoginAttemptGate
+import pl.syntaxdevteam.authgatewayx.security.registration.RegistrationAttemptGate
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2Parameters
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2PasswordHasher
 import pl.syntaxdevteam.authgatewayx.storage.jdbc.SqliteAccountStorage
@@ -41,7 +44,20 @@ class AuthGatewayXPaper : JavaPlugin() {
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
         )
-        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, floodGate), this)
+        val usernameBurstGate = try {
+            UsernameBurstGate(UsernameBurstPolicy(
+                positive("anti-bot.username-burst.maximum-distinct-usernames"),
+                positive("anti-bot.reconnect-loop.maximum-pre-auth-disconnects"),
+                Duration.ofSeconds(positive("anti-bot.username-burst.window-seconds").toLong()),
+                Duration.ofSeconds(positive("anti-bot.username-burst.quarantine-seconds").toLong()),
+                positive("anti-bot.maximum-tracked-addresses"),
+            ))
+        } catch (failure: Throwable) {
+            fail("Anti-bot configuration is invalid", failure)
+            server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, floodGate, null), this)
+            return
+        }
+        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, floodGate, usernameBurstGate), this)
         if (server.onlineMode) {
             readiness.force(RuntimeState.FAILED)
             logger.severe("Paper standalone requires online-mode=false; authentication remains fail-closed")
@@ -50,19 +66,19 @@ class AuthGatewayXPaper : JavaPlugin() {
         try {
             SyntaxCore.init(this, versionType = "paper")
             SyntaxMessages.initialize(this)
-            startRuntime(SyntaxMessages.messages, floodGate)
+            startRuntime(SyntaxMessages.messages, floodGate, usernameBurstGate)
         } catch (failure: Throwable) {
             fail("AuthGatewayX bootstrap failed", failure)
         }
     }
 
-    private fun startRuntime(messages: MessageHandler, floodGate: ConnectionFloodGate) {
+    private fun startRuntime(messages: MessageHandler, floodGate: ConnectionFloodGate, usernameBurstGate: UsernameBurstGate) {
         val scheduler = PaperPlatformScheduler(this)
         val sessions = InMemorySessionRegistry()
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
         val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
-        val components = RuntimeComponents(sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate)
+        val components = RuntimeComponents(sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate, usernameBurstGate)
         runtime = components
         val hasher = Argon2PasswordHasher(Argon2Parameters(
             positive("authentication.password.argon2.iterations"), positive("authentication.password.argon2.memory-kib"),
@@ -92,13 +108,24 @@ class AuthGatewayXPaper : JavaPlugin() {
         passwordExecutor: BoundedTaskExecutor, mojangExecutor: BoundedTaskExecutor) {
         val access = SessionPreAuthAccess(sessions)
         val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
+        val registrationAttemptGate = RegistrationAttemptGate(
+            FloodLimit(
+                positive("anti-bot.registration-attempts.capacity"),
+                positive("anti-bot.registration-attempts.refill-tokens"),
+                Duration.ofSeconds(positive("anti-bot.registration-attempts.refill-seconds").toLong()),
+            ),
+            positive("anti-bot.maximum-tracked-addresses"),
+            Duration.ofSeconds(positive("anti-bot.registration-attempts.state-ttl-seconds").toLong()),
+        )
+        runtime?.registrationAttemptGate = registrationAttemptGate
         val isolation = PreAuthIsolationManager(this, scheduler, access, positive("authentication.timeout-seconds") * 20L,
             messages.stringMessageToComponentNoPrefix("auth", "timeout"))
         val login = LoginService(storage, hasher, passwordExecutor,
             LoginAttemptGate(FloodLimit(5, 1, Duration.ofSeconds(2)), 50_000), storage, dummyHash,
             LockoutPolicy(positive("authentication.lockout.attempts"), Duration.ofSeconds(positive("authentication.lockout.duration-seconds").toLong())))
         val registration = RegistrationService(storage, hasher, passwordExecutor,
-            PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")))
+            PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
+            attemptGate = registrationAttemptGate, auditSink = storage)
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)
@@ -133,7 +160,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
-        server.pluginManager.registerEvents(PreAuthIsolationListener(access, isolation, sessions, admission), this)
+        server.pluginManager.registerEvents(PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate), this)
         server.pluginManager.registerEvents(PreAuthEntryListener(
             sessions, isolation, admission,
             messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
@@ -149,7 +176,8 @@ class AuthGatewayXPaper : JavaPlugin() {
 
 private class RuntimeComponents(val sessions: InMemorySessionRegistry, val storageExecutor: BoundedTaskExecutor,
     val passwordExecutor: BoundedTaskExecutor, val mojangExecutor: BoundedTaskExecutor,
-    val floodGate: ConnectionFloodGate) : AutoCloseable {
+    val floodGate: ConnectionFloodGate, val usernameBurstGate: UsernameBurstGate) : AutoCloseable {
     @Volatile var storage: SqliteAccountStorage? = null
-    override fun close() { sessions.clear(); storage?.close(); storageExecutor.close(); passwordExecutor.close(); mojangExecutor.close(); floodGate.clear() }
+    @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
+    override fun close() { sessions.clear(); storage?.close(); storageExecutor.close(); passwordExecutor.close(); mojangExecutor.close(); floodGate.clear(); usernameBurstGate.clear(); registrationAttemptGate?.clear() }
 }

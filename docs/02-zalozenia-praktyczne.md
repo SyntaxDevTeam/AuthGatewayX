@@ -404,3 +404,29 @@ Formularz nie przyjmuje równoległych submitów tego samego gracza. Wynik błę
 blokady, rate-limitera, niezgodnego potwierdzenia lub konfliktu rejestracji jest
 wyświetlany bezpośrednio w treści ponownie otwartego Minecraft Dialog. Plugin nie używa
 do uwierzytelniania czatu, komend, action bara ani inventory GUI.
+
+## 16. Wczesna ochrona przed burstem nazw
+
+Paper standalone wykonuje `UsernameBurstGate` po connection anti-flood, ale przed
+readiness, Minecraft Services, storage i Argon2. Strażnik liczy różne kanoniczne nazwy
+próbowane z jednego IP w krótkim oknie; przekroczenie limitu nakłada czasową lokalną
+kwarantannę. Powtórzenie tej samej nazwy nie zwiększa licznika różnych nazw.
+
+Stan ma limit adresów, wygasa po okresie bezczynności i jest czyszczony przy shutdownie.
+Parametry znajdują się w `anti-bot.username-burst`. Ten sam ograniczony stan zlicza
+rozłączenia następujące jeszcze w PRE_AUTH. Przekroczenie
+`anti-bot.reconnect-loop.maximum-pre-auth-disconnects` w oknie nakłada kwarantannę na
+kolejny reconnect. Wyjścia graczy ACTIVE nie są liczone. Ochrona nadużyć rejestracji
+i pełny behavioural scoring pozostają do wykonania.
+
+## 17. Ograniczenie prób rejestracji
+
+`RegistrationService` wykonuje per-IP `RegistrationAttemptGate` przed walidacją hasła,
+Argon2id i storage. Token bucket ma osobną pojemność i tempo uzupełniania, ograniczoną
+liczbę śledzonych adresów oraz TTL nieaktywnego stanu. Odrzucenie zeruje wejściową
+tablicę hasła, nie uruchamia kosztownej pracy i zapisuje zdarzenie `ANTI_BOT_DENY` z
+reason code `REGISTRATION_RATE_LIMITED`.
+
+Udana rejestracja zapisuje audit `REGISTER`. Ten etap ogranicza tempo prób, ale nie jest
+jeszcze trwałym limitem liczby kont utworzonych z IP; taki limit wymaga atomowego modelu
+storage odpornego na równoległe rejestracje i restart procesu.

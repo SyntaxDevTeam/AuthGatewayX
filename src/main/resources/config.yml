@@ -5,6 +5,19 @@ premium:
     positive-ttl-seconds: 21600
     negative-ttl-seconds: 300
     maximum-cache-size: 50000
+anti-bot:
+  maximum-tracked-addresses: 50000
+  username-burst:
+    maximum-distinct-usernames: 5
+    window-seconds: 30
+    quarantine-seconds: 600
+  reconnect-loop:
+    maximum-pre-auth-disconnects: 5
+  registration-attempts:
+    capacity: 3
+    refill-tokens: 1
+    refill-seconds: 60
+    state-ttl-seconds: 600
 authentication:
   timeout-seconds: 120
   maximum-pre-auth-players: 500
