@@ -16,8 +16,10 @@ import pl.syntaxdevteam.authgatewayx.security.registration.RegistrationAttemptGa
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
+import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
+import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
 import java.net.InetAddress
 import java.time.Clock
 import java.time.Duration
@@ -123,6 +125,8 @@ class RegistrationServiceTest {
             )
             return CompletableFuture.completedFuture(RegistrationResult.Created(account))
         }
+        override fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity) =
+            CompletableFuture.completedFuture<MojangIdentityBindingResult>(MojangIdentityBindingResult.IdentityConflict)
         override fun findByUsername(username: AccountUsername) = CompletableFuture.completedFuture<AuthAccount?>(null)
         override fun findPasswordHash(accountId: AccountId) = CompletableFuture.completedFuture<String?>(null)
         override fun findCredentials(username: AccountUsername) = CompletableFuture.completedFuture<AccountCredentials?>(null)

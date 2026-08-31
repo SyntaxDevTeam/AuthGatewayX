@@ -74,6 +74,8 @@ class LoginServiceTest {
         override fun recordLoginFailure(accountId: AccountId, failedAt: Instant, lockThreshold: Int, lockDuration: Duration) = CompletableFuture.completedFuture(FailedLoginUpdate(1, null))
         override fun migrate() = CompletableFuture.completedFuture(Unit)
         override fun registerOffline(registration: OfflineRegistration) = CompletableFuture.completedFuture<RegistrationResult>(RegistrationResult.UsernameAlreadyExists)
+        override fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity) =
+            CompletableFuture.completedFuture<MojangIdentityBindingResult>(MojangIdentityBindingResult.IdentityConflict)
         override fun findByUsername(username: AccountUsername) = CompletableFuture.completedFuture<AuthAccount?>(null)
         override fun findPasswordHash(accountId: AccountId) = CompletableFuture.completedFuture<String?>(null)
         override fun close() = Unit

@@ -19,11 +19,23 @@ data class OfflineRegistration(
     val maximumAccountsPerAddress: Int,
 )
 
+data class VerifiedMojangIdentity(
+    val username: AccountUsername,
+    val minecraftUuid: UUID,
+    val sourceAddress: InetAddress,
+    val verifiedAt: Instant,
+)
+
 sealed interface RegistrationResult {
     data class Created(val account: AuthAccount) : RegistrationResult
     data object UsernameAlreadyExists : RegistrationResult
     data object MinecraftUuidAlreadyExists : RegistrationResult
     data object AddressLimitReached : RegistrationResult
+}
+
+sealed interface MojangIdentityBindingResult {
+    data class Bound(val account: AuthAccount, val migratedFromOffline: Boolean) : MojangIdentityBindingResult
+    data object IdentityConflict : MojangIdentityBindingResult
 }
 
 data class AccountCredentials(
@@ -41,6 +53,7 @@ data class FailedLoginUpdate(
 interface AccountStorage : AutoCloseable {
     fun migrate(): CompletionStage<Unit>
     fun registerOffline(registration: OfflineRegistration): CompletionStage<RegistrationResult>
+    fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity): CompletionStage<MojangIdentityBindingResult>
     fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?>
     fun findPasswordHash(accountId: AccountId): CompletionStage<String?>
     fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?>

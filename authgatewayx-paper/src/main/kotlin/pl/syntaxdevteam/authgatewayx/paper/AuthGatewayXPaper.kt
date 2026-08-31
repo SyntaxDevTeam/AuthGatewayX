@@ -3,36 +3,38 @@ package pl.syntaxdevteam.authgatewayx.paper
 import org.bukkit.plugin.java.JavaPlugin
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
+import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
 import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
 import pl.syntaxdevteam.authgatewayx.auth.session.InMemorySessionRegistry
 import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormCoordinator
+import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationManager
-import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.SessionPreAuthAccess
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeReadiness
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeState
 import pl.syntaxdevteam.authgatewayx.paper.listener.AuthenticationReadinessListener
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
-import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
 import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstPolicy
-import pl.syntaxdevteam.authgatewayx.security.flood.FloodLimit
+import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionDecision
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
+import pl.syntaxdevteam.authgatewayx.security.flood.FloodLimit
 import pl.syntaxdevteam.authgatewayx.security.login.LoginAttemptGate
-import pl.syntaxdevteam.authgatewayx.security.registration.RegistrationAttemptGate
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2Parameters
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2PasswordHasher
+import pl.syntaxdevteam.authgatewayx.security.registration.RegistrationAttemptGate
 import pl.syntaxdevteam.authgatewayx.storage.jdbc.SqliteAccountStorage
 import pl.syntaxdevteam.core.SyntaxCore
 import pl.syntaxdevteam.message.MessageHandler
 import pl.syntaxdevteam.message.SyntaxMessages
-import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
 import java.time.Duration
 
 class AuthGatewayXPaper : JavaPlugin() {
@@ -160,11 +162,19 @@ class AuthGatewayXPaper : JavaPlugin() {
             Duration.ofSeconds(positive("premium.lookup.negative-ttl-seconds").toLong()),
             positive("premium.lookup.maximum-cache-size"),
         )
+        val mojangAuthentication = VerifiedMojangAuthenticationService(storage, sessions, storage)
         val router = AuthenticationDialogRouter(
             storage, dialogs, access, scheduler,
             premiumLookup = premiumLookup,
+            mojangAuthentication = mojangAuthentication,
             premiumAuthenticationRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
             lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+            identityConflictMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+            internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+            onMojangActivated = { player ->
+                admission.release(player.uniqueId)
+                isolation.release(player)
+            },
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
         server.pluginManager.registerEvents(PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate), this)
