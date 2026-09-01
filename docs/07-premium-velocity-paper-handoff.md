@@ -160,7 +160,9 @@ Należy wtedy sprawdzić przede wszystkim:
 
 ## 9. Zakres tej decyzji
 
-Ten handoff rozwiązuje ścieżkę sieciową Velocity -> Paper/Purpur/Folia. Nie oznacza
-ukończenia premium authentication dla standalone Paper. Samodzielny backend bez
-zaufanego proxy nadal wymaga planowanego protocol interceptora i własnej weryfikacji
-Mojang Session Server opisanej w dokumentacji technicznej.
+Ten handoff rozwiązuje ścieżkę sieciową Velocity -> Paper/Purpur/Folia. Samodzielny
+backend nie korzysta z handoffu: posiada osobny interceptor LOGIN, który dla profilu
+premium uruchamia natywne szyfrowanie Paper i weryfikację Mojang Session Server.
+Obie ścieżki kończą się tym samym domenowym wiązaniem zweryfikowanego oficjalnego UUID,
+ale mają odrębne granice zaufania. Adapter standalone wymaga jeszcze testu rzeczywistym
+klientem premium przed oznaczeniem pełnej funkcji jako zweryfikowanej.

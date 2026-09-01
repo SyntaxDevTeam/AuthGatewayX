@@ -943,12 +943,13 @@ logowania lub rejestracji. Zewnętrzne biblioteki są dostarczane przez `PluginL
 wyłącznie dla wersji WIP i wymagają zastąpienia wydaniami release przed stabilnym 1.0.0.
 
 Paper standalone wykonuje ograniczony bounded executorem lookup Minecraft Services
-przed wejściem do ścieżki offline. Potwierdzony brak profilu dopuszcza formularz
-offline, istniejący profil premium jest odrzucany bez fallbacku, a timeout lub awaria
-usługi kończy się DENY. Lookup ma bounded cache, oddzielne positive/negative TTL i
-deduplikację zapytań per nick. Pełne uwierzytelnienie sesji premium nadal wymaga adaptera
-fazy login po stronie Velocity; do tego czasu Paper standalone nie próbuje udawać
-online authentication po zakończeniu handshake.
+w fazie LOGIN. Potwierdzony brak profilu dopuszcza ścieżkę offline, a istniejący profil
+premium uruchamia natywny encryption request Paper. Odpowiedź klienta, szyfrowanie i
+weryfikację Mojang Session Server wykonuje kod Paper. Timeout lub awaria usługi kończy
+się DENY. Lookup ma bounded cache, oddzielne positive/negative TTL i deduplikację per
+nick, a osobny limit ogranicza równoległe handshake'i. Adapter zweryfikowano kompilacją
+i startem Paper 26.2 build 121; test rzeczywistym klientem premium i Folia pozostają
+otwarte.
 
 `ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage,
 Mojang HTTP i Argon2. Dzięki temu droższe etapy nie są pierwszą linią obsługi floodu.

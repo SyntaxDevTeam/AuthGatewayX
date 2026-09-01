@@ -557,13 +557,16 @@ hasła.
 # 19. Zaimplementowana ochrona nicków na Paper standalone
 
 Przed lookupem konta offline wykonywany jest ograniczony i deduplikowany lookup profilu
-Minecraft Services. Odpowiedź potwierdzająca konto premium zawsze kończy połączenie;
-timeout, przeciążenie kolejki, 429, 5xx i błąd transportu również kończą się DENY.
-Wyłącznie jednoznaczny brak profilu pozwala przejść do formularza offline.
+Minecraft Services. Odpowiedź potwierdzająca konto premium kieruje połączenie do
+natywnego szyfrowanego handshake Paper i weryfikacji Mojang Session Server. Timeout,
+przeciążenie kolejki, 429, 5xx i błąd transportu kończą się DENY. Wyłącznie jednoznaczny
+brak profilu pozwala przejść do formularza offline.
 
-Connection flood limiter działa wcześniej niż lookup Mojang i posiada limity per-IP,
-globalny oraz liczby śledzonych adresów. Pełne logowanie premium pozostaje zadaniem
-adaptera Velocity i nie jest zastępowane niebezpiecznym fallbackiem w module Paper.
+Niezależny limit `premium.authentication.maximum-concurrent-handshakes` ogranicza liczbę
+równoległych kryptograficznych weryfikacji sesji. Nieudane uwierzytelnienie premium nie
+jest zastępowane fallbackiem offline. Istniejący connection flood limiter działa w
+`AsyncPlayerPreLoginEvent`; wcześniejszy protocol-level cheap guard pozostaje do
+wdrożenia przed uznaniem ochrony warstwy LOGIN za kompletną.
 
 # 20. Admission control PRE_AUTH
 

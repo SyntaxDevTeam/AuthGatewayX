@@ -1,5 +1,7 @@
 language: "PL"
 premium:
+  authentication:
+    maximum-concurrent-handshakes: 32
   lookup:
     timeout-millis: 3000
     positive-ttl-seconds: 21600

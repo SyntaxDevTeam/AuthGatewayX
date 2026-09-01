@@ -21,11 +21,12 @@ obowiązuje nowsza, bardziej szczegółowa i jawnie uzasadniona decyzja.
 Projekt jest aktywnym `1.0.0-WIP`, a nie gotowym wydaniem. Istnieją fundament domenowy,
 SQLite, Argon2id, login i rejestracja offline, audit, limitery, Paper Dialog API,
 aktywna izolacja PRE_AUTH, trwały limit rejestracji per IP, bezpieczny lookup nazw
-premium, selektor trybu Velocity oraz bezpieczny handoff zweryfikowanej tożsamości
+premium, per-połączeniowy adapter premium LOGIN dla Paper standalone, selektor trybu
+Velocity oraz bezpieczny handoff zweryfikowanej tożsamości
 premium z Velocity do Paper oparty o zgodność oficjalnego UUID z UUID przekazanym przez
 Velocity modern forwarding.
-Otwarte pozostają między innymi testy serwerowe Paper/Purpur/Folia/Velocity, pełne
-uwierzytelnienie premium standalone Paper, pozostałe backendy JDBC, kompletne anti-bot,
+Otwarte pozostają między innymi test rzeczywistym klientem premium adaptera standalone,
+testy serwerowe Purpur/Folia/Velocity, pozostałe backendy JDBC, kompletne anti-bot,
 integracje CleanerX/PunisherX i obserwowalność.
 
 Checkbox `[x]` wolno ustawić dopiero po wdrożeniu, integracji i weryfikacji danego

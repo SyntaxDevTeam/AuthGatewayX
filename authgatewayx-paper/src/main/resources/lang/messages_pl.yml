@@ -11,6 +11,7 @@ auth:
   timeout: "<red>Przekroczono czas uwierzytelnienia.</red>"
   startup_failed: "<red>Uwierzytelnianie jest chwilowo niedostępne.</red>"
   premium_authentication_required: "<red>Konto premium zostało rozpoznane, ale backend nie otrzymał zgodnej zweryfikowanej tożsamości premium z gatewaya.</red>"
+  premium_authentication_overloaded: "<red>Zbyt wiele równoczesnych uwierzytelnień premium. Spróbuj ponownie za chwilę.</red>"
   mojang_unavailable: "<red>Nie można bezpiecznie zweryfikować statusu nicku. Spróbuj ponownie później.</red>"
   pre_auth_full: "<red>Serwer osiągnął limit trwających uwierzytelnień. Spróbuj ponownie za chwilę.</red>"
   password_mismatch: "<red>Podane hasła nie są identyczne.</red>"

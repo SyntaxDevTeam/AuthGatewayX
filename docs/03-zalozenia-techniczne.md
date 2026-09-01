@@ -585,10 +585,19 @@ Rozróżnia `PREMIUM`, `NOT_PREMIUM` i `UNAVAILABLE`; tylko potwierdzony brak pr
 otwiera ścieżkę hasłową offline. Cache ma limit rozmiaru, osobne TTL positive/negative,
 invalidację i współdzielenie jednego requestu dla równoległych prób tego samego nicku.
 
-Paper standalone nie wykonuje jeszcze Mojang session authentication, ponieważ poprawna
-realizacja wymaga kontroli fazy login przed utworzeniem gracza. Do czasu adaptera
-Velocity profile premium jest odrzucany bez fallbacku offline. `ConnectionFloodGate`
-działa już w `AsyncPlayerPreLoginEvent`, przed HTTP, JDBC i Argon2.
+Paper standalone przechwytuje `ServerboundHelloPacket` przed standardowym listenerem
+LOGIN i zastępuje listener wariantem per-połączeniowym. Potwierdzony profil premium
+otrzymuje natywny Paper encryption request, po czym istniejący kod Paper weryfikuje
+odpowiedź klienta i sesję w Mojang Session Server. Potwierdzony brak profilu wraca do
+standardowej ścieżki offline; awaria lookupu, brak miejsca w ograniczonym limicie
+handshake albo nieudana sesja kończy się DENY bez fallbacku.
+
+Liczbę jednoczesnych handshake'ów premium ogranicza
+`premium.authentication.maximum-concurrent-handshakes`. Adapter kompiluje się i startuje
+na Paper 26.2 build 121; test wejścia rzeczywistym klientem premium pozostaje wymagany,
+więc checklista pełnego premium loginu nie jest jeszcze zamknięta. `ConnectionFloodGate`
+działa w `AsyncPlayerPreLoginEvent`; protocol-level cheap guard przed lookupem LOGIN
+pozostaje kolejnym etapem hardeningu.
 
 ## 23. Stan implementacji — selektor uwierzytelnienia Velocity
 

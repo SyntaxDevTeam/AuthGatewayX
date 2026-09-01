@@ -2831,17 +2831,19 @@ pipeline premium/proxy. Workflow BuildExplorer publikuje obecny artefakt jako `P
 i przed publikacją wykonuje `clean check :authgatewayx-paper:shadowJar` oraz sprawdza
 deskryptor i obecność implementacji storage w wynikowym JAR-ze.
 
-Pionowy wycinek Paper standalone wykonuje przed pokazaniem formularza asynchroniczny
-lookup profilu w Minecraft Services. Status `PREMIUM` jest odrzucany z informacją o
-konieczności wejścia przez przyszły gateway premium; status `NOT_PREMIUM` przechodzi do
-logowania lub rejestracji offline. Timeout, przeciążenie bounded executora, błąd HTTP,
-429 i 5xx dają `UNAVAILABLE` oraz DENY — nigdy fallback offline.
+Paper standalone wykonuje wybór w fazie LOGIN. Interceptor zatrzymuje hello klienta,
+wykonuje asynchroniczny lookup profilu i dla statusu `PREMIUM` uruchamia natywny
+encryption request Paper. Odpowiedź klienta, szyfrowanie transportu i weryfikację Mojang
+Session Server realizuje istniejący kod Paper. Status `NOT_PREMIUM` wraca do standardowej
+ścieżki offline, a timeout, przeciążenie, błąd HTTP, 429 i 5xx dają DENY — nigdy fallback
+offline dla nazwy premium.
 
 `MojangProfileLookup` posiada osobne TTL dla trafień pozytywnych i negatywnych,
 ograniczenie rozmiaru, invalidację i deduplikację równoległych lookupów tego samego
-nicku. Nie zastępuje to jeszcze właściwego Mojang session authentication: konta premium
-pozostają bezpiecznie zablokowane na Paper standalone do czasu wdrożenia fazy login po
-stronie Velocity. Tymczasowa allowlista testowa została usunięta.
+nicku. `premium.authentication.maximum-concurrent-handshakes` ogranicza równoległe
+weryfikacje kryptograficzne. Implementacja kompiluje się, testy jednostkowe przechodzą,
+a runtime osiąga `READY` na Paper 26.2 build 121. Przed zaznaczeniem kompletnego premium
+loginu wymagany pozostaje test rzeczywistym klientem premium oraz test Folia.
 
 Connection flood gate jest podłączony do `AsyncPlayerPreLoginEvent` przed readiness i
 przed jakimkolwiek storage/HTTP/Argon2. Obowiązują limity per-IP, globalny oraz limit
