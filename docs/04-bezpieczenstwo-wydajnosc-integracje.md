@@ -564,9 +564,12 @@ brak profilu pozwala przejść do formularza offline.
 
 Niezależny limit `premium.authentication.maximum-concurrent-handshakes` ogranicza liczbę
 równoległych kryptograficznych weryfikacji sesji. Nieudane uwierzytelnienie premium nie
-jest zastępowane fallbackiem offline. Istniejący connection flood limiter działa w
-`AsyncPlayerPreLoginEvent`; wcześniejszy protocol-level cheap guard pozostaje do
-wdrożenia przed uznaniem ochrony warstwy LOGIN za kompletną.
+jest zastępowane fallbackiem offline. W trybie standalone adapter protokołu wykonuje
+`ConnectionFloodGate`, walidację nazwy, `ConnectionBehaviorGate` i `UsernameBurstGate`
+bezpośrednio po `ServerboundHelloPacket`, przed pierwszym `MojangProfileLookup`.
+`AsyncPlayerPreLoginEvent` nie nalicza tych samych stanowych guardów drugi raz; po
+aktywacji ownership protokołu wykonuje jedynie tanią walidację nazwy i kontrolę
+readiness. W trybie Velocity-forwarded ownership pozostaje przy pre-login evencie.
 
 Jeżeli Mojang Session Server nie potwierdzi sesji chronionego nicku, adapter zastępuje
 wyłącznie vanilla `multiplayer.disconnect.unverified_username` komunikatem
@@ -593,8 +596,9 @@ Disconnect jest zliczany tylko dla gracza pozostającego w PRE_AUTH. Seria takic
 rozłączeń w jednym oknie kończy się tą samą czasową kwarantanną, zanim kolejna próba
 dotrze do HTTP, JDBC lub Argon2. Zwykłe rozłączenie sesji ACTIVE nie wpływa na licznik.
 
-Jest to nadal część warstwowego anti-bot. Checkbox reconnect loop pozostaje otwarty do
-testów obciążeniowych na serwerze, a pełny scoring nie jest jeszcze zaimplementowany.
+Jest to nadal część warstwowego anti-bot. Ważony scoring jest już zaimplementowany i
+spięty z tym gate'em, natomiast checkbox reconnect loop pozostaje otwarty do testów
+obciążeniowych na rzeczywistym serwerze.
 
 # 22. Registration attempt rate limiting
 
@@ -623,5 +627,8 @@ wygaszanie i jawne zachowanie fail-closed po wyczerpaniu pojemności. Sygnał z 
 callbacku nie alokuje nowego stanu. Scoring jest wykonywany przed storage i Argon2 oraz
 współdziała z ostrzejszym `UsernameBurstGate`, reconnect guardem i token bucketami.
 
-Pozycja `connection scoring` pozostaje niezaznaczona do testu obciążeniowego i
-przeniesienia cheap guarda przed pierwszy lookup Minecraft Services w standalone LOGIN.
+W Paper standalone pierwsze naliczenie `CONNECTION` i `DISTINCT_USERNAME` odbywa się w
+LOGIN adapterze przed `MojangProfileLookup`. `AsyncPlayerPreLoginEvent` nie wykonuje
+ponownego naliczenia tego samego połączenia. W Paper za Velocity pre-login event nadal
+jest właścicielem tych guardów. Pozycja `connection scoring` pozostaje niezaznaczona
+wyłącznie do wymaganego testu obciążeniowego/reconnect-flood na serwerze.
