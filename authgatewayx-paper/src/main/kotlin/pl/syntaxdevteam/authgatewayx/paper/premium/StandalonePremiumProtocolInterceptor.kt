@@ -9,11 +9,12 @@ import io.netty.channel.ChannelPromise
 import net.kyori.adventure.text.Component
 import net.minecraft.network.Connection
 import net.minecraft.network.PacketListener
-import net.minecraft.network.protocol.login.ServerboundHelloPacket
 import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket
+import net.minecraft.network.protocol.login.ServerboundHelloPacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerLoginPacketListenerImpl
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileIdentityLookup
+import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
 import java.lang.reflect.Field
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Consumer
@@ -21,8 +22,10 @@ import java.util.function.Consumer
 internal class StandalonePremiumProtocolInterceptor(
     private val server: MinecraftServer,
     private val premiumLookup: MojangProfileIdentityLookup,
+    private val cheapGuard: PaperLoginCheapGuard,
     maximumConcurrentHandshakes: Int,
     private val unavailableMessage: Component,
+    private val rateLimitedMessage: Component,
     private val overloadedMessage: Component,
     private val invalidSessionMessage: Component,
     private val onFailure: Consumer<Throwable>,
@@ -37,8 +40,14 @@ internal class StandalonePremiumProtocolInterceptor(
         .onEach { it.isAccessible = true }
 
     fun install() {
-        listeningChannels().forEach(::installParentHandler)
-        server.connection.connections.forEach { installChildHandler(it.channel) }
+        cheapGuard.activateStandaloneProtocolOwnership()
+        try {
+            listeningChannels().forEach(::installParentHandler)
+            server.connection.connections.forEach { installChildHandler(it.channel) }
+        } catch (failure: Throwable) {
+            cheapGuard.deactivateStandaloneProtocolOwnership()
+            throw failure
+        }
     }
 
     private fun installParentHandler(channel: Channel) {
@@ -106,8 +115,8 @@ internal class StandalonePremiumProtocolInterceptor(
         packetListenerField.set(
             connection,
             StandalonePremiumLoginListener(
-                server, connection, original.transferred, premiumLookup, capacity,
-                unavailableMessage, overloadedMessage, invalidSessionMessage, onFailure,
+                server, connection, original.transferred, premiumLookup, cheapGuard, capacity,
+                unavailableMessage, rateLimitedMessage, overloadedMessage, invalidSessionMessage, onFailure,
             ),
         )
     }
@@ -128,6 +137,7 @@ internal class StandalonePremiumProtocolInterceptor(
     }
 
     override fun close() {
+        cheapGuard.deactivateStandaloneProtocolOwnership()
         installedParents.forEach { channel ->
             channel.eventLoop().execute {
                 if (channel.pipeline().get(parentHandlerName) != null) channel.pipeline().remove(parentHandlerName)

@@ -8,9 +8,11 @@ import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket
 import net.minecraft.network.protocol.login.ServerboundHelloPacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerLoginPacketListenerImpl
-import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileIdentityLookup
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookupResult
+import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
+import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginGuardDecision
+import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
 
@@ -20,8 +22,10 @@ internal class StandalonePremiumLoginListener(
     connection: Connection,
     transferred: Boolean,
     private val premiumLookup: MojangProfileIdentityLookup,
+    private val cheapGuard: PaperLoginCheapGuard,
     private val capacity: PremiumHandshakeCapacity,
     private val unavailableMessage: Component,
+    private val rateLimitedMessage: Component,
     private val overloadedMessage: Component,
     private val invalidSessionMessage: Component,
     private val onFailure: Consumer<Throwable>,
@@ -35,7 +39,22 @@ internal class StandalonePremiumLoginListener(
             disconnect(PaperAdventure.asVanilla(unavailableMessage))
             return
         }
-        val username = runCatching { AccountUsername.parse(packet.name()) }.getOrElse {
+        val sourceAddress = (connection.channel.remoteAddress() as? InetSocketAddress)?.address
+        if (sourceAddress == null) {
+            disconnect(PaperAdventure.asVanilla(unavailableMessage))
+            return
+        }
+        val guardResult = cheapGuard.evaluateProtocol(sourceAddress, packet.name())
+        if (guardResult.decision != PaperLoginGuardDecision.ALLOW) {
+            val message = if (guardResult.decision == PaperLoginGuardDecision.DENY_INVALID_USERNAME) {
+                unavailableMessage
+            } else {
+                rateLimitedMessage
+            }
+            disconnect(PaperAdventure.asVanilla(message))
+            return
+        }
+        val username = guardResult.username ?: run {
             disconnect(PaperAdventure.asVanilla(unavailableMessage))
             return
         }
