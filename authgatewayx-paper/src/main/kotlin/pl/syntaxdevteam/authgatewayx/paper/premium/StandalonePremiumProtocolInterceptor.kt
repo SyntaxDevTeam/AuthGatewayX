@@ -40,8 +40,14 @@ internal class StandalonePremiumProtocolInterceptor(
         .onEach { it.isAccessible = true }
 
     fun install() {
-        listeningChannels().forEach(::installParentHandler)
-        server.connection.connections.forEach { installChildHandler(it.channel) }
+        cheapGuard.activateStandaloneProtocolOwnership()
+        try {
+            listeningChannels().forEach(::installParentHandler)
+            server.connection.connections.forEach { installChildHandler(it.channel) }
+        } catch (failure: Throwable) {
+            cheapGuard.deactivateStandaloneProtocolOwnership()
+            throw failure
+        }
     }
 
     private fun installParentHandler(channel: Channel) {
@@ -131,6 +137,7 @@ internal class StandalonePremiumProtocolInterceptor(
     }
 
     override fun close() {
+        cheapGuard.deactivateStandaloneProtocolOwnership()
         installedParents.forEach { channel ->
             channel.eventLoop().execute {
                 if (channel.pipeline().get(parentHandlerName) != null) channel.pipeline().remove(parentHandlerName)
