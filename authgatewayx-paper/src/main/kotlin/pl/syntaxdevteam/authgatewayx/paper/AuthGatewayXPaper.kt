@@ -210,6 +210,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                     positive("premium.authentication.maximum-concurrent-handshakes"),
                     messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
                     messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_overloaded"),
+                    messages.stringMessageToComponentNoPrefix("auth", "premium_session_invalid"),
                 ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
                 premiumProtocol.install()
                 runtime?.premiumProtocol = premiumProtocol

@@ -167,6 +167,13 @@ Obie ścieżki kończą się tym samym domenowym wiązaniem zweryfikowanego ofic
 ale mają odrębne granice zaufania. Adapter standalone wymaga jeszcze testu rzeczywistym
 klientem premium przed oznaczeniem pełnej funkcji jako zweryfikowanej.
 
+Jeżeli standalone handshake dojdzie do weryfikacji sesji, lecz Minecraft Services jej
+nie potwierdzi, AuthGatewayX zastępuje ogólny angielski kick vanilla własnym komunikatem
+`auth.premium_session_invalid`. Informuje on, że nick jest chroniony jako premium i że
+klient powinien zalogować się na właściwe konto Microsoft/Mojang w launcherze oraz
+uruchomić grę ponownie. Sam brak potwierdzenia nie pozwala serwerowi rozstrzygnąć, czy
+przyczyną była wygasła sesja, złe konto, wylogowanie czy launcher offline.
+
 ## 10. Automatyczny wybór trybu Paper
 
 Paper nie może jednocześnie wykonywać standalone premium encryption handshake i być

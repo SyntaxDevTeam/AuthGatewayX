@@ -2858,6 +2858,12 @@ Netty przez synchroniczną instalację w `channelActive`; test LOGIN dla `Wieszc
 potwierdził zwrócenie `0x01 Encryption Request`. Przed zaznaczeniem kompletnego premium
 loginu wymagany pozostaje test pełnej sesji rzeczywistym klientem oraz test Folia.
 
+Dla połączenia skierowanego do premium handshake adapter zastępuje dokładnie vanilla
+`multiplayer.disconnect.unverified_username` komunikatem MessageHandler
+`auth.premium_session_invalid`. Tekst identyfikuje AuthGatewayX, wyjaśnia brak
+potwierdzenia sesji chronionego nicku i podaje kroki naprawcze. Nie zmienia komunikatów
+o niedostępności usług lub przeciążeniu i nie otwiera fallbacku offline.
+
 Connection flood gate jest podłączony do `AsyncPlayerPreLoginEvent` przed readiness i
 przed jakimkolwiek storage/HTTP/Argon2. Obowiązują limity per-IP, globalny oraz limit
 liczby śledzonych adresów.

@@ -568,6 +568,12 @@ jest zastępowane fallbackiem offline. Istniejący connection flood limiter dzia
 `AsyncPlayerPreLoginEvent`; wcześniejszy protocol-level cheap guard pozostaje do
 wdrożenia przed uznaniem ochrony warstwy LOGIN za kompletną.
 
+Jeżeli Mojang Session Server nie potwierdzi sesji chronionego nicku, adapter zastępuje
+wyłącznie vanilla `multiplayer.disconnect.unverified_username` komunikatem
+`auth.premium_session_invalid` z MessageHandler. Gracz widzi, że decyzję egzekwuje
+AuthGatewayX, dlaczego nick wymaga premium oraz jak odnowić sesję. Inne klasy błędów nie
+są maskowane tym tekstem, a ścieżka nadal kończy się DENY bez fallbacku offline.
+
 # 20. Admission control PRE_AUTH
 
 `PreAuthAdmission` opiera się na `PreAuthCapacity` i przechowuje pojedynczy lease per

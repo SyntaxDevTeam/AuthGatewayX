@@ -679,3 +679,16 @@ Argon2. Wyniki formularza wracają na `EntityScheduler`, gdzie nieudane auth zwi
 wynik; quit w PRE_AUTH rejestruje sygnał rozłączenia. Shutdown czyści cały stan.
 Pierwszy lookup premium standalone nadal poprzedza `AsyncPlayerPreLoginEvent`, więc
 protocol-level cheap guard i test obciążeniowy pozostają otwarte.
+
+## 28. Stan implementacji — czytelny błąd sesji premium standalone
+
+Adapter Netty przechwytuje wychodzący `ClientboundLoginDisconnectPacket` tylko dla
+połączenia, które `StandalonePremiumLoginListener` skierował do oficjalnego premium
+handshake. Jeżeli powodem jest dokładnie vanilla
+`multiplayer.disconnect.unverified_username`, zastępuje go komponentem MessageHandler
+`auth.premium_session_invalid`. Pozostałe powody — w tym niedostępność usług,
+przeciążenie i błędy protokołu — nie są przepisywane.
+
+Komunikat identyfikuje AuthGatewayX, wyjaśnia brak potwierdzonej sesji dla chronionego
+nicku oraz podaje kroki naprawcze. Nie wprowadza fallbacku offline i nie twierdzi, że
+serwer zna dokładną lokalną przyczynę, której Minecraft Services nie ujawnia.

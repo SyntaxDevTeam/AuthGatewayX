@@ -956,6 +956,12 @@ i startem Paper 26.2 build 121. Test pakietowy LOGIN dla nazwy premium potwierdz
 odpowiedź `0x01 Encryption Request`; test pełnej sesji rzeczywistym klientem premium
 i Folia pozostają otwarte.
 
+Wychodzący vanilla kick `multiplayer.disconnect.unverified_username` jest zastępowany
+MessageHandler-backed komunikatem `auth.premium_session_invalid`, ale tylko gdy dany
+listener wcześniej rozpoczął premium authentication. Dzięki temu błąd identyfikuje
+AuthGatewayX, opisuje brak potwierdzonej sesji chronionego nicku i podaje kroki
+naprawcze, nie zmieniając innych powodów rozłączenia ani polityki fail-closed.
+
 `ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage i
 Argon2. Pierwszy lookup premium standalone występuje wcześniej na poziomie LOGIN, więc
 protocol-level cheap guard przed tym HTTP nadal pozostaje otwarty.

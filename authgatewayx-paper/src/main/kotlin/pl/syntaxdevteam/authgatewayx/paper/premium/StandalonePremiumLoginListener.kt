@@ -4,6 +4,7 @@ import io.papermc.paper.adventure.PaperAdventure
 import net.kyori.adventure.text.Component
 import net.minecraft.network.Connection
 import net.minecraft.network.protocol.login.ClientboundHelloPacket
+import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket
 import net.minecraft.network.protocol.login.ServerboundHelloPacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerLoginPacketListenerImpl
@@ -22,10 +23,12 @@ internal class StandalonePremiumLoginListener(
     private val capacity: PremiumHandshakeCapacity,
     private val unavailableMessage: Component,
     private val overloadedMessage: Component,
+    private val invalidSessionMessage: Component,
     private val onFailure: Consumer<Throwable>,
 ) : ServerLoginPacketListenerImpl(minecraftServer, connection, transferred) {
     private val lookupStarted = AtomicBoolean()
     private val capacityHeld = AtomicBoolean()
+    private val premiumAuthenticationAttempted = AtomicBoolean()
 
     override fun handleHello(packet: ServerboundHelloPacket) {
         if (!lookupStarted.compareAndSet(false, true)) {
@@ -54,6 +57,7 @@ internal class StandalonePremiumLoginListener(
     }
 
     private fun beginPremiumAuthentication(packet: ServerboundHelloPacket) {
+        premiumAuthenticationAttempted.set(true)
         if (!capacity.tryAcquire()) {
             disconnect(PaperAdventure.asVanilla(overloadedMessage))
             return
@@ -87,11 +91,29 @@ internal class StandalonePremiumLoginListener(
         if (capacityHeld.compareAndSet(true, false)) capacity.release()
     }
 
+    internal fun rewriteDisconnect(packet: ClientboundLoginDisconnectPacket): ClientboundLoginDisconnectPacket {
+        if (!premiumAuthenticationAttempted.get()) return packet
+        val reason = replaceInvalidPremiumSessionReason(packet.reason(), invalidSessionMessage)
+        return if (reason === packet.reason()) packet else ClientboundLoginDisconnectPacket(reason)
+    }
+
     private fun challengeBytes(): ByteArray = CHALLENGE_FIELD.get(this) as ByteArray
 
     private companion object {
         val CHALLENGE_FIELD = ServerLoginPacketListenerImpl::class.java.declaredFields
             .single { it.type == ByteArray::class.java }
             .also { it.isAccessible = true }
+    }
+}
+
+internal fun replaceInvalidPremiumSessionReason(
+    original: net.minecraft.network.chat.Component,
+    replacement: Component,
+): net.minecraft.network.chat.Component {
+    val translation = original.contents as? net.minecraft.network.chat.contents.TranslatableContents
+    return if (translation?.key == "multiplayer.disconnect.unverified_username") {
+        PaperAdventure.asVanilla(replacement)
+    } else {
+        original
     }
 }

@@ -12,6 +12,7 @@ auth:
   startup_failed: "<red>Uwierzytelnianie jest chwilowo niedostępne.</red>"
   premium_authentication_required: "<red>Konto premium zostało rozpoznane, ale backend nie otrzymał zgodnej zweryfikowanej tożsamości premium z gatewaya.</red>"
   premium_authentication_overloaded: "<red>Zbyt wiele równoczesnych uwierzytelnień premium. Spróbuj ponownie za chwilę.</red>"
+  premium_session_invalid: "<red><b>AuthGatewayX: nie potwierdzono sesji konta premium.</b></red><newline><gray>Ten nick jest chroniony jako premium, ale Minecraft Services nie potwierdził, że klient jest zalogowany na właściwe konto. Zaloguj się w launcherze na konto Microsoft/Mojang będące właścicielem tego nicku, uruchom ponownie grę i spróbuj ponownie. Konto offline nie może użyć tego nicku.</gray>"
   mojang_unavailable: "<red>Nie można bezpiecznie zweryfikować statusu nicku. Spróbuj ponownie później.</red>"
   pre_auth_full: "<red>Serwer osiągnął limit trwających uwierzytelnień. Spróbuj ponownie za chwilę.</red>"
   password_mismatch: "<red>Podane hasła nie są identyczne.</red>"

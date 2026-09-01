@@ -2,12 +2,15 @@ package pl.syntaxdevteam.authgatewayx.paper.premium
 
 import io.netty.channel.Channel
 import io.netty.channel.ChannelHandlerContext
+import io.netty.channel.ChannelDuplexHandler
 import io.netty.channel.ChannelInboundHandlerAdapter
 import io.netty.channel.ChannelInitializer
+import io.netty.channel.ChannelPromise
 import net.kyori.adventure.text.Component
 import net.minecraft.network.Connection
 import net.minecraft.network.PacketListener
 import net.minecraft.network.protocol.login.ServerboundHelloPacket
+import net.minecraft.network.protocol.login.ClientboundLoginDisconnectPacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.network.ServerLoginPacketListenerImpl
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileIdentityLookup
@@ -21,6 +24,7 @@ internal class StandalonePremiumProtocolInterceptor(
     maximumConcurrentHandshakes: Int,
     private val unavailableMessage: Component,
     private val overloadedMessage: Component,
+    private val invalidSessionMessage: Component,
     private val onFailure: Consumer<Throwable>,
 ) : AutoCloseable {
     private val capacity = PremiumHandshakeCapacity(maximumConcurrentHandshakes)
@@ -76,10 +80,19 @@ internal class StandalonePremiumProtocolInterceptor(
         if (channel.pipeline().get(childHandlerName) != null) return
         val packetHandler = channel.pipeline().names().firstOrNull { channel.pipeline().get(it) is Connection } ?: return
         val connection = channel.pipeline().get(packetHandler) as Connection
-        channel.pipeline().addBefore(packetHandler, childHandlerName, object : ChannelInboundHandlerAdapter() {
+        channel.pipeline().addBefore(packetHandler, childHandlerName, object : ChannelDuplexHandler() {
             override fun channelRead(context: ChannelHandlerContext, message: Any) {
                 if (message is ServerboundHelloPacket) replaceLoginListener(connection)
                 context.fireChannelRead(message)
+            }
+
+            override fun write(context: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
+                val rewritten = if (message is ClientboundLoginDisconnectPacket) {
+                    (connection.packetListener as? StandalonePremiumLoginListener)?.rewriteDisconnect(message) ?: message
+                } else {
+                    message
+                }
+                context.write(rewritten, promise)
             }
         })
     }
@@ -94,7 +107,7 @@ internal class StandalonePremiumProtocolInterceptor(
             connection,
             StandalonePremiumLoginListener(
                 server, connection, original.transferred, premiumLookup, capacity,
-                unavailableMessage, overloadedMessage, onFailure,
+                unavailableMessage, overloadedMessage, invalidSessionMessage, onFailure,
             ),
         )
     }

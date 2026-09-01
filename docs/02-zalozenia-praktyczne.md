@@ -20,6 +20,15 @@ DENY
 
 bez fallbacku do offline.
 
+W trybie Paper standalone brak potwierdzenia sesji przez Minecraft Services nie może
+kończyć się ogólnym angielskim komunikatem vanilla. AuthGatewayX zastępuje wyłącznie
+powód `multiplayer.disconnect.unverified_username` własnym komunikatem, który podaje
+nazwę pluginu, wyjaśnia ochronę nicku premium i zaleca zalogowanie się w launcherze na
+właściwe konto Microsoft/Mojang oraz ponowne uruchomienie gry. Serwer nie potrafi
+bezpiecznie rozróżnić wylogowanego klienta, wygasłej sesji, złego konta i launchera
+offline, dlatego komunikat opisuje wspólną, prawdziwą przyczynę: sesja nie została
+potwierdzona dla tego chronionego nicku.
+
 ## 2. Zachowanie z punktu widzenia gracza non-premium
 
 Pierwsze wejście:
