@@ -27,6 +27,7 @@ import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMod
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
 import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
+import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorGate
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorPolicy
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorSignal
@@ -75,10 +76,14 @@ class AuthGatewayXPaper : JavaPlugin() {
             ))
         } catch (failure: Throwable) {
             fail("Anti-bot configuration is invalid", failure)
-            server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, floodGate, null, null), this)
+            server.pluginManager.registerEvents(
+                AuthenticationReadinessListener(readiness, PaperLoginCheapGuard(floodGate, null, null)),
+                this,
+            )
             return
         }
-        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, floodGate, usernameBurstGate, behaviorGate), this)
+        val cheapGuard = PaperLoginCheapGuard(floodGate, usernameBurstGate, behaviorGate)
+        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, cheapGuard), this)
         if (server.onlineMode) {
             readiness.force(RuntimeState.FAILED)
             logger.severe("Paper standalone requires online-mode=false; authentication remains fail-closed")
@@ -87,21 +92,26 @@ class AuthGatewayXPaper : JavaPlugin() {
         try {
             SyntaxCore.init(this, versionType = "paper")
             SyntaxMessages.initialize(this)
-            startRuntime(SyntaxMessages.messages, floodGate, usernameBurstGate, behaviorGate)
+            startRuntime(SyntaxMessages.messages, floodGate, usernameBurstGate, behaviorGate, cheapGuard)
         } catch (failure: Throwable) {
             fail("AuthGatewayX bootstrap failed", failure)
         }
     }
 
-    private fun startRuntime(messages: MessageHandler, floodGate: ConnectionFloodGate,
-        usernameBurstGate: UsernameBurstGate, behaviorGate: ConnectionBehaviorGate) {
+    private fun startRuntime(
+        messages: MessageHandler,
+        floodGate: ConnectionFloodGate,
+        usernameBurstGate: UsernameBurstGate,
+        behaviorGate: ConnectionBehaviorGate,
+        cheapGuard: PaperLoginCheapGuard,
+    ) {
         val scheduler = PaperPlatformScheduler(this)
         val sessions = InMemorySessionRegistry()
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
         val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
         val components = RuntimeComponents(
-            sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate, usernameBurstGate, behaviorGate,
+            sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate, usernameBurstGate, behaviorGate, cheapGuard,
         )
         runtime = components
         val hasher = Argon2PasswordHasher(Argon2Parameters(
@@ -123,7 +133,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                 runCatching {
                     installAuthentication(
                         initialized.first, initialized.second, hasher, messages, scheduler, sessions,
-                        passwordExecutor, mojangExecutor, usernameBurstGate, behaviorGate,
+                        passwordExecutor, mojangExecutor, usernameBurstGate, behaviorGate, cheapGuard,
                     )
                 }
                     .onSuccess { readiness.force(RuntimeState.READY); logger.info("AuthGatewayX authentication runtime is READY") }
@@ -132,10 +142,19 @@ class AuthGatewayXPaper : JavaPlugin() {
         }
     }
 
-    private fun installAuthentication(storage: SqliteAccountStorage, dummyHash: String, hasher: Argon2PasswordHasher,
-        messages: MessageHandler, scheduler: PaperPlatformScheduler, sessions: InMemorySessionRegistry,
-        passwordExecutor: BoundedTaskExecutor, mojangExecutor: BoundedTaskExecutor,
-        usernameBurstGate: UsernameBurstGate, behaviorGate: ConnectionBehaviorGate) {
+    private fun installAuthentication(
+        storage: SqliteAccountStorage,
+        dummyHash: String,
+        hasher: Argon2PasswordHasher,
+        messages: MessageHandler,
+        scheduler: PaperPlatformScheduler,
+        sessions: InMemorySessionRegistry,
+        passwordExecutor: BoundedTaskExecutor,
+        mojangExecutor: BoundedTaskExecutor,
+        usernameBurstGate: UsernameBurstGate,
+        behaviorGate: ConnectionBehaviorGate,
+        cheapGuard: PaperLoginCheapGuard,
+    ) {
         val access = SessionPreAuthAccess(sessions)
         val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
         val registrationAttemptGate = RegistrationAttemptGate(
@@ -207,14 +226,17 @@ class AuthGatewayXPaper : JavaPlugin() {
                 val premiumProtocol = StandalonePremiumProtocolInterceptor(
                     net.minecraft.server.MinecraftServer.getServer(),
                     premiumLookup,
+                    cheapGuard,
                     positive("premium.authentication.maximum-concurrent-handshakes"),
                     messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+                    messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
                     messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_overloaded"),
                     messages.stringMessageToComponentNoPrefix("auth", "premium_session_invalid"),
                 ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
                 premiumProtocol.install()
+                cheapGuard.activateStandaloneProtocolOwnership()
                 runtime?.premiumProtocol = premiumProtocol
-                logger.info("AuthGatewayX premium mode: standalone Paper protocol authentication")
+                logger.info("AuthGatewayX premium mode: standalone Paper protocol authentication; cheap guards run before profile lookup")
             }
             PaperPremiumAuthenticationMode.VELOCITY_FORWARDED -> {
                 logger.info("AuthGatewayX premium mode: Velocity modern forwarding; standalone Paper encryption interceptor disabled")
@@ -252,12 +274,31 @@ class AuthGatewayXPaper : JavaPlugin() {
     override fun onDisable() { readiness.force(RuntimeState.STOPPING); runtime?.close(); runtime = null }
 }
 
-private class RuntimeComponents(val sessions: InMemorySessionRegistry, val storageExecutor: BoundedTaskExecutor,
-    val passwordExecutor: BoundedTaskExecutor, val mojangExecutor: BoundedTaskExecutor,
-    val floodGate: ConnectionFloodGate, val usernameBurstGate: UsernameBurstGate,
-    val behaviorGate: ConnectionBehaviorGate) : AutoCloseable {
+private class RuntimeComponents(
+    val sessions: InMemorySessionRegistry,
+    val storageExecutor: BoundedTaskExecutor,
+    val passwordExecutor: BoundedTaskExecutor,
+    val mojangExecutor: BoundedTaskExecutor,
+    val floodGate: ConnectionFloodGate,
+    val usernameBurstGate: UsernameBurstGate,
+    val behaviorGate: ConnectionBehaviorGate,
+    val cheapGuard: PaperLoginCheapGuard,
+) : AutoCloseable {
     @Volatile var storage: SqliteAccountStorage? = null
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
-    override fun close() { premiumProtocol?.close(); sessions.clear(); storage?.close(); storageExecutor.close(); passwordExecutor.close(); mojangExecutor.close(); floodGate.clear(); usernameBurstGate.clear(); behaviorGate.clear(); registrationAttemptGate?.clear() }
+
+    override fun close() {
+        cheapGuard.deactivateStandaloneProtocolOwnership()
+        premiumProtocol?.close()
+        sessions.clear()
+        storage?.close()
+        storageExecutor.close()
+        passwordExecutor.close()
+        mojangExecutor.close()
+        floodGate.clear()
+        usernameBurstGate.clear()
+        behaviorGate.clear()
+        registrationAttemptGate?.clear()
+    }
 }
