@@ -1,5 +1,6 @@
 package pl.syntaxdevteam.authgatewayx.paper
 
+import io.papermc.paper.configuration.GlobalConfiguration
 import org.bukkit.plugin.java.JavaPlugin
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
@@ -20,12 +21,13 @@ import pl.syntaxdevteam.authgatewayx.paper.isolation.SessionPreAuthAccess
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeReadiness
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeState
 import pl.syntaxdevteam.authgatewayx.paper.listener.AuthenticationReadinessListener
+import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMode
+import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
 import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
 import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstPolicy
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
-import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionDecision
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
 import pl.syntaxdevteam.authgatewayx.security.flood.FloodLimit
 import pl.syntaxdevteam.authgatewayx.security.login.LoginAttemptGate
@@ -163,15 +165,23 @@ class AuthGatewayXPaper : JavaPlugin() {
             Duration.ofSeconds(positive("premium.lookup.negative-ttl-seconds").toLong()),
             positive("premium.lookup.maximum-cache-size"),
         )
-        val premiumProtocol = StandalonePremiumProtocolInterceptor(
-            net.minecraft.server.MinecraftServer.getServer(),
-            premiumLookup,
-            positive("premium.authentication.maximum-concurrent-handshakes"),
-            messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
-            messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_overloaded"),
-        ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
-        premiumProtocol.install()
-        runtime?.premiumProtocol = premiumProtocol
+        when (PaperPremiumAuthenticationModeSelector.select(GlobalConfiguration.get().proxies.velocity.enabled)) {
+            PaperPremiumAuthenticationMode.STANDALONE_PROTOCOL -> {
+                val premiumProtocol = StandalonePremiumProtocolInterceptor(
+                    net.minecraft.server.MinecraftServer.getServer(),
+                    premiumLookup,
+                    positive("premium.authentication.maximum-concurrent-handshakes"),
+                    messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+                    messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_overloaded"),
+                ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
+                premiumProtocol.install()
+                runtime?.premiumProtocol = premiumProtocol
+                logger.info("AuthGatewayX premium mode: standalone Paper protocol authentication")
+            }
+            PaperPremiumAuthenticationMode.VELOCITY_FORWARDED -> {
+                logger.info("AuthGatewayX premium mode: Velocity modern forwarding; standalone Paper encryption interceptor disabled")
+            }
+        }
         val mojangAuthentication = VerifiedMojangAuthenticationService(storage, sessions, storage)
         val router = AuthenticationDialogRouter(
             storage, dialogs, access, scheduler,
