@@ -1,6 +1,7 @@
 package pl.syntaxdevteam.authgatewayx.paper
 
 import io.papermc.paper.configuration.GlobalConfiguration
+import net.kyori.adventure.text.Component
 import org.bukkit.plugin.java.JavaPlugin
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
@@ -39,6 +40,7 @@ import pl.syntaxdevteam.core.SyntaxCore
 import pl.syntaxdevteam.message.MessageHandler
 import pl.syntaxdevteam.message.SyntaxMessages
 import java.time.Duration
+import java.util.UUID
 
 class AuthGatewayXPaper : JavaPlugin() {
     private val readiness = RuntimeReadiness()
@@ -131,6 +133,17 @@ class AuthGatewayXPaper : JavaPlugin() {
         runtime?.registrationAttemptGate = registrationAttemptGate
         val isolation = PreAuthIsolationManager(this, scheduler, access, positive("authentication.timeout-seconds") * 20L,
             messages.stringMessageToComponentNoPrefix("auth", "timeout"))
+        val offlineAuthenticationSuccess = messages.stringMessageToComponentNoPrefix("auth", "offline_authentication_success")
+        val premiumAuthenticationSuccess = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_success")
+        fun sendAuthenticationSuccess(playerId: UUID, message: Component) {
+            scheduler.global(Runnable {
+                server.getPlayer(playerId)?.let { player ->
+                    scheduler.entity(player, Runnable {
+                        if (player.isOnline && !access.isPreAuth(player.uniqueId)) player.sendMessage(message)
+                    })
+                }
+            })
+        }
         val login = LoginService(storage, hasher, passwordExecutor,
             LoginAttemptGate(FloodLimit(5, 1, Duration.ofSeconds(2)), 50_000), storage, dummyHash,
             LockoutPolicy(positive("authentication.lockout.attempts"), Duration.ofSeconds(positive("authentication.lockout.duration-seconds").toLong())))
@@ -141,6 +154,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)
+            sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
         })
         val dialogs = AuthenticationDialogController(coordinator, scheduler, AuthenticationDialogText(
             messages.stringMessageToComponentNoPrefix("auth", "login_title"),
@@ -194,6 +208,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             onMojangActivated = { player ->
                 admission.release(player.uniqueId)
                 isolation.release(player)
+                sendAuthenticationSuccess(player.uniqueId, premiumAuthenticationSuccess)
             },
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)

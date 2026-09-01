@@ -15,6 +15,8 @@ AuthGatewayX
 ├── authgatewayx-platform-common
 ├── authgatewayx-velocity
 └── authgatewayx-paper
+└── authgatewayx-folia
+└── authgatewayx-spigot
 ```
 
 Opcjonalnie później:
@@ -651,3 +653,15 @@ uniemożliwia przekroczenie limitu przez równoległe rejestracje, a rollback us
 po odmowie. Migracja przypisuje istniejącym kontom offline sloty na podstawie
 `last_login_ip`, więc restart nie zeruje limitu. Pozostałe backendy JDBC muszą zapewnić
 równoważną atomowość przed oznaczeniem całej warstwy jako ukończonej.
+
+## 26. Stan implementacji — rozróżnienie formularzy i feedback sukcesu
+
+`AuthenticationDialogRouter` rozpoznaje brak konta jako pierwsze wejście i otwiera
+rejestrację z dwoma polami hasła; istniejące konto offline otrzymuje formularz logowania
+z jednym polem. Oba nagłówki zawierają nazwę gracza, wstawianą do komponentu Adventure
+jako zwykły tekst. Zapobiega to interpretowaniu nazwy jako formatowania MiniMessage.
+
+Po udanej rejestracji lub logowaniu offline komunikat sukcesu jest planowany dopiero po
+atomowej aktywacji sesji. Osobny komunikat premium jest wysyłany po pomyślnym
+`VerifiedMojangAuthenticationService`. Wysyłka do gracza odbywa się przez
+`EntityScheduler`; komunikaty pochodzą z MessageHandler i nie zawierają sekretów.

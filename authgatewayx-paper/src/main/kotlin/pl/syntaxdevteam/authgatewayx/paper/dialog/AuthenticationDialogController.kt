@@ -13,6 +13,7 @@ import io.papermc.paper.registry.data.dialog.input.DialogInput
 import io.papermc.paper.registry.data.dialog.type.DialogType
 import net.kyori.adventure.key.Key
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.TextReplacementConfig
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
@@ -55,12 +56,12 @@ class AuthenticationDialogController(
 
     fun showLogin(player: Player, feedback: Component? = null) {
         expectedForms[player.uniqueId] = FormType.LOGIN
-        player.showDialog(createDialog(FormType.LOGIN, feedback))
+        player.showDialog(createDialog(FormType.LOGIN, player.name, feedback))
     }
 
     fun showRegistration(player: Player, feedback: Component? = null) {
         expectedForms[player.uniqueId] = FormType.REGISTER
-        player.showDialog(createDialog(FormType.REGISTER, feedback))
+        player.showDialog(createDialog(FormType.REGISTER, player.name, feedback))
     }
 
     @EventHandler
@@ -138,7 +139,7 @@ class AuthenticationDialogController(
         player.uniqueId,
     )
 
-    private fun createDialog(type: FormType, feedback: Component?): Dialog = Dialog.create { builder ->
+    private fun createDialog(type: FormType, username: String, feedback: Component?): Dialog = Dialog.create { builder ->
         val inputs = mutableListOf(
             DialogInput.text(PASSWORD_KEY, text.passwordLabel).width(300).maxLength(128).build(),
         )
@@ -151,7 +152,10 @@ class AuthenticationDialogController(
         ))
         if (feedback != null) body += DialogBody.plainMessage(feedback, 360)
         builder.empty()
-            .base(DialogBase.builder(if (type == FormType.LOGIN) text.loginTitle else text.registrationTitle)
+            .base(DialogBase.builder(authenticationDialogTitle(
+                if (type == FormType.LOGIN) text.loginTitle else text.registrationTitle,
+                username,
+            ))
                 .canCloseWithEscape(false)
                 .pause(false)
                 .body(body)
@@ -182,3 +186,9 @@ class AuthenticationDialogController(
         private val CANCEL = Key.key("authgatewayx:auth_cancel")
     }
 }
+
+internal fun authenticationDialogTitle(template: Component, username: String): Component =
+    template.replaceText(TextReplacementConfig.builder()
+        .matchLiteral("{username}")
+        .replacement(Component.text(username))
+        .build())

@@ -14,6 +14,7 @@ import java.time.ZoneOffset
 import java.util.concurrent.CompletableFuture
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class AuthenticationFormCoordinatorTest {
     @Test
@@ -74,5 +75,41 @@ class AuthenticationFormCoordinatorTest {
             coordinator.submitRegistration(context, "secure-password".toCharArray()).toCompletableFuture().get(),
         )
         assertEquals(ConnectionState.PRE_AUTH, sessions.get(context.connectionId)?.state)
+    }
+
+    @Test
+    fun `successful first-entry registration activates session and invokes success hook`() {
+        val now = Instant.parse("2026-08-30T10:00:00Z")
+        val username = AccountUsername.parse("FirstEntry")
+        val account = AuthAccount(
+            AccountId.random(), username, IdentityType.OFFLINE, OfflineIdentity.minecraftUuid(username),
+            AccountState.REGISTERED, now, now,
+        )
+        val sessions = InMemorySessionRegistry()
+        val context = AuthenticationFormContext(
+            ConnectionId.random(), username, InetAddress.getLoopbackAddress(), account.minecraftUuid,
+        )
+        sessions.create(AuthSession.connecting(context.connectionId, username, context.sourceAddress, now.minusSeconds(1)))
+        sessions.enterPreAuth(context.connectionId)
+        var activatedAfterSessionTransition = false
+        val coordinator = AuthenticationFormCoordinator(
+            OfflineLoginUseCase { _, _, _ -> CompletableFuture.completedFuture(LoginResult.InvalidCredentials) },
+            OfflineRegistrationUseCase { _, _, password ->
+                password.fill('\u0000')
+                CompletableFuture.completedFuture(RegistrationOutcome.Created(account))
+            },
+            sessions,
+            Clock.fixed(now, ZoneOffset.UTC),
+            AuthenticationActivationListener {
+                activatedAfterSessionTransition = sessions.get(it.connectionId)?.state == ConnectionState.ACTIVE
+            },
+        )
+
+        assertEquals(
+            AuthenticationFormResult.AUTHENTICATED,
+            coordinator.submitRegistration(context, "secure-password".toCharArray()).toCompletableFuture().get(),
+        )
+        assertEquals(ConnectionState.ACTIVE, sessions.get(context.connectionId)?.state)
+        assertTrue(activatedAfterSessionTransition)
     }
 }

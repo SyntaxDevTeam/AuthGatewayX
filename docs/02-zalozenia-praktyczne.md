@@ -365,7 +365,11 @@ Jeżeli administrator chce osłabić ochronę, powinien wykonać świadomą zmia
 Na Paper/Purpur/Folia podstawowym interfejsem wpisywania hasła jest natywne Minecraft
 Dialog API, a nie chat i nie inventory GUI. Logowanie pokazuje jedno pole tekstowe,
 rejestracja dwa pola z potwierdzeniem. Zamknięcie klawiszem Escape jest wyłączone w
-PRE_AUTH.
+PRE_AUTH. Router sprawdza konto przed pokazaniem okna: przy pierwszym wejściu wyświetla
+nagłówek `Rejestracja konta dla <nazwa_użytkownika>` oraz pola `Hasło` i `Powtórz
+hasło`, a przy kolejnym wejściu nagłówek `Logowanie konta dla
+<nazwa_użytkownika>` i jedno pole `Hasło`. Nazwa jest wstawiana jako bezpieczny tekst,
+nie jako składnia MiniMessage.
 
 Dialog API nie udostępnia obecnie trybu maskowania znaków pola tekstowego. Wpisane hasło
 jest więc widoczne lokalnie na ekranie gracza, ale nie trafia do czatu, historii komend
@@ -403,7 +407,10 @@ połączenie przed uruchomieniem storage, HTTP i Argon2.
 Formularz nie przyjmuje równoległych submitów tego samego gracza. Wynik błędnego hasła,
 blokady, rate-limitera, niezgodnego potwierdzenia lub konfliktu rejestracji jest
 wyświetlany bezpośrednio w treści ponownie otwartego Minecraft Dialog. Plugin nie używa
-do uwierzytelniania czatu, komend, action bara ani inventory GUI.
+do przesyłania hasła czatu, komend, action bara ani inventory GUI. Po atomowym
+przejściu sesji do `ACTIVE` wysyła jednak zwykły komunikat informacyjny na czacie:
+`Pomyślnie zalogowano na serwerze!` dla konta offline albo `Logowanie konta premium
+przebiegło pomyślnie!` dla zweryfikowanego konta Mojang.
 
 ## 16. Wczesna ochrona przed burstem nazw
 

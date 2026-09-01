@@ -630,6 +630,13 @@ jest wyłączony w PRE_AUTH. Dialog API nie oferuje maskowania hasła, dlatego t
 widoczny lokalnie na ekranie, ale nie trafia do czatu, historii komend ani logów.
 Odpowiedź jest natychmiast zamieniana na czyszczoną `CharArray`.
 
+Przy pierwszym wejściu nagłówek brzmi `Rejestracja konta dla
+<nazwa_użytkownika>`, a przy kolejnym `Logowanie konta dla <nazwa_użytkownika>`.
+Nazwa jest wstawiana jako zwykły komponent tekstowy, bez interpretacji MiniMessage.
+Po aktywacji sesji chat służy wyłącznie do informacji o sukcesie: konto offline
+otrzymuje `Pomyślnie zalogowano na serwerze!`, a konto Mojang `Logowanie konta premium
+przebiegło pomyślnie!`.
+
 Automatyczny fallback do komendy z hasłem jest niedozwolony. Wymagałby osobnej decyzji
 bezpieczeństwa dla nieobsługiwanych klientów.
 
@@ -1186,7 +1193,11 @@ jeszcze zamykane.
 własne action keys oraz oczekiwany rodzaj formularza i wraca na `EntityScheduler` po
 zakończeniu async auth. `AuthenticationFormCoordinator` łączy wynik formularza z
 `LoginService`, `RegistrationService` i atomową aktywacją sesji. Teksty formularza są
-wstrzykiwane, aby docelowo pochodziły z MessageHandler.
+wstrzykiwane z MessageHandler. Router pokazuje rejestrację z dwoma polami wyłącznie
+przy braku konta, a logowanie z jednym polem dla istniejącego konta. Spersonalizowane
+nagłówki bezpiecznie podstawiają nazwę jako tekst. Po aktywacji `ACTIVE` gracz otrzymuje
+przez chat właściwy komunikat sukcesu offline albo premium; wysyłka jest kierowana na
+`EntityScheduler`.
 
 Controller jest rejestrowany w composition root dopiero po poprawnej inicjalizacji
 storage, Argon2 i izolacji PRE_AUTH. Runtime przechodzi do `READY` po zainstalowaniu

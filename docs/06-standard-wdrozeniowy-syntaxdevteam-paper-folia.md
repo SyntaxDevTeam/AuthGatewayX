@@ -930,10 +930,14 @@ istnieje równoległy system wiadomości.
 Controller jest rejestrowany dopiero razem z izolacją PRE_AUTH po poprawnej migracji
 storage; błąd inicjalizacji przełącza stan na `FAILED`.
 
-Cały feedback uwierzytelniania pozostaje wewnątrz Paper Dialog API. Prompt oraz wynik
-poprzedniej próby są budowane jako `DialogBody.plainMessage`, a pola hasła jako
+Prompt oraz feedback wymagający ponownej próby pozostają wewnątrz Paper Dialog API.
+Wynik poprzedniej próby jest budowany jako `DialogBody.plainMessage`, a pola hasła jako
 `DialogInput.text`. Auth flow nie wysyła instrukcji ani błędów przez chat, komendy,
-action bar lub inventory GUI.
+action bar lub inventory GUI. Nagłówek rejestracji ma postać `Rejestracja konta dla
+<nazwa_użytkownika>` i dwa pola hasła, natomiast kolejne wejście otrzymuje nagłówek
+logowania oraz jedno pole. Nick zastępuje placeholder jako zwykły komponent tekstowy.
+Po aktywacji sesji gracz otrzymuje na czacie wyłącznie informację o sukcesie — osobną
+dla uwierzytelnienia offline i premium — wysłaną w kontekście `EntityScheduler`.
 
 Aktualny pionowy wycinek Paper przechodzi do `READY` dopiero po asynchronicznym
 utworzeniu storage, migracjach SQLite i przygotowaniu dummy hash Argon2id. Następnie

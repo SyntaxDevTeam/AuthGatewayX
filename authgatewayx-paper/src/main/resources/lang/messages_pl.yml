@@ -1,7 +1,7 @@
 prefix: "<gradient:#55ffff:#5555ff>[<b>AuthGatewayX</b>]</gradient>"
 auth:
-  login_title: "<aqua>Zaloguj się</aqua>"
-  registration_title: "<aqua>Zarejestruj konto</aqua>"
+  login_title: "<aqua>Logowanie konta dla <white>{username}</white></aqua>"
+  registration_title: "<aqua>Rejestracja konta dla <white>{username}</white></aqua>"
   login_prompt: "<gray>Wprowadź hasło do swojego konta.</gray>"
   registration_prompt: "<gray>Utwórz hasło i wpisz je ponownie.</gray>"
   password_label: "Hasło"
@@ -21,3 +21,5 @@ auth:
   account_exists: "<red>Konto o tej nazwie już istnieje.</red>"
   identity_conflict: "<red>Nie można bezpiecznie powiązać tej tożsamości z kontem.</red>"
   internal_failure: "<red>Operacja uwierzytelniania nie powiodła się. Spróbuj ponownie.</red>"
+  offline_authentication_success: "<green>Pomyślnie zalogowano na serwerze!</green>"
+  premium_authentication_success: "<green>Logowanie konta premium przebiegło pomyślnie!</green>"
