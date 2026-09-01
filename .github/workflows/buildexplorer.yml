@@ -13,11 +13,6 @@ env:
   MINI_PORTAL_URL: https://syntaxdevteam.pl
   BUILD_CHANNEL: dev
   BUILD_SLUG: authgatewayx
-  BUILD_SERVER: Paper
-  BUILD_GRADLE_TASK: :authgatewayx-paper:build
-  BUILD_GRADLE_PROPERTIES_TASK: properties
-  BUILD_JAR_DIR: authgatewayx-paper/build/libs
-  BUILD_ARTIFACT_PREFIX: AuthGatewayX-
 
 jobs:
   verify:
@@ -36,23 +31,59 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Test
+      - name: Test and build distributable JARs
         run: |
           chmod +x ./gradlew
-          ./gradlew clean check :authgatewayx-paper:shadowJar --console=plain --no-daemon
+          ./gradlew clean check :authgatewayx-paper:shadowJar :authgatewayx-velocity:shadowJar --console=plain --no-daemon
 
-      - name: Verify distributable JAR
+      - name: Verify Paper distributable JAR
         run: |
           jar="$(find authgatewayx-paper/build/libs -maxdepth 1 -name 'AuthGatewayX-*.jar' ! -name '*-plain.jar' | head -n 1)"
           test -n "${jar}"
           unzip -p "${jar}" paper-plugin.yml | grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader$'
           unzip -l "${jar}" | grep -q 'pl/syntaxdevteam/authgatewayx/storage/jdbc/SqliteAccountStorage.class'
 
+      - name: Verify Velocity distributable JAR
+        run: |
+          jar="$(find authgatewayx-velocity/build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n 1)"
+          test -n "${jar}"
+          unzip -p "${jar}" velocity-plugin.json | grep -q '"id": "authgatewayx"'
+          unzip -p "${jar}" velocity-plugin.json | grep -q 'pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity'
+
   publish:
-    name: Publish plugin
+    name: Publish ${{ matrix.name }}
     runs-on: ubuntu-latest
     needs: verify
     if: github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - name: Paper
+            platform: paper
+            platform_family: server
+            gradle_task: :authgatewayx-paper:build
+            properties_task: :authgatewayx-paper:properties
+            jar_dir: authgatewayx-paper/build/libs
+            artifact_prefix: AuthGatewayX-
+            compatible_platforms: paper,purpur,folia
+          - name: Velocity
+            platform: velocity
+            platform_family: proxy
+            gradle_task: :authgatewayx-velocity:build
+            properties_task: :authgatewayx-velocity:properties
+            jar_dir: authgatewayx-velocity/build/libs
+            artifact_prefix: authgatewayx-velocity-
+            compatible_platforms: velocity
+    env:
+      BUILD_PLATFORM: ${{ matrix.platform }}
+      BUILD_PLATFORM_FAMILY: ${{ matrix.platform_family }}
+      BUILD_GRADLE_TASK: ${{ matrix.gradle_task }}
+      BUILD_GRADLE_PROPERTIES_TASK: ${{ matrix.properties_task }}
+      BUILD_JAR_DIR: ${{ matrix.jar_dir }}
+      BUILD_ARTIFACT_PREFIX: ${{ matrix.artifact_prefix }}
+      BUILD_COMPATIBLE_PLATFORMS: ${{ matrix.compatible_platforms }}
 
     steps:
       - name: Checkout
@@ -69,16 +100,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build plugin
+      - name: Build ${{ matrix.name }} plugin
         run: |
           chmod +x ./gradlew
           ./gradlew "${BUILD_GRADLE_TASK}" --console=plain --no-daemon
 
-      - name: Publish artifact to BuildExplorer
+      - name: Publish ${{ matrix.name }} artifact to BuildExplorer v2
         env:
           BUILD_CI_TOKEN: ${{ secrets.BUILD_CI_TOKEN }}
           GITHUB_BEFORE: ${{ github.event.before }}
           GITHUB_AFTER: ${{ github.sha }}
+          GITHUB_REF_NAME_VALUE: ${{ github.ref_name }}
           GITHUB_RUN_ID_VALUE: ${{ github.run_id }}
           GITHUB_RUN_NUMBER_VALUE: ${{ github.run_number }}
         run: |
@@ -90,7 +122,7 @@ jobs:
           fi
 
           if [ ! -d "${BUILD_JAR_DIR}" ]; then
-            echo "Directory ${BUILD_JAR_DIR} does not exist for ${BUILD_SLUG}." >&2
+            echo "Directory ${BUILD_JAR_DIR} does not exist for ${BUILD_SLUG}/${BUILD_PLATFORM}." >&2
             exit 1
           fi
 
@@ -114,7 +146,7 @@ jobs:
           PY
           )"
           if [ -z "${jar}" ]; then
-            echo "No JAR found for ${BUILD_SLUG} in ${BUILD_JAR_DIR}." >&2
+            echo "No JAR found for ${BUILD_SLUG}/${BUILD_PLATFORM} in ${BUILD_JAR_DIR}." >&2
             exit 1
           fi
 
@@ -122,6 +154,7 @@ jobs:
           if [ -z "${version}" ] || [ "${version}" = "unspecified" ]; then
             version="${GITHUB_SHA::12}"
           fi
+
           artifact_base="$(basename "${jar}" .jar)"
           if [ "${artifact_base%-${GITHUB_RUN_NUMBER_VALUE}}" != "${artifact_base}" ]; then
             filename="${artifact_base}.jar"
@@ -159,23 +192,34 @@ jobs:
               sha, time, message = line.split("\x1f", 2)
               commits.append({"sha": sha, "time": time, "message": message})
 
+          compatible_platforms = [
+              item.strip().lower()
+              for item in os.environ.get("BUILD_COMPATIBLE_PLATFORMS", "").split(",")
+              if item.strip()
+          ]
+
           payload = {
               "id": int(os.environ["GITHUB_RUN_ID_VALUE"]),
               "time": datetime.now(timezone.utc).isoformat(),
               "channel": os.environ["BUILD_CHANNEL"],
-              "server": os.environ["BUILD_SERVER"],
+              "platform": os.environ["BUILD_PLATFORM"],
+              "platform_family": os.environ["BUILD_PLATFORM_FAMILY"],
+              "compatible_platforms": compatible_platforms,
               "version": os.environ["BUILD_VERSION"],
               "build_number": os.environ["GITHUB_RUN_NUMBER_VALUE"],
               "filename": os.environ["BUILD_FILENAME"],
               "sha256": os.environ["BUILD_SHA256"],
               "size": int(os.environ["BUILD_SIZE"]),
+              "java_version": 25,
+              "branch": os.environ.get("GITHUB_REF_NAME_VALUE", ""),
+              "commit_sha": after,
               "commits": commits[:100],
           }
           print(json.dumps(payload, ensure_ascii=False))
           PY
 
           curl --fail-with-body \
-            -X POST "${MINI_PORTAL_URL}/api/builds/ci/${BUILD_SLUG}" \
+            -X POST "${MINI_PORTAL_URL}/api/v2/builds/ci/${BUILD_SLUG}" \
             -H "X-Build-Token: ${BUILD_CI_TOKEN}" \
             -F "metadata=<build-info.json;type=application/json" \
             -F "artifact=@${jar};filename=${filename};type=application/java-archive"
