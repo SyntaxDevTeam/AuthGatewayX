@@ -18,6 +18,7 @@ dependencies {
     implementation("pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT")
     implementation("pl.syntaxdevteam:messageHandler-velocity:1.2.2-R0.4-SNAPSHOT")
     implementation("org.yaml:snakeyaml:2.5")
+
     implementation(libs.kotlin.stdlib)
 }
 
