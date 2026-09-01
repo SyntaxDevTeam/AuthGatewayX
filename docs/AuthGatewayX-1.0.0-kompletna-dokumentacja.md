@@ -2842,8 +2842,10 @@ offline dla nazwy premium.
 ograniczenie rozmiaru, invalidację i deduplikację równoległych lookupów tego samego
 nicku. `premium.authentication.maximum-concurrent-handshakes` ogranicza równoległe
 weryfikacje kryptograficzne. Implementacja kompiluje się, testy jednostkowe przechodzą,
-a runtime osiąga `READY` na Paper 26.2 build 121. Przed zaznaczeniem kompletnego premium
-loginu wymagany pozostaje test rzeczywistym klientem premium oraz test Folia.
+a runtime osiąga `READY` na Paper 26.2 build 121. Usunięto wyścig instalacji handlera
+Netty przez synchroniczną instalację w `channelActive`; test LOGIN dla `WieszczY`
+potwierdził zwrócenie `0x01 Encryption Request`. Przed zaznaczeniem kompletnego premium
+loginu wymagany pozostaje test pełnej sesji rzeczywistym klientem oraz test Folia.
 
 Connection flood gate jest podłączony do `AsyncPlayerPreLoginEvent` przed readiness i
 przed jakimkolwiek storage/HTTP/Argon2. Obowiązują limity per-IP, globalny oraz limit

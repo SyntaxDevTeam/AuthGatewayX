@@ -592,6 +592,11 @@ odpowiedź klienta i sesję w Mojang Session Server. Potwierdzony brak profilu w
 standardowej ścieżki offline; awaria lookupu, brak miejsca w ograniczonym limicie
 handshake albo nieudana sesja kończy się DENY bez fallbacku.
 
+Instalacja handlera potomnego kanału odbywa się synchronicznie w `channelActive`, po
+utworzeniu kodeków Paper i przed odczytem LOGIN; eliminuje to wyścig, w którym szybki
+klient mógł wcześniej ominąć interceptor. Lokalny test protokołu dla `WieszczY`
+potwierdził odpowiedź `0x01 Encryption Request` zamiast wejścia do ścieżki offline.
+
 Liczbę jednoczesnych handshake'ów premium ogranicza
 `premium.authentication.maximum-concurrent-handshakes`. Adapter kompiluje się i startuje
 na Paper 26.2 build 121; test wejścia rzeczywistym klientem premium pozostaje wymagany,

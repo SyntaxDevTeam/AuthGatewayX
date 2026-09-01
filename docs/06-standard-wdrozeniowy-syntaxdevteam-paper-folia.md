@@ -948,8 +948,9 @@ premium uruchamia natywny encryption request Paper. Odpowiedź klienta, szyfrowa
 weryfikację Mojang Session Server wykonuje kod Paper. Timeout lub awaria usługi kończy
 się DENY. Lookup ma bounded cache, oddzielne positive/negative TTL i deduplikację per
 nick, a osobny limit ogranicza równoległe handshake'i. Adapter zweryfikowano kompilacją
-i startem Paper 26.2 build 121; test rzeczywistym klientem premium i Folia pozostają
-otwarte.
+i startem Paper 26.2 build 121. Test pakietowy LOGIN dla nazwy premium potwierdził
+odpowiedź `0x01 Encryption Request`; test pełnej sesji rzeczywistym klientem premium
+i Folia pozostają otwarte.
 
 `ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage,
 Mojang HTTP i Argon2. Dzięki temu droższe etapy nie są pierwszą linią obsługi floodu.

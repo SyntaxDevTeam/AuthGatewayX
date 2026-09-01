@@ -25,6 +25,7 @@ internal class StandalonePremiumProtocolInterceptor(
 ) : AutoCloseable {
     private val capacity = PremiumHandshakeCapacity(maximumConcurrentHandshakes)
     private val parentHandlerName = "authgatewayx-standalone-premium-acceptor"
+    private val childBootstrapHandlerName = "authgatewayx-standalone-premium-bootstrap"
     private val childHandlerName = "authgatewayx-standalone-premium-login"
     private val installedParents = CopyOnWriteArrayList<Channel>()
     private val packetListenerFields: List<Field> = Connection::class.java.declaredFields
@@ -56,7 +57,13 @@ internal class StandalonePremiumProtocolInterceptor(
     private fun prepareAcceptedChannel(channel: Channel) {
         channel.pipeline().addFirst(object : ChannelInitializer<Channel>() {
             override fun initChannel(initialized: Channel) {
-                initialized.eventLoop().execute { installChildHandler(initialized) }
+                initialized.pipeline().addLast(childBootstrapHandlerName, object : ChannelInboundHandlerAdapter() {
+                    override fun channelActive(context: ChannelHandlerContext) {
+                        context.pipeline().remove(this)
+                        installChildHandler(context.channel())
+                        context.fireChannelActive()
+                    }
+                })
             }
         })
     }
