@@ -111,7 +111,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
         val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
         val components = RuntimeComponents(
-            sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate, usernameBurstGate, behaviorGate, cheapGuard,
+            sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate, usernameBurstGate, behaviorGate,
         )
         runtime = components
         val hasher = Argon2PasswordHasher(Argon2Parameters(
@@ -234,7 +234,6 @@ class AuthGatewayXPaper : JavaPlugin() {
                     messages.stringMessageToComponentNoPrefix("auth", "premium_session_invalid"),
                 ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
                 premiumProtocol.install()
-                cheapGuard.activateStandaloneProtocolOwnership()
                 runtime?.premiumProtocol = premiumProtocol
                 logger.info("AuthGatewayX premium mode: standalone Paper protocol authentication; cheap guards run before profile lookup")
             }
@@ -282,14 +281,12 @@ private class RuntimeComponents(
     val floodGate: ConnectionFloodGate,
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
-    val cheapGuard: PaperLoginCheapGuard,
 ) : AutoCloseable {
     @Volatile var storage: SqliteAccountStorage? = null
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
 
     override fun close() {
-        cheapGuard.deactivateStandaloneProtocolOwnership()
         premiumProtocol?.close()
         sessions.clear()
         storage?.close()
