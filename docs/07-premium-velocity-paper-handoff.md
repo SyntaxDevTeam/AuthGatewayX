@@ -166,3 +166,34 @@ premium uruchamia natywne szyfrowanie Paper i weryfikację Mojang Session Server
 Obie ścieżki kończą się tym samym domenowym wiązaniem zweryfikowanego oficjalnego UUID,
 ale mają odrębne granice zaufania. Adapter standalone wymaga jeszcze testu rzeczywistym
 klientem premium przed oznaczeniem pełnej funkcji jako zweryfikowanej.
+
+## 10. Automatyczny wybór trybu Paper
+
+Paper nie może jednocześnie wykonywać standalone premium encryption handshake i być
+backendem Velocity modern forwarding. Gdy backend za proxy wysyła `Encryption Request`,
+Velocity interpretuje go jako próbę pracy backendu w online mode i zamyka połączenie
+błędem `Backend server is online-mode`.
+
+AuthGatewayX wybiera więc tryb Paper na podstawie efektywnej konfiguracji Paper:
+
+```text
+proxies.velocity.enabled = true
+    -> VELOCITY_FORWARDED
+    -> NIE instaluj StandalonePremiumProtocolInterceptor
+    -> premium identity przez modern forwarding + zgodność UUID
+
+proxies.velocity.enabled = false
+    -> STANDALONE_PROTOCOL
+    -> instaluj StandalonePremiumProtocolInterceptor
+    -> natywny Paper encryption + Mojang Session Server
+```
+
+Sprawdzana jest efektywna wartość `GlobalConfiguration.get().proxies.velocity.enabled`,
+czyli stan po walidacji konfiguracji Paper. Samo `online-mode=false` w
+`server.properties` nie wystarcza do rozpoznania backendu proxy, ponieważ jest ono
+wymagane również przez tryb standalone AuthGatewayX.
+
+Dla konfiguracji Velocity + Paper poprawny startup backendu powinien logować tryb
+`Velocity modern forwarding; standalone Paper encryption interceptor disabled`. Jeśli
+Paper wybiera tryb standalone mimo pracy za Velocity, należy traktować to jako błąd
+konfiguracji forwarding i sprawdzić `paper-global.yml` oraz forwarding secret.
