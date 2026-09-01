@@ -72,7 +72,7 @@ class ConnectionBehaviorGateTest {
 
     private fun gate(timeSource: NanoTimeSource) = ConnectionBehaviorGate(
         ConnectionBehaviorPolicy(
-            threshold = 10,
+            threshold = 9,
             connectionWeight = 1,
             distinctUsernameWeight = 3,
             authenticationFailureWeight = 3,
