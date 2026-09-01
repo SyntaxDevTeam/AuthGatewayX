@@ -602,9 +602,14 @@ potwierdził odpowiedź `0x01 Encryption Request` zamiast wejścia do ścieżki 
 Liczbę jednoczesnych handshake'ów premium ogranicza
 `premium.authentication.maximum-concurrent-handshakes`. Adapter kompiluje się i startuje
 na Paper 26.2 build 121; test wejścia rzeczywistym klientem premium pozostaje wymagany,
-więc checklista pełnego premium loginu nie jest jeszcze zamknięta. `ConnectionFloodGate`
-działa w `AsyncPlayerPreLoginEvent`; protocol-level cheap guard przed lookupem LOGIN
-pozostaje kolejnym etapem hardeningu.
+więc checklista pełnego premium loginu nie jest jeszcze zamknięta. Standalone LOGIN
+wykonuje teraz `ConnectionFloodGate`, walidację `AccountUsername`,
+`ConnectionBehaviorGate` oraz `UsernameBurstGate` przed pierwszym
+`MojangProfileLookup`. Ownership stanowych guardów jest przejmowany przez adapter
+protokołu przed instalacją handlerów; jeżeli instalacja nie powiedzie się, ownership
+jest cofany fail-safe. Późniejszy `AsyncPlayerPreLoginEvent` nie nalicza tego samego
+połączenia drugi raz, ale nadal sprawdza format nazwy i readiness. Dla Paper za Velocity
+ownership pozostaje przy pre-login evencie.
 
 ## 23. Stan implementacji — selektor uwierzytelnienia Velocity
 
@@ -677,8 +682,10 @@ go bezpiecznie śledzić. Późne callbacki nie mogą utworzyć nowego wpisu.
 Paper wywołuje scoring po tanim `ConnectionFloodGate` i walidacji nazwy, przed JDBC i
 Argon2. Wyniki formularza wracają na `EntityScheduler`, gdzie nieudane auth zwiększa
 wynik; quit w PRE_AUTH rejestruje sygnał rozłączenia. Shutdown czyści cały stan.
-Pierwszy lookup premium standalone nadal poprzedza `AsyncPlayerPreLoginEvent`, więc
-protocol-level cheap guard i test obciążeniowy pozostają otwarte.
+W standalone pierwsze sygnały połączenia są naliczane na poziomie LOGIN przed lookupem
+Minecraft Services, a `AsyncPlayerPreLoginEvent` nie nalicza ich ponownie. W trybie
+Velocity-forwarded pre-login event pozostaje właścicielem guardów. Otwarty pozostaje
+wymagany test obciążeniowy/reconnect-flood na rzeczywistym serwerze.
 
 ## 28. Stan implementacji — czytelny błąd sesji premium standalone
 
