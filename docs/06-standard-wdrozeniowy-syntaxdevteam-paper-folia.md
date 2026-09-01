@@ -956,15 +956,19 @@ i startem Paper 26.2 build 121. Test pakietowy LOGIN dla nazwy premium potwierdz
 odpowiedź `0x01 Encryption Request`; test pełnej sesji rzeczywistym klientem premium
 i Folia pozostają otwarte.
 
-`ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage,
-Mojang HTTP i Argon2. Dzięki temu droższe etapy nie są pierwszą linią obsługi floodu.
+`ConnectionFloodGate` działa w `AsyncPlayerPreLoginEvent` przed readiness, storage i
+Argon2. Pierwszy lookup premium standalone występuje wcześniej na poziomie LOGIN, więc
+protocol-level cheap guard przed tym HTTP nadal pozostaje otwarty.
 
 Za limiterem połączeń działa ograniczony `UsernameBurstGate`. Wykrywa wiele różnych
 kanonicznych nazw z jednego IP, nakłada czasową kwarantannę i wygasza nieaktywny stan.
-Jest wykonywany przed readiness, HTTP, JDBC i Argon2 oraz czyszczony przy shutdownie.
+Jest wykonywany przed readiness, JDBC i Argon2 oraz czyszczony przy shutdownie.
 Listener PRE_AUTH rejestruje w tym samym ograniczonym stanie szybkie disconnecty przed
 uwierzytelnieniem; przekroczenie limitu nakłada kwarantannę na kolejny reconnect.
-Pełna warstwa anti-bot nadal wymaga szerszego scoringu i ochrony registration abuse.
+Ważony `ConnectionBehaviorGate` łączy te sygnały z próbami połączeń i nieudanymi
+wynikami formularza. Ma bounded state, okno wygaszania, kwarantannę i fail-closed
+capacity. Callback formularza oraz quit zapisują wyłącznie sygnały związane z IP, bez
+sekretów; shutdown czyści stan. Test obciążeniowy pozostaje otwarty.
 
 Próby rejestracji przechodzą dodatkowo przez `RegistrationAttemptGate` zanim zostanie
 zaplanowany Argon2 lub JDBC. Gate ma własny token bucket, TTL i limit śledzonych IP;

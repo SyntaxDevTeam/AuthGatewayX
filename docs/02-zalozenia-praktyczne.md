@@ -414,8 +414,8 @@ przebiegło pomyślnie!` dla zweryfikowanego konta Mojang.
 
 ## 16. Wczesna ochrona przed burstem nazw
 
-Paper standalone wykonuje `UsernameBurstGate` po connection anti-flood, ale przed
-readiness, Minecraft Services, storage i Argon2. Strażnik liczy różne kanoniczne nazwy
+Paper wykonuje `UsernameBurstGate` po connection anti-flood, ale przed readiness,
+storage i Argon2. Strażnik liczy różne kanoniczne nazwy
 próbowane z jednego IP w krótkim oknie; przekroczenie limitu nakłada czasową lokalną
 kwarantannę. Powtórzenie tej samej nazwy nie zwiększa licznika różnych nazw.
 
@@ -423,8 +423,17 @@ Stan ma limit adresów, wygasa po okresie bezczynności i jest czyszczony przy s
 Parametry znajdują się w `anti-bot.username-burst`. Ten sam ograniczony stan zlicza
 rozłączenia następujące jeszcze w PRE_AUTH. Przekroczenie
 `anti-bot.reconnect-loop.maximum-pre-auth-disconnects` w oknie nakłada kwarantannę na
-kolejny reconnect. Wyjścia graczy ACTIVE nie są liczone. Pełny behavioural scoring
-pozostaje do wykonania.
+kolejny reconnect. Wyjścia graczy ACTIVE nie są liczone.
+
+Dodatkowy, ograniczony `ConnectionBehaviorGate` łączy w jednym wyniku wagę prób
+połączeń, kolejnych różnych nazw, nieudanego logowania/rejestracji i rozłączeń PRE_AUTH.
+Przekroczenie progu nakłada czasową kwarantannę; stan ma limit adresów, wygasa i przy
+braku miejsca odrzuca nowe adresy fail-closed. Domyślne parametry znajdują się w
+`anti-bot.behavior-score`: próg `40`, wagi `1/5/8/8`, okno `60s` i kwarantanna `600s`.
+
+Oba guardy działają w `AsyncPlayerPreLoginEvent`. W trybie standalone pierwszy lookup
+premium zachodzi wcześniej na poziomie protokołu, dlatego przeniesienie cheap guardów
+przed ten lookup oraz test obciążeniowy pozostają warunkami zamknięcia checklisty.
 
 ## 17. Ograniczenie prób rejestracji
 

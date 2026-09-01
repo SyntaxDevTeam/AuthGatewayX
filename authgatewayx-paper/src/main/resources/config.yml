@@ -9,6 +9,14 @@ premium:
     maximum-cache-size: 50000
 anti-bot:
   maximum-tracked-addresses: 50000
+  behavior-score:
+    threshold: 40
+    connection-weight: 1
+    distinct-username-weight: 5
+    authentication-failure-weight: 8
+    pre-auth-disconnect-weight: 8
+    window-seconds: 60
+    quarantine-seconds: 600
   username-burst:
     maximum-distinct-usernames: 5
     window-seconds: 30

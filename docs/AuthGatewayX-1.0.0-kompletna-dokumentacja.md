@@ -2893,13 +2893,20 @@ rejestracji są pokazywane bezpośrednio w body ponownie otwartego Minecraft Dia
 Chat, komendy, action bar i inventory GUI nie są częścią interfejsu auth.
 
 Pierwsza warstwa anti-bot Paper wykrywa burst różnych kanonicznych nazw z jednego IP.
-`UsernameBurstGate` działa po connection token bucketach i przed readiness, HTTP, JDBC
-oraz Argon2, nakłada czasową kwarantannę i utrzymuje ograniczony, wygasający stan.
+`UsernameBurstGate` działa po connection token bucketach i przed readiness, JDBC oraz
+Argon2, nakłada czasową kwarantannę i utrzymuje ograniczony, wygasający stan.
 Testy jednostkowe obejmują reset okna, wygaśnięcie kwarantanny i odzyskanie miejsca po
 wygasłym adresie. Rozłączenia następujące w PRE_AUTH są zliczane w tym samym oknie;
 przekroczenie konfigurowalnego maksimum nakłada kwarantannę na kolejny reconnect, bez
-karania wyjść graczy ACTIVE. Pełny behavioural scoring pozostaje następnym elementem.
-Checkbox reconnect loop czeka na test obciążeniowy serwera.
+karania wyjść graczy ACTIVE. Checkbox reconnect loop czeka na test obciążeniowy serwera.
+
+Dodano ograniczony `ConnectionBehaviorGate`, który w jednym wyniku per IP łączy próbę
+połączenia, kolejne różne nazwy, nieudane auth i disconnect PRE_AUTH. Domyślny próg
+`40` korzysta z wag `1/5/8/8`, okna `60s` i kwarantanny `600s`. Stan ma limit adresów,
+wygaszanie, fail-closed capacity i jest czyszczony przy shutdownie; późne callbacki nie
+alokują wpisów. Paper wykonuje scoring przed JDBC i Argon2. Checkbox pozostaje otwarty
+do testu obciążeniowego oraz protocol-level cheap guarda przed pierwszym lookupem
+premium standalone.
 
 `RegistrationService` posiada teraz osobny, ograniczony `RegistrationAttemptGate` per
 IP działający przed walidacją hasła, Argon2 i storage. Stan ma TTL i token refill;

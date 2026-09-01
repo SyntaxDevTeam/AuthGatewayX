@@ -665,3 +665,17 @@ Po udanej rejestracji lub logowaniu offline komunikat sukcesu jest planowany dop
 atomowej aktywacji sesji. Osobny komunikat premium jest wysyłany po pomyślnym
 `VerifiedMojangAuthenticationService`. Wysyłka do gracza odbywa się przez
 `EntityScheduler`; komunikaty pochodzą z MessageHandler i nie zawierają sekretów.
+
+## 27. Stan implementacji — ważony connection behavior scoring
+
+`ConnectionBehaviorGate` utrzymuje per IP ważony wynik prób połączeń, kolejnych różnych
+nicków, nieudanych wyników formularza oraz rozłączeń w PRE_AUTH. Próg uruchamia lokalną
+kwarantannę. Rejestr ma limit kardynalności, osobne okno obserwacji i czas kwarantanny,
+usuwa wygasłe wpisy przy presji pojemności i odrzuca nowy adres fail-closed, gdy nie może
+go bezpiecznie śledzić. Późne callbacki nie mogą utworzyć nowego wpisu.
+
+Paper wywołuje scoring po tanim `ConnectionFloodGate` i walidacji nazwy, przed JDBC i
+Argon2. Wyniki formularza wracają na `EntityScheduler`, gdzie nieudane auth zwiększa
+wynik; quit w PRE_AUTH rejestruje sygnał rozłączenia. Shutdown czyści cały stan.
+Pierwszy lookup premium standalone nadal poprzedza `AsyncPlayerPreLoginEvent`, więc
+protocol-level cheap guard i test obciążeniowy pozostają otwarte.

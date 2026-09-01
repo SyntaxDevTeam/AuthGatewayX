@@ -24,7 +24,8 @@ aktywna izolacja PRE_AUTH, trwały limit rejestracji per IP, bezpieczny lookup n
 premium, per-połączeniowy adapter premium LOGIN dla Paper standalone, selektor trybu
 Velocity oraz bezpieczny handoff zweryfikowanej tożsamości
 premium z Velocity do Paper oparty o zgodność oficjalnego UUID z UUID przekazanym przez
-Velocity modern forwarding.
+Velocity modern forwarding. Paper posiada także ograniczony pamięciowo, ważony scoring
+zachowania IP łączący połączenia, różne nicki, nieudane auth i rozłączenia PRE_AUTH.
 Otwarte pozostają między innymi test rzeczywistym klientem premium adaptera standalone,
 testy serwerowe Purpur/Folia/Velocity, pozostałe backendy JDBC, kompletne anti-bot,
 integracje CleanerX/PunisherX i obserwowalność.

@@ -50,6 +50,7 @@ class AuthenticationDialogController(
     private val handler: AuthenticationFormHandler,
     private val scheduler: PaperPlatformScheduler,
     private val text: AuthenticationDialogText,
+    private val onOutcome: (AuthenticationFormContext, AuthenticationFormResult) -> Unit = { _, _ -> },
 ) : Listener {
     private val expectedForms = ConcurrentHashMap<UUID, FormType>()
     private val submissions = ConcurrentHashMap.newKeySet<UUID>()
@@ -114,6 +115,7 @@ class AuthenticationDialogController(
             scheduler.entity(player, Runnable {
                 submissions.remove(player.uniqueId)
                 if (!player.isOnline) return@Runnable
+                if (failure == null && result != null) onOutcome(context, result)
                 if (failure == null && result == AuthenticationFormResult.AUTHENTICATED) {
                     expectedForms.remove(player.uniqueId)
                     player.closeDialog()

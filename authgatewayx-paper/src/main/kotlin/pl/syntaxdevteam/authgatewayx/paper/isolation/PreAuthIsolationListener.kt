@@ -19,6 +19,8 @@ import org.bukkit.event.vehicle.VehicleEnterEvent
 import org.bukkit.event.vehicle.VehicleExitEvent
 import pl.syntaxdevteam.authgatewayx.auth.session.SessionRegistry
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
+import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorGate
+import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorSignal
 import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
 
 class PreAuthIsolationListener(
@@ -27,6 +29,7 @@ class PreAuthIsolationListener(
     private val sessions: SessionRegistry,
     private val admission: PreAuthAdmission,
     private val usernameBurstGate: UsernameBurstGate,
+    private val behaviorGate: ConnectionBehaviorGate,
 ) : Listener {
     private fun blocked(player: Player) = access.isPreAuth(player.uniqueId)
 
@@ -103,7 +106,10 @@ class PreAuthIsolationListener(
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
         if (blocked(event.player)) {
-            event.player.address?.address?.let(usernameBurstGate::recordPreAuthDisconnect)
+            event.player.address?.address?.let { address ->
+                usernameBurstGate.recordPreAuthDisconnect(address)
+                behaviorGate.record(address, ConnectionBehaviorSignal.PRE_AUTH_DISCONNECT)
+            }
         }
         isolation.forget(event.player.uniqueId)
         admission.release(event.player.uniqueId)

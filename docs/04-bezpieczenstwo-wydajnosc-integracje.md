@@ -604,3 +604,18 @@ zachowuje historię istniejących kont. Odmowa jest audytowana jako
 `ANTI_BOT_DENY/REGISTRATION_ADDRESS_LIMIT` bez sekretów. Checkbox całej ochrony
 pozostaje otwarty do testu obciążeniowego oraz implementacji równoważnej polityki w
 przyszłych backendach MySQL/MariaDB/PostgreSQL.
+
+# 23. Ważony behavioral scoring połączeń
+
+`ConnectionBehaviorGate` łączy kilka tanich sygnałów per IP zamiast podejmować decyzję
+na podstawie pojedynczego licznika: każde połączenie, kolejne różne nazwy w oknie,
+nieudane wyniki logowania/rejestracji i disconnect w PRE_AUTH. Domyślne wagi wynoszą
+odpowiednio `1`, `5`, `8` i `8`, a próg `40` nakłada dziesięciominutową kwarantannę.
+
+Stan nie zawiera haseł ani trwałych danych kont, ma limit adresów, resetowane okno,
+wygaszanie i jawne zachowanie fail-closed po wyczerpaniu pojemności. Sygnał z późnego
+callbacku nie alokuje nowego stanu. Scoring jest wykonywany przed storage i Argon2 oraz
+współdziała z ostrzejszym `UsernameBurstGate`, reconnect guardem i token bucketami.
+
+Pozycja `connection scoring` pozostaje niezaznaczona do testu obciążeniowego i
+przeniesienia cheap guarda przed pierwszy lookup Minecraft Services w standalone LOGIN.
