@@ -1,54 +1,194 @@
+# /********************************************/
+#    Global settings
+# /********************************************/
+
+# Plugin language used for messages shown to players and administrators.
+# The selected language must have a matching file in the plugin's lang directory.
 language: "PL"
+
+# /********************************************/
+#    Premium account authentication
+# /********************************************/
+
 premium:
   authentication:
+    # Maximum number of premium authentication handshakes that may be processed at the same time
+    # when AuthGatewayX works directly on a standalone Paper server.
+    # Connections above this limit are rejected instead of allowing an unbounded amount of
+    # expensive authentication work to accumulate.
+    # Increase only when the server has enough CPU/network capacity and legitimate login bursts require it.
     maximum-concurrent-handshakes: 32
+
   lookup:
+    # Maximum time, in milliseconds, AuthGatewayX waits for Minecraft Services/Mojang
+    # while checking whether a username belongs to a premium account.
+    # A short timeout limits how long external service problems can occupy login workers.
     timeout-millis: 3000
+
+    # How long, in seconds, a successful premium-profile lookup remains cached.
+    # Default: 21600 seconds = 6 hours.
+    # A longer TTL reduces requests to Minecraft Services at the cost of slower refreshes.
     positive-ttl-seconds: 21600
+
+    # How long, in seconds, a negative lookup result remains cached.
+    # Default: 300 seconds = 5 minutes.
+    # Keeping this significantly shorter than the positive TTL reduces the chance of retaining
+    # outdated "not premium" information after an account/name change.
     negative-ttl-seconds: 300
+
+    # Maximum number of username lookup results stored in the premium lookup cache.
+    # The limit prevents the cache from growing without bounds during scans or bot attacks.
     maximum-cache-size: 50000
+
+# /********************************************/
+#    Anti-bot and abuse protection
+# /********************************************/
+
 anti-bot:
+  # Maximum number of source IP addresses remembered by anti-bot state trackers.
+  # This is a memory-safety limit: old/unused state may be discarded when the limit is reached.
   maximum-tracked-addresses: 50000
+
+  # Behavioral scoring assigns penalty points to suspicious activity from one IP address.
+  # When the accumulated score reaches "threshold" inside "window-seconds",
+  # the address is quarantined for "quarantine-seconds".
   behavior-score:
+    # Score required to classify the source address as abusive.
     threshold: 40
+
+    # Points added for every observed connection attempt.
     connection-weight: 1
+
+    # Points added when the address starts using additional distinct usernames.
+    # Higher values make username rotation/scanning trigger protection faster.
     distinct-username-weight: 5
+
+    # Points added after a failed authentication attempt.
     authentication-failure-weight: 8
+
+    # Points added when a connection ends before authentication is completed.
+    # This helps detect repeated connect/disconnect loops commonly used by bots.
     pre-auth-disconnect-weight: 8
+
+    # Time window, in seconds, in which behavioral signals contribute to the score.
     window-seconds: 60
+
+    # How long, in seconds, a source address remains quarantined after reaching the threshold.
+    # Default: 600 seconds = 10 minutes.
     quarantine-seconds: 600
+
+  # Detects one source address rapidly trying many different Minecraft usernames.
   username-burst:
+    # Maximum number of distinct usernames allowed from one address within the configured window.
+    # Exceeding this value causes the address to be quarantined.
     maximum-distinct-usernames: 5
+
+    # Observation window for distinct usernames, in seconds.
     window-seconds: 30
+
+    # Quarantine duration after the username-burst limit is exceeded.
+    # Default: 600 seconds = 10 minutes.
     quarantine-seconds: 600
+
   reconnect-loop:
+    # Maximum number of pre-authentication disconnects tolerated from one address
+    # before the username/reconnect protection treats the behavior as abusive.
     maximum-pre-auth-disconnects: 5
+
+  # Limits creation of offline accounts from one source address.
   registration-attempts:
+    # Maximum total number of offline accounts that one address may register.
+    # This is an account-abuse limit, separate from the temporary token-bucket rate limit below.
     maximum-accounts-per-address: 3
+
+    # Number of registration-attempt tokens initially available to one address.
+    # Each registration attempt consumes a token.
     capacity: 3
+
+    # Number of tokens restored every "refill-seconds".
     refill-tokens: 1
+
+    # Token refill interval, in seconds.
     refill-seconds: 60
+
+    # How long, in seconds, inactive registration rate-limit state is retained in memory.
+    # Default: 600 seconds = 10 minutes.
     state-ttl-seconds: 600
+
+# /********************************************/
+#    Player authentication
+# /********************************************/
+
 authentication:
+  # Maximum time, in seconds, an unauthenticated player may remain in the protected pre-auth state.
+  # If authentication is not completed before the timeout, the player is disconnected.
   timeout-seconds: 120
+
+  # Maximum number of players that may simultaneously occupy the pre-authentication state.
+  # This is a hard capacity guard protecting the game server from excessive unauthenticated sessions.
   maximum-pre-auth-players: 500
+
   password:
+    # Minimum password length accepted for offline accounts.
     minimum-length: 8
+
+    # Maximum accepted password length.
+    # Limiting the input size also prevents unnecessarily expensive password hashing of huge payloads.
     maximum-length: 128
+
+    # Argon2 password-hashing parameters.
+    # Increasing these values strengthens password hashing but also increases CPU/RAM cost per operation.
+    # Change them only after load-testing the server. Existing hashes keep their own Argon2 parameters.
     argon2:
+      # Number of Argon2 iterations (time cost).
       iterations: 3
+
+      # Memory used by one Argon2 operation, in KiB.
+      # Default: 65536 KiB = 64 MiB per active password-hashing operation.
       memory-kib: 65536
+
+      # Argon2 parallelism parameter (number of lanes used by the hashing algorithm).
       parallelism: 1
+
   lockout:
+    # Number of failed password attempts allowed before the offline account is temporarily locked.
     attempts: 5
+
+    # Account lock duration after reaching the failed-attempt limit, in seconds.
+    # Default: 600 seconds = 10 minutes.
     duration-seconds: 600
+
+# /********************************************/
+#    Storage settings
+# /********************************************/
+
 storage:
+  # SQLite database filename stored inside the AuthGatewayX plugin data directory.
+  # A relative filename is recommended. Do not point multiple independent servers at the same SQLite file.
   sqlite-file: authgatewayx.db
+
+  # Maximum JDBC connection pool size used by the SQLite storage implementation.
+  # SQLite does not benefit from a large write-concurrency pool; keep this value small unless testing proves otherwise.
   pool-size: 2
+
+# /********************************************/
+#    Async executor settings
+# /********************************************/
+
+# AuthGatewayX separates blocking/expensive tasks into bounded executors.
+# "*-threads" controls how many jobs can execute concurrently.
+# "*-queue" controls how many additional jobs may wait before overload protection rejects new work.
+# Avoid arbitrarily increasing these values: bounded queues are part of the plugin's protection against overload.
 executors:
+  # Database operations and storage migrations.
   storage-threads: 2
   storage-queue: 256
+
+  # Argon2 password hashing and password verification.
+  # Remember that each concurrent Argon2 operation may use authentication.password.argon2.memory-kib of RAM.
   password-threads: 2
   password-queue: 64
+
+  # Minecraft Services/Mojang HTTP profile lookups.
   mojang-threads: 4
   mojang-queue: 128
