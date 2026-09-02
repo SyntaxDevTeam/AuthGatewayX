@@ -1777,7 +1777,7 @@ musi być atomowe logicznie i wykonane w poprawnym execution context.
 - [ ] `/register`
 - [ ] `/login`
 - [ ] `/logout`
-- [ ] `/changepassword`
+- [x] `/changepassword`
 - [ ] Argon2id
 - [ ] login timeout
 - [ ] account lockout
@@ -1917,7 +1917,7 @@ Zalecane do późniejszych wersji:
 - [ ] `paper-libraries.yml`
 - [ ] `PluginBootstrap`
 - [ ] Paper Lifecycle API
-- [ ] Brigadier/lifecycle command registration
+- [x] Brigadier/lifecycle command registration
 - [ ] `folia-supported: true`
 - [ ] EntityScheduler dla player/entity state
 - [ ] RegionScheduler dla location/chunk state
@@ -2801,7 +2801,7 @@ Testy muszą objąć:
 - [ ] `paper-libraries.yml` posiada kontrolowane repozytoria.
 - [ ] Stabilne 1.0.0 nie zależy bez potrzeby od SNAPSHOT bibliotek.
 - [ ] `PluginBootstrap` jest wpisany w `paper-plugin.yml`.
-- [ ] Paper commands korzystają z Lifecycle API tam, gdzie ma to sens.
+- [x] Paper commands korzystają z Lifecycle API tam, gdzie ma to sens.
 - [ ] `folia-supported: true` jest ustawione dopiero przy faktycznej zgodności.
 - [ ] JDBC nigdy nie działa na main/global/entity/region thread.
 - [ ] HTTP Mojang nigdy nie działa na main/global/entity/region thread.
@@ -2941,3 +2941,10 @@ lecternów, armor standów, strzyżenia, wędkowania, pocisków oraz hanging ent
 pilnuje kompletności handlerów i ich priorytetów; pełna checklista ochrony świata nadal
 wymaga testów na uruchomionych Paper/Purpur/Folia oraz domknięcia polityki plugin
 messaging.
+
+Komendy Paper korzystają teraz z Lifecycle API. `/changepassword` otwiera dla aktywnego
+konta offline dialog z obecnym i dwukrotnie podanym nowym hasłem. Administrator z
+`authgatewayx.admin.password` używa `/authgatewayx setpassword <nick>`; nowe hasło także
+nie występuje w argumentach komendy. Argon2id działa na bounded executorze, własna
+zmiana używa compare-and-set starego hasha, obie operacje są audytowane, a reset
+administracyjny rozłącza aktywny cel.

@@ -15,7 +15,7 @@
 - [ ] `/register`
 - [ ] `/login`
 - [ ] `/logout`
-- [ ] `/changepassword`
+- [x] `/changepassword`
 - [ ] Argon2id
 - [ ] login timeout
 - [ ] account lockout
@@ -155,7 +155,7 @@ Zalecane do późniejszych wersji:
 - [ ] `paper-libraries.yml`
 - [ ] `PluginBootstrap`
 - [ ] Paper Lifecycle API
-- [ ] Brigadier/lifecycle command registration
+- [x] Brigadier/lifecycle command registration
 - [ ] `folia-supported: true`
 - [ ] EntityScheduler dla player/entity state
 - [ ] RegionScheduler dla location/chunk state

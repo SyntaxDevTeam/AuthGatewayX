@@ -78,6 +78,7 @@ class LoginServiceTest {
             CompletableFuture.completedFuture<MojangIdentityBindingResult>(MojangIdentityBindingResult.IdentityConflict)
         override fun findByUsername(username: AccountUsername) = CompletableFuture.completedFuture<AuthAccount?>(null)
         override fun findPasswordHash(accountId: AccountId) = CompletableFuture.completedFuture<String?>(null)
+        override fun replacePasswordHash(accountId: AccountId, expectedHash: String?, newHash: String) = CompletableFuture.completedFuture(false)
         override fun close() = Unit
     }
 

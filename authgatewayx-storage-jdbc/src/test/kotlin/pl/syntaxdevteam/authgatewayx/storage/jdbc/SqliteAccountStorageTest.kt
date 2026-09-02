@@ -28,6 +28,17 @@ import kotlin.test.assertTrue
 
 class SqliteAccountStorageTest {
     @Test
+    fun `password replacement supports compare and set for self service`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("PasswordPlayer")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+
+        assertTrue(storage.replacePasswordHash(registration.accountId, registration.passwordHash, "new-hash").toCompletableFuture().get())
+        assertEquals("new-hash", storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
+        assertTrue(!storage.replacePasswordHash(registration.accountId, registration.passwordHash, "stale-write").toCompletableFuture().get())
+        assertEquals("new-hash", storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
+    }
+    @Test
     fun `migration is idempotent and registration round-trips`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         storage.migrate().toCompletableFuture().get()

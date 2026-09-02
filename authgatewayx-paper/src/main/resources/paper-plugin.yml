@@ -12,3 +12,11 @@ has-open-classloader: false
 
 authors: [ SyntaxDevTeam ]
 website: https://syntaxdevteam.pl
+
+permissions:
+  authgatewayx.command.changepassword:
+    description: Allows an authenticated offline player to change their password.
+    default: true
+  authgatewayx.admin.password:
+    description: Allows setting the password of an offline account through a secure dialog.
+    default: op

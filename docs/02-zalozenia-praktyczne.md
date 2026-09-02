@@ -409,6 +409,12 @@ aktywnych. Zmiany player state i timeout korzystają z EntityScheduler. Oryginal
 są przywracane dopiero po atomowym `PRE_AUTH -> ACTIVE`. Disconnect usuwa sesję i
 snapshot kwarantanny.
 
+Po uwierzytelnieniu konto offline może użyć `/changepassword`. Komenda otwiera natywny
+dialog z obecnym hasłem oraz dwukrotnie podanym nowym hasłem; sekrety nie są argumentami
+komendy. Administrator z `authgatewayx.admin.password` może użyć
+`/authgatewayx setpassword <nick>` i podać nowe hasło w analogicznym dialogu. Reset jest
+audytowany, a aktywny gracz celu zostaje rozłączony i musi zalogować się ponownie.
+
 ## 15. Limit i feedback PRE_AUTH
 
 Liczba jednoczesnych graczy oczekujących na uwierzytelnienie jest ograniczona przez

@@ -57,6 +57,7 @@ interface AccountStorage : AutoCloseable {
     fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?>
     fun findPasswordHash(accountId: AccountId): CompletionStage<String?>
     fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?>
+    fun replacePasswordHash(accountId: AccountId, expectedHash: String?, newHash: String): CompletionStage<Boolean>
     fun recordLoginSuccess(accountId: AccountId, sourceAddress: InetAddress, authenticatedAt: Instant): CompletionStage<Unit>
     fun recordLoginFailure(
         accountId: AccountId,

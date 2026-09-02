@@ -871,7 +871,7 @@ Testy muszą objąć:
 - [ ] `paper-libraries.yml` posiada kontrolowane repozytoria.
 - [ ] Stabilne 1.0.0 nie zależy bez potrzeby od SNAPSHOT bibliotek.
 - [ ] `PluginBootstrap` jest wpisany w `paper-plugin.yml`.
-- [ ] Paper commands korzystają z Lifecycle API tam, gdzie ma to sens.
+- [x] Paper commands korzystają z Lifecycle API tam, gdzie ma to sens.
 - [ ] `folia-supported: true` jest ustawione dopiero przy faktycznej zgodności.
 - [ ] JDBC nigdy nie działa na main/global/entity/region thread.
 - [ ] HTTP Mojang nigdy nie działa na main/global/entity/region thread.

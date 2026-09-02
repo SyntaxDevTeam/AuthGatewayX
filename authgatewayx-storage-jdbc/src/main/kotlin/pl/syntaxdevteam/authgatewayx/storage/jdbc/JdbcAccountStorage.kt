@@ -203,6 +203,23 @@ class SqliteAccountStorage(
         }
     }
 
+    override fun replacePasswordHash(accountId: AccountId, expectedHash: String?, newHash: String): CompletionStage<Boolean> = executor.submit {
+        dataSource.connection.use { connection ->
+            val sql = if (expectedHash == null) {
+                "UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ? AND identity_type = 'OFFLINE'"
+            } else {
+                "UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ? AND identity_type = 'OFFLINE' AND password_hash = ?"
+            }
+            connection.prepareStatement(sql).use { statement ->
+                statement.setString(1, newHash)
+                statement.setString(2, Instant.now().toString())
+                statement.setString(3, accountId.value.toString())
+                if (expectedHash != null) statement.setString(4, expectedHash)
+                statement.executeUpdate() == 1
+            }
+        }
+    }
+
     override fun recordLoginSuccess(accountId: AccountId, sourceAddress: java.net.InetAddress, authenticatedAt: Instant): CompletionStage<Unit> = executor.submit {
         dataSource.connection.use { connection ->
             connection.prepareStatement("""UPDATE accounts SET failed_login_count = 0, locked_until = NULL,

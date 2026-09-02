@@ -19,6 +19,8 @@ enum class SecurityEventType {
     ANTI_BOT_DENY,
     ANTI_FLOOD_DENY,
     SESSION_INVALIDATED,
+    PASSWORD_CHANGE,
+    ADMIN_PASSWORD_RESET,
 }
 
 data class SecurityEvent(

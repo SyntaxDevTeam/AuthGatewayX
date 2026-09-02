@@ -130,6 +130,7 @@ class RegistrationServiceTest {
         override fun findByUsername(username: AccountUsername) = CompletableFuture.completedFuture<AuthAccount?>(null)
         override fun findPasswordHash(accountId: AccountId) = CompletableFuture.completedFuture<String?>(null)
         override fun findCredentials(username: AccountUsername) = CompletableFuture.completedFuture<AccountCredentials?>(null)
+        override fun replacePasswordHash(accountId: AccountId, expectedHash: String?, newHash: String) = CompletableFuture.completedFuture(false)
         override fun recordLoginSuccess(accountId: AccountId, sourceAddress: InetAddress, authenticatedAt: Instant) =
             CompletableFuture.completedFuture(Unit)
         override fun recordLoginFailure(accountId: AccountId, failedAt: Instant, lockThreshold: Int, lockDuration: Duration) =

@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
 import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
+import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
 import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
 import pl.syntaxdevteam.authgatewayx.auth.session.InMemorySessionRegistry
@@ -15,6 +16,10 @@ import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
+import pl.syntaxdevteam.authgatewayx.paper.command.MutablePasswordCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationListener
@@ -49,10 +54,12 @@ import java.util.UUID
 
 class AuthGatewayXPaper : JavaPlugin() {
     private val readiness = RuntimeReadiness()
+    private val passwordCommandGateway = MutablePasswordCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
         saveDefaultConfig()
+        PasswordCommandRegistrar(this, passwordCommandGateway).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
         )
@@ -187,6 +194,11 @@ class AuthGatewayXPaper : JavaPlugin() {
             PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
             attemptGate = registrationAttemptGate, auditSink = storage,
             maximumAccountsPerAddress = positive("anti-bot.registration-attempts.maximum-accounts-per-address"))
+        val passwordChange = PasswordChangeService(
+            storage, hasher, passwordExecutor,
+            PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
+            storage,
+        )
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)
@@ -257,6 +269,33 @@ class AuthGatewayXPaper : JavaPlugin() {
             },
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
+        val passwordDialogs = PasswordChangeDialogController(passwordChange, scheduler, sessions, PasswordChangeDialogText(
+            messages.stringMessageToComponentNoPrefix("password", "own_title"),
+            messages.stringMessageToComponentNoPrefix("password", "admin_title"),
+            messages.stringMessageToComponentNoPrefix("password", "own_prompt"),
+            messages.stringMessageToComponentNoPrefix("password", "admin_prompt"),
+            messages.stringMessageToComponentNoPrefix("password", "current_label"),
+            messages.stringMessageToComponentNoPrefix("password", "new_label"),
+            messages.stringMessageToComponentNoPrefix("password", "repeat_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "password_mismatch"),
+            messages.stringMessageToComponentNoPrefix("password", "invalid_current"),
+            messages.stringMessageToComponentNoPrefix("password", "account_not_found"),
+            messages.stringMessageToComponentNoPrefix("password", "offline_only"),
+            messages.stringMessageToComponentNoPrefix("password", "success"),
+            messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+        )) { username ->
+            scheduler.global(Runnable {
+                server.onlinePlayers.firstOrNull { it.name.equals(username.value, ignoreCase = true) }?.let { target ->
+                    scheduler.entity(target, Runnable {
+                        if (target.isOnline) target.kick(messages.stringMessageToComponentNoPrefix("password", "admin_target_kick"))
+                    })
+                }
+            })
+        }
+        passwordCommandGateway.delegate = passwordDialogs
+        server.pluginManager.registerEvents(passwordDialogs, this)
         server.pluginManager.registerEvents(
             PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate), this,
         )
@@ -270,7 +309,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
     private fun fail(message: String, failure: Throwable) { readiness.force(RuntimeState.FAILED); logger.log(java.util.logging.Level.SEVERE, "$message; authentication remains closed", failure) }
 
-    override fun onDisable() { readiness.force(RuntimeState.STOPPING); runtime?.close(); runtime = null }
+    override fun onDisable() { readiness.force(RuntimeState.STOPPING); passwordCommandGateway.delegate = null; runtime?.close(); runtime = null }
 }
 
 private class RuntimeComponents(

@@ -561,6 +561,12 @@ blokada trwa 10 minut. Pomyślne logowanie zeruje licznik oraz `locked_until`. P
 odrzucone przez limiter nie wykonują JDBC ani Argon2 i również zerują wejściową tablicę
 hasła.
 
+Zmiana hasła używa Argon2id na bounded executorze. Ścieżka własna weryfikuje obecny
+hash i zapisuje nowy przez compare-and-set, więc równoległa zmiana nie może nadpisać
+nowszego hasła. Administracyjny reset wymaga osobnej permisji, jest audytowany jako
+`ADMIN_PASSWORD_RESET` i rozłącza aktywną sesję celu. Hasła są przekazywane wyłącznie
+przez Dialog API i zerowane na wszystkich ścieżkach zakończenia.
+
 # 19. Zaimplementowana ochrona nicków na Paper standalone
 
 Przed lookupem konta offline wykonywany jest ograniczony i deduplikowany lookup profilu
