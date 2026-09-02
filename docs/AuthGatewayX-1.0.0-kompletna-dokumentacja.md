@@ -1208,6 +1208,9 @@ listenerów, więc formularz nie działa bez aktywnej kwarantanny.
 `PreAuthEntryListener` tworzy sesję i ustawia PRE_AUTH przed uruchomieniem UI.
 `PreAuthIsolationListener` blokuje ruch, teleporty, interakcje, bloki, inventory,
 przedmioty, combat/damage, chat, portale, pojazdy i wszystkie komendy.
+Jawne blokady obejmują również wiadra, książki i lecterny, armor standy, strzyżenie,
+wędkowanie, wystrzelenie pocisku i niszczenie hanging entities. Sugestie komend są
+czyszczone dla gracza w `PRE_AUTH`.
 `PreAuthIsolationManager` przez EntityScheduler ustawia invulnerability, wyłącza
 kolizję i pickup, ukrywa gracza oraz egzekwuje timeout.
 
@@ -1218,6 +1221,8 @@ przykładową allowlistę, ponieważ Dialog API nie wymaga przesyłania hasła w
 Warstwa jest aktywowana w composition root przed zmianą runtime na `READY`. Testy na
 uruchomionych Paper/Folia oraz zamknięcie polityki plugin messaging/Velocity nadal są
 wymagane przed oznaczeniem checklist ochrony świata jako ukończonych.
+Test regresyjny listenera dodatkowo pilnuje obecności wymaganych handlerów, priorytetu
+`HIGHEST` i respektowania wcześniejszego anulowania eventu.
 
 ---
 
@@ -2929,3 +2934,10 @@ offline są przypisywane do slotów podczas migracji, więc restart nie resetuje
 Odmowa trafia do audytu jako `REGISTRATION_ADDRESS_LIMIT`, a gracz otrzymuje neutralny
 feedback wyłącznie w natywnym Minecraft Dialog. Checkbox całej ochrony rejestracji
 pozostaje otwarty do testów serwerowych i implementacji pozostałych backendów JDBC.
+
+Powierzchnia izolacji PRE_AUTH została rozszerzona o jawne blokady wiader, książek i
+lecternów, armor standów, strzyżenia, wędkowania, pocisków oraz hanging entities.
+`PlayerCommandSendEvent` usuwa sugestie komend przed uwierzytelnieniem. Test regresyjny
+pilnuje kompletności handlerów i ich priorytetów; pełna checklista ochrony świata nadal
+wymaga testów na uruchomionych Paper/Purpur/Folia oraz domknięcia polityki plugin
+messaging.

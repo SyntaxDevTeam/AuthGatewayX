@@ -1002,6 +1002,9 @@ uruchomionym proxy.
 `PreAuthIsolationListener` egzekwuje blokady eventów niezależnie od klienta, a
 `PreAuthIsolationManager` odpowiada za invulnerability, collision, pickup, visibility
 i timeout. Operacje gracza oraz hide/show są kierowane przez EntityScheduler.
+Listener posiada jawne guardy dla dodatkowych powierzchni wpływu na świat: wiader,
+książek i lecternów, armor standów, strzyżenia, wędkowania, pocisków i hanging
+entities. Sugestie komend są czyszczone przez `PlayerCommandSendEvent`.
 
 `AuthenticationFormCoordinator` wywołuje hook aktywacji dopiero po udanym auth i
 atomowym `SessionRegistry.activate`. Hook przywraca zapisane flagi i widoczność. Quit
@@ -1010,6 +1013,7 @@ usuwa snapshot oraz sesję, więc reconnect nie dziedziczy starego stanu.
 Listener blokuje wszystkie komendy PRE_AUTH. Natywne dialogi nie wymagają komend z
 hasłem, a pełna blokada eliminuje obejścia przez aliasy i namespace.
 
-Klasy kwarantanny kompilują się przeciw Paper 26.2, ale nie są jeszcze rejestrowane w
-runtime. Checkboxy ochrony świata i Folia pozostają otwarte do testów serwerowych oraz
-audytu plugin messaging na granicy proxy/backend.
+Klasy kwarantanny kompilują się przeciw Paper 26.2 i są rejestrowane w composition
+root przed przejściem runtime do `READY`. Test regresyjny pilnuje obecności wymaganych
+handlerów i ich priorytetów. Checkboxy ochrony świata i Folia pozostają otwarte do
+testów serwerowych oraz audytu plugin messaging na granicy proxy/backend.

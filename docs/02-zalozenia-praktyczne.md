@@ -396,6 +396,9 @@ Wejście gracza offline tworzy sesję `CONNECTING`, natychmiast przełącza ją 
 `PRE_AUTH` i dopiero wtedy uruchamia UI. Kwarantanna blokuje ruch, teleporty,
 interakcje, bloki, inventory, drop/pickup, obrażenia zadawane i otrzymywane, chat,
 portale, pojazdy, zmianę trzymanego przedmiotu, użycie przedmiotu i wszystkie komendy.
+Jawne guardy obejmują także wiadra, edycję i zabieranie książek, manipulację armor
+standem, strzyżenie, wędkowanie, wystrzelenie pocisku oraz niszczenie hanging entities.
+Lista sugestii komend jest czyszczona dla gracza pozostającego w `PRE_AUTH`.
 
 Dialog API usuwa potrzebę allowlisty `/login` i `/register`. Blokowanie wszystkich
 komend eliminuje obejścia przez aliasy i namespace; `/quit` nie wymaga komendy, ponieważ

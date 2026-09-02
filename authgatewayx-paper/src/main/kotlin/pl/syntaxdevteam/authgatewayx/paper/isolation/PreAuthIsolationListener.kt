@@ -11,6 +11,9 @@ import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityPickupItemEvent
+import org.bukkit.event.entity.EntityShootBowEvent
+import org.bukkit.event.entity.ProjectileLaunchEvent
+import org.bukkit.event.hanging.HangingBreakByEntityEvent
 import org.bukkit.event.inventory.InventoryClickEvent
 import org.bukkit.event.inventory.InventoryDragEvent
 import org.bukkit.event.inventory.InventoryOpenEvent
@@ -44,6 +47,27 @@ class PreAuthIsolationListener(
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onInteractEntity(event: PlayerInteractEntityEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onArmorStandManipulate(event: PlayerArmorStandManipulateEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onBucketEmpty(event: PlayerBucketEmptyEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onBucketFill(event: PlayerBucketFillEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onEditBook(event: PlayerEditBookEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onTakeLecternBook(event: PlayerTakeLecternBookEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onShearEntity(event: PlayerShearEntityEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onFish(event: PlayerFishEvent) { if (blocked(event.player)) event.isCancelled = true }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBreak(event: BlockBreakEvent) { if (blocked(event.player)) event.isCancelled = true }
@@ -80,10 +104,33 @@ class PreAuthIsolationListener(
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onShootBow(event: EntityShootBowEvent) { (event.entity as? Player)?.takeIf(::blocked)?.let { event.isCancelled = true } }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onProjectileLaunch(event: ProjectileLaunchEvent) {
+        (event.entity.shooter as? Player)?.takeIf(::blocked)?.let { event.isCancelled = true }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onHangingBreak(event: HangingBreakByEntityEvent) {
+        val remover = when (val entity = event.remover) {
+            is Player -> entity
+            is Projectile -> entity.shooter as? Player
+            else -> null
+        }
+        if (remover != null && blocked(remover)) event.isCancelled = true
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onChat(event: AsyncChatEvent) { if (blocked(event.player)) event.isCancelled = true }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onCommand(event: PlayerCommandPreprocessEvent) { if (blocked(event.player)) event.isCancelled = true }
+
+    @EventHandler(priority = EventPriority.HIGHEST)
+    fun onCommandSuggestions(event: PlayerCommandSendEvent) {
+        if (blocked(event.player)) event.commands.clear()
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onPortal(event: PlayerPortalEvent) { if (blocked(event.player)) event.isCancelled = true }

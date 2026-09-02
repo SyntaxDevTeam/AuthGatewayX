@@ -82,6 +82,13 @@ Reszta funkcjonalności świata ma być zablokowana.
 
 Stan izolacji musi być egzekwowany niezależnie od klienta.
 
+Implementacja Paper posiada osobne blokady eventów również dla wiader, książek i
+lecternów, armor standów, strzyżenia, wędkowania, pocisków i hanging entities. Dla
+`PlayerCommandSendEvent` usuwa wszystkie sugestie komend w stanie `PRE_AUTH`.
+Test regresyjny powierzchni listenera weryfikuje komplet wymaganych handlerów, ich
+priorytet `HIGHEST` oraz zachowanie wcześniejszego anulowania. Pełne checkboxy ochrony
+świata pozostają otwarte do testu na rzeczywistym Paper/Purpur/Folia.
+
 ---
 
 # 4. Premium username protection
