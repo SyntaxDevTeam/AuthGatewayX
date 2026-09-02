@@ -650,3 +650,26 @@ LOGIN adapterze przed `MojangProfileLookup`. `AsyncPlayerPreLoginEvent` nie wyko
 ponownego naliczenia tego samego połączenia. W Paper za Velocity pre-login event nadal
 jest właścicielem tych guardów. Pozycja `connection scoring` pozostaje niezaznaczona
 wyłącznie do wymaganego testu obciążeniowego/reconnect-flood na serwerze.
+
+# 24. Wielobackendowy storage JDBC
+
+Runtime wybiera `SQLITE`, `MYSQL`, `MARIADB` albo `POSTGRESQL` przez `storage.type`.
+Wspólna implementacja zachowuje bounded executor i HikariCP, a dialekt rozdziela typ
+auto-increment, conflict-ignore slotów rejestracji oraz JDBC URL. Sterowniki są
+dostarczane przez PluginLoader. Hasło z `AUTHGATEWAYX_DB_PASSWORD` ma pierwszeństwo nad
+plikiem YAML. Checkboxy zdalnych backendów pozostają otwarte do testów integracyjnych
+na rzeczywistych silnikach, w tym konkurencji i migracji.
+
+# 25. CleanerX i PunisherX admission
+
+`LoginAdmissionService` działa przed lookupem premium, rejestracją, JDBC konta i
+Argon2. CleanerX jest ładowany wyłącznie przez publiczne API `ServicesManager`; adapter
+mapuje `containsBannedWord` na `DENY_PROFANITY`. Preferowane są bezpośrednio
+zarejestrowane kontrakty `UsernamePolicyProvider` i `PunishmentProvider`.
+
+PunisherX fallback używa publicznego `PunisherXApi.getActivePunishments(UUID, "ALL")`
+i odrzuca aktywny `BAN`, `IP_BAN` lub `NETWORK_BAN` zwrócony dla UUID. API PunisherX
+nie pozwala obecnie wykonać niezależnego lookupu po nazwie lub IP, dlatego te pozycje
+pozostają otwarte i wymagają rozszerzenia publicznego kontraktu PunisherX. Tryby
+`AUTO/REQUIRED/DISABLED` oraz `FAIL_OPEN/FAIL_CLOSED` są konfigurowalne. Odmowy są
+neutralne dla gracza i audytowane bez treści kary.

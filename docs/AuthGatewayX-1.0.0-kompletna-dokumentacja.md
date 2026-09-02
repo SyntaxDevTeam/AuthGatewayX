@@ -1856,19 +1856,19 @@ musi być atomowe logicznie i wykonane w poprawnym execution context.
 
 ### CleanerX
 
-- [ ] nickname validation provider
-- [ ] profanity/pattern deny
-- [ ] optional integration
-- [ ] configurable failure strategy
+- [x] nickname validation provider
+- [x] profanity/pattern deny
+- [x] optional integration
+- [x] configurable failure strategy
 
 ### PunisherX
 
-- [ ] UUID ban check
+- [x] UUID ban check
 - [ ] name ban check
 - [ ] IP ban check
 - [ ] network ban support
-- [ ] async punishment provider
-- [ ] login denial before session activation
+- [x] async punishment provider
+- [x] login denial before session activation
 
 ## API
 
@@ -2962,3 +2962,15 @@ znajduje się w `08-roadmap-do-1.0.0.md`.
 Paper dev bundle został przypięty do zweryfikowanego `26.2.build.121-stable`; usunięto
 dynamiczne `26.2.build.+`, aby konfiguracja i build nie zależały od bieżących metadanych
 repozytorium.
+
+Storage runtime obsługuje teraz `SQLITE`, `MYSQL`, `MARIADB` i `POSTGRESQL` przez jeden
+kontrakt `AccountStorage`, HikariCP i dialekty SQL. PluginLoader dostarcza cztery
+sterowniki, konfiguracja buduje odpowiedni JDBC URL, a sekret może pochodzić z
+`AUTHGATEWAYX_DB_PASSWORD`. Checkboxy zdalnych silników czekają na testy integracyjne.
+
+Dodano admission CleanerX/PunisherX przed kosztowną ścieżką auth. CleanerX korzysta z
+publicznego API ServicesManager; PunisherX preferuje `PunishmentProvider`, a fallback
+obsługuje obecne publiczne API aktywnych banów UUID. Tryb i strategia awarii są
+konfigurowalne, odmowy audytowane i pokazywane neutralnie. Name/IP/network lookup
+pozostaje otwarty, ponieważ obecny publiczny kontrakt PunisherX nie udostępnia takich
+operacji.

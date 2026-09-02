@@ -15,6 +15,9 @@ import pl.syntaxdevteam.authgatewayx.auth.session.LogoutService
 import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormCoordinator
 import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormResult
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
+import pl.syntaxdevteam.authgatewayx.integrations.FailureStrategy
+import pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionService
+import pl.syntaxdevteam.authgatewayx.paper.integration.PaperIntegrationResolver
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
@@ -49,7 +52,8 @@ import pl.syntaxdevteam.authgatewayx.security.login.LoginAttemptGate
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2Parameters
 import pl.syntaxdevteam.authgatewayx.security.password.Argon2PasswordHasher
 import pl.syntaxdevteam.authgatewayx.security.registration.RegistrationAttemptGate
-import pl.syntaxdevteam.authgatewayx.storage.jdbc.SqliteAccountStorage
+import pl.syntaxdevteam.authgatewayx.storage.jdbc.JdbcAccountStorage
+import pl.syntaxdevteam.authgatewayx.storage.jdbc.JdbcDatabaseType
 import pl.syntaxdevteam.core.SyntaxCore
 import pl.syntaxdevteam.message.MessageHandler
 import pl.syntaxdevteam.message.SyntaxMessages
@@ -132,9 +136,21 @@ class AuthGatewayXPaper : JavaPlugin() {
         ))
         val storageStage = storageExecutor.submit {
             dataFolder.mkdirs()
-            SqliteAccountStorage(
-                "jdbc:sqlite:${dataFolder.resolve(config.getString("storage.sqlite-file") ?: "authgatewayx.db").absolutePath}",
-                positive("storage.pool-size"), storageExecutor,
+            val databaseType = JdbcDatabaseType.valueOf(config.getString("storage.type", "SQLITE")!!.uppercase())
+            val databaseName = config.getString("storage.remote.database", "authgatewayx")!!
+            val host = config.getString("storage.remote.host", "127.0.0.1")!!
+            val configuredPort = positive("storage.remote.port")
+            val parameters = config.getString("storage.remote.parameters", "")!!.trim().removePrefix("?")
+            val jdbcUrl = when (databaseType) {
+                JdbcDatabaseType.SQLITE -> "jdbc:sqlite:${dataFolder.resolve(config.getString("storage.sqlite-file") ?: "authgatewayx.db").absolutePath}"
+                JdbcDatabaseType.MYSQL -> "jdbc:mysql://$host:$configuredPort/$databaseName${parameters.takeIf(String::isNotEmpty)?.let { "?$it" } ?: ""}"
+                JdbcDatabaseType.MARIADB -> "jdbc:mariadb://$host:$configuredPort/$databaseName${parameters.takeIf(String::isNotEmpty)?.let { "?$it" } ?: ""}"
+                JdbcDatabaseType.POSTGRESQL -> "jdbc:postgresql://$host:$configuredPort/$databaseName${parameters.takeIf(String::isNotEmpty)?.let { "?$it" } ?: ""}"
+            }
+            JdbcAccountStorage(
+                jdbcUrl, positive("storage.pool-size"), storageExecutor, databaseType,
+                config.getString("storage.remote.username"),
+                System.getenv("AUTHGATEWAYX_DB_PASSWORD") ?: config.getString("storage.remote.password"),
             ).also { components.storage = it }
         }.thenCompose { storage -> storage.migrate().thenApply { storage } }
         val dummyHashStage = passwordExecutor.submit { hasher.hash("AuthGatewayX-dummy-password".toCharArray()) }
@@ -155,7 +171,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     }
 
     private fun installAuthentication(
-        storage: SqliteAccountStorage,
+        storage: JdbcAccountStorage,
         dummyHash: String,
         hasher: Argon2PasswordHasher,
         messages: MessageHandler,
@@ -259,10 +275,35 @@ class AuthGatewayXPaper : JavaPlugin() {
             }
         }
         val mojangAuthentication = VerifiedMojangAuthenticationService(storage, sessions, storage)
+        val integrationResolver = PaperIntegrationResolver(server, mojangExecutor)
+        val cleanerMode = config.getString("integrations.cleanerx.mode", "AUTO")!!.uppercase()
+        val punisherMode = config.getString("integrations.punisherx.mode", "AUTO")!!.uppercase()
+        val resolvedCleaner = if (cleanerMode == "DISABLED") null else integrationResolver.usernamePolicy()
+        val resolvedPunisher = if (punisherMode == "DISABLED") null else integrationResolver.punishmentProvider()
+        val loginAdmission = LoginAdmissionService(
+            resolvedCleaner ?: if (cleanerMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.UsernamePolicyProvider {
+                java.util.concurrent.CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.UsernameVerdict.UNAVAILABLE)
+            } else null,
+            resolvedPunisher ?: if (punisherMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.PunishmentProvider {
+                java.util.concurrent.CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.LoginPunishmentResult.Unavailable())
+            } else null,
+            FailureStrategy.valueOf(config.getString("integrations.cleanerx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
+            FailureStrategy.valueOf(config.getString("integrations.punisherx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
+        )
         val router = AuthenticationDialogRouter(
             storage, dialogs, access, scheduler,
             premiumLookup = premiumLookup,
             mojangAuthentication = mojangAuthentication,
+            loginAdmission = loginAdmission,
+            integrationDeniedMessage = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"),
+            onAdmissionDenied = { username, address, reason ->
+                val type = if (reason.startsWith("CLEANER"))
+                    pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.USERNAME_POLICY_DENY
+                else pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.PUNISHMENT_DENY
+                runCatching { storage.record(pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent(
+                    java.time.Instant.now(), null, null, username.value, address, type, reason,
+                )) }
+            },
             premiumAuthenticationRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
             lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
             identityConflictMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
@@ -342,7 +383,7 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
-    @Volatile var storage: SqliteAccountStorage? = null
+    @Volatile var storage: JdbcAccountStorage? = null
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
 

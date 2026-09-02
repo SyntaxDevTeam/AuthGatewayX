@@ -175,10 +175,10 @@ class SqliteAccountStorageTest {
         Instant.parse("2026-08-31T18:00:00Z"),
     )
 
-    private fun withStorage(test: (SqliteAccountStorage) -> Unit) {
+    private fun withStorage(test: (JdbcAccountStorage) -> Unit) {
         val file = Files.createTempFile("authgatewayx-", ".sqlite")
         val executor = BoundedTaskExecutor(2, 8, "storage-test")
-        val storage = SqliteAccountStorage("jdbc:sqlite:$file", 2, executor)
+        val storage = JdbcAccountStorage("jdbc:sqlite:$file", 2, executor)
         try {
             test(storage)
         } finally {

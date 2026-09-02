@@ -24,15 +24,28 @@ import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.CompletionStage
 
-class SqliteAccountStorage(
+enum class JdbcDatabaseType {
+    SQLITE, MYSQL, MARIADB, POSTGRESQL;
+
+    companion object {
+        fun fromJdbcUrl(url: String): JdbcDatabaseType = when {
+            url.startsWith("jdbc:sqlite:") -> SQLITE
+            url.startsWith("jdbc:mysql:") -> MYSQL
+            url.startsWith("jdbc:mariadb:") -> MARIADB
+            url.startsWith("jdbc:postgresql:") -> POSTGRESQL
+            else -> throw IllegalArgumentException("Unsupported JDBC URL")
+        }
+    }
+}
+
+class JdbcAccountStorage(
     jdbcUrl: String,
     maximumPoolSize: Int,
     private val executor: BoundedTaskExecutor,
+    private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
+    username: String? = null,
+    password: String? = null,
 ) : AccountStorage, SecurityAuditSink {
-    init {
-        require(jdbcUrl.startsWith("jdbc:sqlite:")) { "SqliteAccountStorage requires a jdbc:sqlite URL" }
-    }
-
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
         poolName = "AuthGatewayX-Storage"
@@ -41,8 +54,12 @@ class SqliteAccountStorage(
         connectionTimeout = 5_000
         validationTimeout = 2_000
         isAutoCommit = true
-        addDataSourceProperty("busy_timeout", "5000")
-        addDataSourceProperty("foreign_keys", "true")
+        if (!username.isNullOrBlank()) this.username = username
+        if (password != null) this.password = password
+        if (databaseType == JdbcDatabaseType.SQLITE) {
+            addDataSourceProperty("busy_timeout", "5000")
+            addDataSourceProperty("foreign_keys", "true")
+        }
     })
 
     override fun migrate(): CompletionStage<Unit> = executor.submit {
@@ -74,26 +91,20 @@ class SqliteAccountStorage(
                     )
                     """.trimIndent())
                 }
-                connection.prepareStatement("INSERT OR IGNORE INTO schema_history(version, applied_at) VALUES (1, ?)").use {
-                    it.setString(1, Instant.now().toString())
-                    it.executeUpdate()
-                }
+                if (!hasMigration(connection, 1)) recordMigration(connection, 1)
                 val hasVersion2 = connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = 2").use {
                     it.executeQuery().use { result -> result.next() }
                 }
                 if (!hasVersion2) {
                     connection.createStatement().use { it.executeUpdate("ALTER TABLE accounts ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0") }
-                    connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (2, ?)").use {
-                        it.setString(1, Instant.now().toString())
-                        it.executeUpdate()
-                    }
+                    recordMigration(connection, 2)
                 }
                 val hasVersion3 = connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = 3").use {
                     it.executeQuery().use { result -> result.next() }
                 }
                 if (!hasVersion3) {
                     connection.createStatement().use { it.executeUpdate("""CREATE TABLE security_events (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        id ${auditIdDefinition()},
                         occurred_at VARCHAR(40) NOT NULL,
                         account_id VARCHAR(36),
                         minecraft_uuid VARCHAR(36),
@@ -102,10 +113,7 @@ class SqliteAccountStorage(
                         event_type VARCHAR(40) NOT NULL,
                         reason_code VARCHAR(64) NOT NULL
                     )""".trimIndent()) }
-                    connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (3, ?)").use {
-                        it.setString(1, Instant.now().toString())
-                        it.executeUpdate()
-                    }
+                    recordMigration(connection, 3)
                 }
                 val hasVersion4 = connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = 4").use {
                     it.executeQuery().use { result -> result.next() }
@@ -126,10 +134,7 @@ class SqliteAccountStorage(
                             FROM accounts
                             WHERE identity_type = 'OFFLINE' AND last_login_ip IS NOT NULL""".trimIndent())
                     }
-                    connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (4, ?)").use {
-                        it.setString(1, Instant.now().toString())
-                        it.executeUpdate()
-                    }
+                    recordMigration(connection, 4)
                 }
                 connection.commit()
             } catch (failure: Throwable) {
@@ -241,20 +246,26 @@ class SqliteAccountStorage(
     ): CompletionStage<FailedLoginUpdate> = executor.submit {
         require(lockThreshold > 0 && !lockDuration.isNegative && !lockDuration.isZero)
         dataSource.connection.use { connection ->
+            connection.autoCommit = false
             val lockUntil = failedAt.plus(lockDuration)
             connection.prepareStatement("""UPDATE accounts
                 SET failed_login_count = failed_login_count + 1,
                     locked_until = CASE WHEN failed_login_count + 1 >= ? THEN ? ELSE locked_until END,
                     updated_at = ?
-                WHERE id = ?
-                RETURNING failed_login_count, locked_until""".trimIndent()).use { statement ->
+                WHERE id = ?""".trimIndent()).use { statement ->
                 statement.setInt(1, lockThreshold)
                 statement.setString(2, lockUntil.toString())
                 statement.setString(3, failedAt.toString())
                 statement.setString(4, accountId.value.toString())
+                check(statement.executeUpdate() == 1) { "Account disappeared during failed login update" }
+            }
+            connection.prepareStatement("SELECT failed_login_count, locked_until FROM accounts WHERE id = ?").use { statement ->
+                statement.setString(1, accountId.value.toString())
                 statement.executeQuery().use { results ->
                     check(results.next()) { "Account disappeared during failed login update" }
-                    FailedLoginUpdate(results.getInt(1), results.getString(2)?.let(Instant::parse))
+                    val update = FailedLoginUpdate(results.getInt(1), results.getString(2)?.let(Instant::parse))
+                    connection.commit()
+                    update
                 }
             }
         }
@@ -415,7 +426,11 @@ class SqliteAccountStorage(
     }
 
     private fun claimRegistrationSlot(connection: Connection, registration: OfflineRegistration): Boolean {
-        val sql = "INSERT OR IGNORE INTO registration_ip_slots(source_ip, slot, account_id) VALUES (?, ?, ?)"
+        val sql = when (databaseType) {
+            JdbcDatabaseType.SQLITE -> "INSERT OR IGNORE INTO registration_ip_slots(source_ip, slot, account_id) VALUES (?, ?, ?)"
+            JdbcDatabaseType.MYSQL, JdbcDatabaseType.MARIADB -> "INSERT IGNORE INTO registration_ip_slots(source_ip, slot, account_id) VALUES (?, ?, ?)"
+            JdbcDatabaseType.POSTGRESQL -> "INSERT INTO registration_ip_slots(source_ip, slot, account_id) VALUES (?, ?, ?) ON CONFLICT DO NOTHING"
+        }
         connection.prepareStatement(sql).use { statement ->
             for (slot in 1..registration.maximumAccountsPerAddress) {
                 statement.setString(1, registration.sourceAddress.hostAddress)
@@ -446,6 +461,26 @@ class SqliteAccountStorage(
     private fun isConstraintViolation(failure: SQLException): Boolean =
         failure.sqlState?.startsWith("23") == true || failure.message?.contains("constraint", ignoreCase = true) == true
 
+    private fun hasMigration(connection: Connection, version: Int): Boolean =
+        connection.prepareStatement("SELECT 1 FROM schema_history WHERE version = ?").use { statement ->
+            statement.setInt(1, version)
+            statement.executeQuery().use { it.next() }
+        }
+
+    private fun recordMigration(connection: Connection, version: Int) {
+        connection.prepareStatement("INSERT INTO schema_history(version, applied_at) VALUES (?, ?)").use { statement ->
+            statement.setInt(1, version)
+            statement.setString(2, Instant.now().toString())
+            statement.executeUpdate()
+        }
+    }
+
+    private fun auditIdDefinition(): String = when (databaseType) {
+        JdbcDatabaseType.SQLITE -> "INTEGER PRIMARY KEY AUTOINCREMENT"
+        JdbcDatabaseType.MYSQL, JdbcDatabaseType.MARIADB -> "BIGINT PRIMARY KEY AUTO_INCREMENT"
+        JdbcDatabaseType.POSTGRESQL -> "BIGSERIAL PRIMARY KEY"
+    }
+
     private fun mapAccount(results: java.sql.ResultSet) = AuthAccount(
         AccountId(UUID.fromString(results.getString("id"))),
         AccountUsername.parse(results.getString("username")),
@@ -456,3 +491,6 @@ class SqliteAccountStorage(
         Instant.parse(results.getString("updated_at")),
     )
 }
+
+@Deprecated("Use JdbcAccountStorage; retained for source compatibility")
+typealias SqliteAccountStorage = JdbcAccountStorage

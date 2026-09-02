@@ -10,6 +10,8 @@ import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileIdentityLookup
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookupResult
+import pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionDecision
+import pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionService
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAccess
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
@@ -22,6 +24,9 @@ class AuthenticationDialogRouter(
     private val scheduler: PaperPlatformScheduler,
     private val premiumLookup: MojangProfileIdentityLookup,
     private val mojangAuthentication: VerifiedMojangAuthenticationUseCase,
+    private val loginAdmission: LoginAdmissionService,
+    private val integrationDeniedMessage: net.kyori.adventure.text.Component,
+    private val onAdmissionDenied: (AccountUsername, java.net.InetAddress, String) -> Unit,
     private val premiumAuthenticationRequiredMessage: net.kyori.adventure.text.Component,
     private val lookupUnavailableMessage: net.kyori.adventure.text.Component,
     private val identityConflictMessage: net.kyori.adventure.text.Component,
@@ -31,6 +36,30 @@ class AuthenticationDialogRouter(
 ) {
     fun route(player: Player) {
         val username = AccountUsername.parse(player.name)
+        val sourceAddress = player.address?.address
+        if (sourceAddress == null) {
+            player.kick(internalFailureMessage)
+            return
+        }
+        loginAdmission.check(username, player.uniqueId, sourceAddress).whenComplete { decision, admissionFailure ->
+            scheduler.entity(player, Runnable {
+                if (!player.isOnline || !access.isPreAuth(player.uniqueId)) return@Runnable
+                if (admissionFailure != null || decision == null || decision is LoginAdmissionDecision.Deny) {
+                    admissionFailure?.let(onFailure)
+                    onAdmissionDenied(
+                        username,
+                        sourceAddress,
+                        (decision as? LoginAdmissionDecision.Deny)?.reasonCode ?: "INTEGRATION_FAILURE",
+                    )
+                    player.kick(integrationDeniedMessage)
+                } else {
+                    routeAfterAdmission(player, username)
+                }
+            })
+        }
+    }
+
+    private fun routeAfterAdmission(player: Player, username: AccountUsername) {
         premiumLookup.lookupProfile(username).whenComplete { result, lookupFailure ->
             scheduler.entity(player, Runnable {
                 if (!player.isOnline || !access.isPreAuth(player.uniqueId)) return@Runnable

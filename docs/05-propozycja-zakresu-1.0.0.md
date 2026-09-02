@@ -94,19 +94,19 @@
 
 ### CleanerX
 
-- [ ] nickname validation provider
-- [ ] profanity/pattern deny
-- [ ] optional integration
-- [ ] configurable failure strategy
+- [x] nickname validation provider
+- [x] profanity/pattern deny
+- [x] optional integration
+- [x] configurable failure strategy
 
 ### PunisherX
 
-- [ ] UUID ban check
+- [x] UUID ban check
 - [ ] name ban check
 - [ ] IP ban check
 - [ ] network ban support
-- [ ] async punishment provider
-- [ ] login denial before session activation
+- [x] async punishment provider
+- [x] login denial before session activation
 
 ## API
 

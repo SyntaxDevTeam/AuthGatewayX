@@ -17,6 +17,12 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - [x] Podstawowy selektor online/offline w module Velocity.
 - [x] Paper lifecycle: loader, bootstrap, composition root i Lifecycle Commands API.
 - [x] Powtarzalny Paper dev bundle przypięty do `26.2.build.121-stable` zamiast wersji dynamicznej.
+- [x] Konfigurowalne runtime JDBC dla SQLite, MySQL, MariaDB i PostgreSQL wraz z
+  dialektami migracji, slotów rejestracji i sterownikami PluginLoader.
+- [x] CleanerX przez publiczne API `ServicesManager` oraz kontraktowy
+  `UsernamePolicyProvider`, wykonywany przed lookupem premium i rejestracją.
+- [x] PunisherX przez kontraktowy `PunishmentProvider` oraz kompatybilny fallback
+  obecnego publicznego API aktywnych kar po UUID.
 
 ## Blokery wydania 1.0.0
 
@@ -63,17 +69,18 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 
 ### Storage i integralność danych
 
-- [ ] Dodać backendy MySQL/MariaDB i PostgreSQL wraz z migracjami i testami integracyjnymi.
+- [ ] Wykonać testy integracyjne MySQL, MariaDB i PostgreSQL w kontenerach/CI dla
+  wdrożonych dialektów oraz migracji; kod runtime i sterowniki są już gotowe.
 - [ ] Zapewnić równoważną atomowość rejestracji, limitów IP, lockoutu, migracji tożsamości
   i compare-and-set hasła na każdym backendzie.
 - [ ] Dodać test recovery po błędzie migracji, timeoutach puli i utracie połączenia DB.
 
 ### Integracje i publiczne API
 
-- [ ] Zaimplementować opcjonalny adapter CleanerX przez publiczne API/ServicesManager,
+- [x] Zaimplementować opcjonalny adapter CleanerX przez publiczne API/ServicesManager,
   z konfigurowalną strategią awarii i odrzuceniem przed rejestracją.
-- [ ] Zaimplementować opcjonalny adapter PunisherX dla name/UUID/IP/network ban przed
-  aktywacją sesji, z jawną strategią fail-open/fail-closed.
+- [ ] Rozszerzyć publiczne API PunisherX o name/IP/network-ban login check. Obecny adapter
+  egzekwuje aktywny ban UUID; pozostałych danych obecne API PunisherX nie udostępnia.
 - [ ] Dokończyć `AuthGatewayApi`: lookup konta i sesji, authentication state, identity type,
   stabilne eventy oraz interfejsy providerów bez zależności platformowych.
 - [ ] Udokumentować wersjonowanie API i test kompatybilności Paper/Velocity.

@@ -9,6 +9,9 @@ shadow = "9.6.1"
 run-task = "3.1.0"
 hikari = "7.1.0"
 sqlite = "3.53.2.1"
+mysql = "9.4.0"
+mariadb = "3.5.6"
+postgresql = "42.7.8"
 argon2 = "2.12"
 jetbrains-annotations = "26.1.0"
 velocity-api = "4.1.0-SNAPSHOT"
@@ -17,6 +20,9 @@ velocity-api = "4.1.0-SNAPSHOT"
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
 hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
 sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+mysql-jdbc = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
+mariadb-jdbc = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
+postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
 argon2-jvm = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
 jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }

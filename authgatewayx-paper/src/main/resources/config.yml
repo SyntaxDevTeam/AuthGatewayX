@@ -163,6 +163,9 @@ authentication:
 # /********************************************/
 
 storage:
+  # Backend: SQLITE, MYSQL, MARIADB or POSTGRESQL.
+  type: SQLITE
+
   # SQLite database filename stored inside the AuthGatewayX plugin data directory.
   # A relative filename is recommended. Do not point multiple independent servers at the same SQLite file.
   sqlite-file: authgatewayx.db
@@ -170,6 +173,19 @@ storage:
   # Maximum JDBC connection pool size used by the SQLite storage implementation.
   # SQLite does not benefit from a large write-concurrency pool; keep this value small unless testing proves otherwise.
   pool-size: 2
+
+  # Settings used by MYSQL, MARIADB and POSTGRESQL. Password may also be supplied through
+  # AUTHGATEWAYX_DB_PASSWORD, which takes precedence and avoids committing a secret to disk.
+  remote:
+    host: "127.0.0.1"
+    port: 3306
+    database: "authgatewayx"
+    username: "authgatewayx"
+    password: ""
+    # Appended as JDBC query parameters. Syntax is driver-specific, for example:
+    # MySQL/MariaDB: useSSL=true&serverTimezone=UTC
+    # PostgreSQL: sslmode=require
+    parameters: ""
 
 # /********************************************/
 #    Async executor settings
@@ -192,3 +208,21 @@ executors:
   # Minecraft Services/Mojang HTTP profile lookups.
   mojang-threads: 4
   mojang-queue: 128
+
+# /********************************************/
+#    Optional integrations
+# /********************************************/
+
+integrations:
+  cleanerx:
+    # AUTO uses CleanerX when its public ServicesManager API is present.
+    # REQUIRED with FAIL_CLOSED rejects login when the service is absent or fails.
+    # DISABLED skips the integration.
+    mode: AUTO
+    failure-strategy: FAIL_CLOSED
+
+  punisherx:
+    # AuthGatewayX first looks for its platform-neutral PunishmentProvider service.
+    # It also supports the current PunisherX public UUID API as a compatibility fallback.
+    mode: AUTO
+    failure-strategy: FAIL_CLOSED

@@ -25,6 +25,7 @@ auth:
   offline_authentication_success: "<green>Pomyślnie zalogowano na serwerze!</green>"
   premium_authentication_success: "<green>Logowanie konta premium przebiegło pomyślnie!</green>"
   logout_success: "<green>Sesja została bezpiecznie zakończona. Połącz się ponownie, aby się zalogować.</green>"
+  integration_denied: "<red>Połączenie zostało odrzucone przez politykę bezpieczeństwa nazwy lub aktywną karę.</red>"
 password:
   own_title: "<aqua>Zmiana hasła</aqua>"
   admin_title: "<red>Administracyjne ustawienie hasła</red>"
