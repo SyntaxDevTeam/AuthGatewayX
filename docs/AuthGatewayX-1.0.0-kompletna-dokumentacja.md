@@ -2948,3 +2948,7 @@ konta offline dialog z obecnym i dwukrotnie podanym nowym hasłem. Administrator
 nie występuje w argumentach komendy. Argon2id działa na bounded executorze, własna
 zmiana używa compare-and-set starego hasha, obie operacje są audytowane, a reset
 administracyjny rozłącza aktywny cel.
+
+`authgatewayx-auth` deklaruje `org.jetbrains:annotations:26.1.0` jako zależność
+`compileOnly`, aby analiza IDE mogła rozwiązać adnotacje nullability sygnatur Javy.
+Zależność nie trafia do runtime ani do krytycznej ścieżki uwierzytelniania.

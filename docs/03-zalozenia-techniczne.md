@@ -556,6 +556,10 @@ shadowowane do głównego JAR-a; docelowo dostarczy je `PluginLoader`. Backendy 
 MariaDB i PostgreSQL oraz runtime composition root nadal pozostają do wykonania, więc
 checkboxy całej warstwy storage nie są jeszcze zamykane.
 
+Moduł `authgatewayx-auth` ma wyłącznie kompilacyjną zależność
+`org.jetbrains:annotations:26.1.0`. Zapewnia ona IDE dostęp do adnotacji nullability
+obecnych w sygnaturach Javy; nie jest biblioteką runtime ani częścią ścieżki auth.
+
 ## 21. Stan implementacji — logowanie offline i lockout
 
 `LoginService` realizuje domenowy przepływ logowania offline:
