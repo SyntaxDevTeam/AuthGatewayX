@@ -10,6 +10,8 @@ import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
 import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
 import pl.syntaxdevteam.authgatewayx.auth.session.InMemorySessionRegistry
+import pl.syntaxdevteam.authgatewayx.auth.session.LogoutResult
+import pl.syntaxdevteam.authgatewayx.auth.session.LogoutService
 import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormCoordinator
 import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormResult
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
@@ -19,6 +21,8 @@ import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
 import pl.syntaxdevteam.authgatewayx.paper.command.MutablePasswordCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableLogoutCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.LogoutCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -55,11 +59,12 @@ import java.util.UUID
 class AuthGatewayXPaper : JavaPlugin() {
     private val readiness = RuntimeReadiness()
     private val passwordCommandGateway = MutablePasswordCommandGateway()
+    private val logoutCommandGateway = MutableLogoutCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
         saveDefaultConfig()
-        PasswordCommandRegistrar(this, passwordCommandGateway).register()
+        PasswordCommandRegistrar(this, passwordCommandGateway, logoutCommandGateway).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
         )
@@ -295,6 +300,16 @@ class AuthGatewayXPaper : JavaPlugin() {
             })
         }
         passwordCommandGateway.delegate = passwordDialogs
+        val logoutService = LogoutService(sessions, storage)
+        val logoutKick = messages.stringMessageToComponentNoPrefix("auth", "logout_success")
+        val offlineOnly = messages.stringMessageToComponentNoPrefix("password", "offline_only")
+        logoutCommandGateway.delegate = LogoutCommandGateway { player ->
+            val connectionId = pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId(player.uniqueId)
+            when (logoutService.logout(connectionId)) {
+                LogoutResult.LOGGED_OUT -> scheduler.entity(player, Runnable { if (player.isOnline) player.kick(logoutKick) })
+                LogoutResult.NOT_ACTIVE, LogoutResult.NOT_OFFLINE_ACCOUNT -> player.sendMessage(offlineOnly)
+            }
+        }
         server.pluginManager.registerEvents(passwordDialogs, this)
         server.pluginManager.registerEvents(
             PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate), this,
@@ -309,7 +324,13 @@ class AuthGatewayXPaper : JavaPlugin() {
     private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
     private fun fail(message: String, failure: Throwable) { readiness.force(RuntimeState.FAILED); logger.log(java.util.logging.Level.SEVERE, "$message; authentication remains closed", failure) }
 
-    override fun onDisable() { readiness.force(RuntimeState.STOPPING); passwordCommandGateway.delegate = null; runtime?.close(); runtime = null }
+    override fun onDisable() {
+        readiness.force(RuntimeState.STOPPING)
+        passwordCommandGateway.delegate = null
+        logoutCommandGateway.delegate = null
+        runtime?.close()
+        runtime = null
+    }
 }
 
 private class RuntimeComponents(

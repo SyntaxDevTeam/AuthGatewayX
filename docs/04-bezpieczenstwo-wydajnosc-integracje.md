@@ -567,6 +567,11 @@ nowszego hasła. Administracyjny reset wymaga osobnej permisji, jest audytowany 
 `ADMIN_PASSWORD_RESET` i rozłącza aktywną sesję celu. Hasła są przekazywane wyłącznie
 przez Dialog API i zerowane na wszystkich ścieżkach zakończenia.
 
+`LogoutService` dopuszcza `/logout` tylko dla aktywnej tożsamości `OFFLINE`. Najpierw
+usuwa sesję i indeksy concurrent-login, następnie emituje audit
+`SESSION_INVALIDATED/PLAYER_LOGOUT`, a adapter Paper rozłącza gracza przez
+EntityScheduler. Konto premium nie jest degradowane ani przekształcane przez logout.
+
 # 19. Zaimplementowana ochrona nicków na Paper standalone
 
 Przed lookupem konta offline wykonywany jest ograniczony i deduplikowany lookup profilu

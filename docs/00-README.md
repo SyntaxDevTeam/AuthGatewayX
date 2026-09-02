@@ -11,6 +11,7 @@ Dokumenty należy czytać w kolejności:
 6. `06-standard-wdrozeniowy-syntaxdevteam-paper-folia.md`
 7. `07-premium-velocity-paper-handoff.md`
 8. `AuthGatewayX-1.0.0-kompletna-dokumentacja.md`
+9. `08-roadmap-do-1.0.0.md` — kanoniczna lista prac pozostałych do wydania
 
 Dokument kompletnej dokumentacji agreguje decyzje z dokumentów tematycznych, ale jego
 sekcje stanu implementacji muszą być aktualizowane razem z kodem. W razie rozbieżności

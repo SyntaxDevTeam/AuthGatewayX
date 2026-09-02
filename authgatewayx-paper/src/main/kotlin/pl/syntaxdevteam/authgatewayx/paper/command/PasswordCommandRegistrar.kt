@@ -13,6 +13,15 @@ interface PasswordCommandGateway {
     fun openAdminPasswordChange(player: Player, username: String)
 }
 
+fun interface LogoutCommandGateway {
+    fun logout(player: Player)
+}
+
+class MutableLogoutCommandGateway : LogoutCommandGateway {
+    @Volatile var delegate: LogoutCommandGateway? = null
+    override fun logout(player: Player) = delegate?.logout(player) ?: Unit
+}
+
 class MutablePasswordCommandGateway : PasswordCommandGateway {
     @Volatile var delegate: PasswordCommandGateway? = null
 
@@ -23,9 +32,18 @@ class MutablePasswordCommandGateway : PasswordCommandGateway {
 class PasswordCommandRegistrar(
     private val plugin: JavaPlugin,
     private val gateway: PasswordCommandGateway,
+    private val logoutGateway: LogoutCommandGateway,
 ) {
     fun register() {
         plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
+            event.registrar().register(
+                Commands.literal("logout")
+                    .requires { it.sender.hasPermission("authgatewayx.command.logout") }
+                    .executes { context ->
+                        (context.source.sender as? Player)?.let(logoutGateway::logout)
+                        1
+                    }.build(),
+            )
             event.registrar().register(
                 Commands.literal("changepassword")
                     .requires { it.sender.hasPermission("authgatewayx.command.changepassword") }

@@ -560,6 +560,10 @@ Moduł `authgatewayx-auth` ma wyłącznie kompilacyjną zależność
 `org.jetbrains:annotations:26.1.0`. Zapewnia ona IDE dostęp do adnotacji nullability
 obecnych w sygnaturach Javy; nie jest biblioteką runtime ani częścią ścieżki auth.
 
+Paper dev bundle jest przypięty do `26.2.build.121-stable`. Wersja dynamiczna
+`26.2.build.+` powodowała niepowtarzalne konfiguracje Gradle i awarię buildu przy
+chwilowym braku metadanych repozytorium.
+
 ## 21. Stan implementacji — logowanie offline i lockout
 
 `LoginService` realizuje domenowy przepływ logowania offline:

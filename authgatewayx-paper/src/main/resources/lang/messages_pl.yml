@@ -24,6 +24,7 @@ auth:
   internal_failure: "<red>Operacja uwierzytelniania nie powiodła się. Spróbuj ponownie.</red>"
   offline_authentication_success: "<green>Pomyślnie zalogowano na serwerze!</green>"
   premium_authentication_success: "<green>Logowanie konta premium przebiegło pomyślnie!</green>"
+  logout_success: "<green>Sesja została bezpiecznie zakończona. Połącz się ponownie, aby się zalogować.</green>"
 password:
   own_title: "<aqua>Zmiana hasła</aqua>"
   admin_title: "<red>Administracyjne ustawienie hasła</red>"

@@ -14,7 +14,7 @@
 - [ ] obsługa offline UUID
 - [ ] `/register`
 - [ ] `/login`
-- [ ] `/logout`
+- [x] `/logout`
 - [x] `/changepassword`
 - [ ] Argon2id
 - [ ] login timeout

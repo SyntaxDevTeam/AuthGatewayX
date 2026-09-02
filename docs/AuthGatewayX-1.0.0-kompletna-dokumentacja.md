@@ -1776,7 +1776,7 @@ musi być atomowe logicznie i wykonane w poprawnym execution context.
 - [ ] obsługa offline UUID
 - [ ] `/register`
 - [ ] `/login`
-- [ ] `/logout`
+- [x] `/logout`
 - [x] `/changepassword`
 - [ ] Argon2id
 - [ ] login timeout
@@ -2952,3 +2952,13 @@ administracyjny rozłącza aktywny cel.
 `authgatewayx-auth` deklaruje `org.jetbrains:annotations:26.1.0` jako zależność
 `compileOnly`, aby analiza IDE mogła rozwiązać adnotacje nullability sygnatur Javy.
 Zależność nie trafia do runtime ani do krytycznej ścieżki uwierzytelniania.
+
+Dodano `/logout` przez Lifecycle Commands API. `LogoutService` przyjmuje tylko aktywną
+sesję offline, usuwa ją wraz z indeksami concurrent-login, zapisuje zdarzenie
+`SESSION_INVALIDATED/PLAYER_LOGOUT`, a Paper rozłącza gracza przez EntityScheduler.
+Ponowne wejście wymaga pełnego logowania. Kanoniczna lista prac pozostałych do wydania
+znajduje się w `08-roadmap-do-1.0.0.md`.
+
+Paper dev bundle został przypięty do zweryfikowanego `26.2.build.121-stable`; usunięto
+dynamiczne `26.2.build.+`, aby konfiguracja i build nie zależały od bieżących metadanych
+repozytorium.

@@ -414,6 +414,9 @@ dialog z obecnym hasłem oraz dwukrotnie podanym nowym hasłem; sekrety nie są 
 komendy. Administrator z `authgatewayx.admin.password` może użyć
 `/authgatewayx setpassword <nick>` i podać nowe hasło w analogicznym dialogu. Reset jest
 audytowany, a aktywny gracz celu zostaje rozłączony i musi zalogować się ponownie.
+`/logout` jest dostępne wyłącznie dla aktywnego konta offline: atomowo usuwa sesję z
+rejestru, zapisuje `SESSION_INVALIDATED/PLAYER_LOGOUT` i rozłącza gracza. Ponowne
+wejście zawsze wymaga nowego uwierzytelnienia hasłem.
 
 ## 15. Limit i feedback PRE_AUTH
 

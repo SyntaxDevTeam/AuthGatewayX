@@ -17,6 +17,9 @@ permissions:
   authgatewayx.command.changepassword:
     description: Allows an authenticated offline player to change their password.
     default: true
+  authgatewayx.command.logout:
+    description: Allows an authenticated offline player to invalidate their session.
+    default: true
   authgatewayx.admin.password:
     description: Allows setting the password of an offline account through a secure dialog.
     default: op
