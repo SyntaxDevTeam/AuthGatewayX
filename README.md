@@ -3,6 +3,9 @@
 Plugin uwierzytelniający umożliwiający obsługę graczy premium/online przez oficjalny
 system Microsoft/Mojang oraz graczy non-premium/offline przez AuthGatewayX.
 
+**[WIKI dla graczy i administratorów](docs/wiki/Home.md)** — instalacja, komendy,
+uprawnienia, pełna konfiguracja i pomoc prostym językiem.
+
 Projekt główny jest agregatorem Gradle. Implementacje platformowe znajdują się w:
 
 - `authgatewayx-paper` — standalone Paper/Purpur/Folia,

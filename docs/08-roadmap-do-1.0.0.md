@@ -87,6 +87,10 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 
 ### Wydanie i operacje
 
+- [x] Przygotować WIKI obecnego WIP: osobne strony użytkowe, komendy i permisje,
+  opis wszystkich dostarczanych opcji Paper/Velocity, komunikatów, kopii i ograniczeń migracji.
+  Instrukcje użytkowe znajdują się w `wiki/Home.md`; nie zamyka to testów wdrożenia
+  ani dokumentacji przyszłych opcji stabilnego wydania.
 - [ ] Uzupełnić domyślną konfigurację i dokumentację administratora dla wszystkich opcji,
   permisji, komunikatów, trybów standalone/proxy oraz procedury migracji.
 - [ ] Sprawdzić dostępność stabilnych wydań SyntaxCore i MessageHandler; usunąć SNAPSHOT
