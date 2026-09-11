@@ -1822,6 +1822,7 @@ musi być atomowe logicznie i wykonane w poprawnym execution context.
 - [ ] reconnect loop detection
 - [ ] temporary IP quarantine
 - [ ] registration abuse protection
+- [ ] raport podejrzanych multi-kont offline — kod i testy SQLite; wymagane testy serwerowe i zdalnych baz
 
 ## Anti-flood
 
@@ -2974,3 +2975,20 @@ obsługuje obecne publiczne API aktywnych banów UUID. Tryb i strategia awarii s
 konfigurowalne, odmowy audytowane i pokazywane neutralnie. Name/IP/network lookup
 pozostaje otwarty, ponieważ obecny publiczny kontrakt PunisherX nie udostępnia takich
 operacji.
+
+## Raport podejrzanych multi-kont offline
+
+Dodano `/authgatewayx alts <nick>` dla zalogowanego administratora lub konsoli,
+z osobnym uprawnieniem `authgatewayx.admin.alts`. `MultiAccountLookup` i
+`JdbcOfflineAddressHistory` porównują wspólne adresy po poprawnej rejestracji/logowaniu.
+Migracja v5 dodaje ograniczoną historię (16 adresów na konto); raport filtruje obie
+strony do 30 dni i zwraca najwyżej 20 kont z flagą obcięcia. Błędy nie są traktowane
+jako pusty raport. `MultiAccountCommandController` używa MessageHandler i schedulerów
+Paper/Folia. Baza nie gromadzi śladów z nieudanych prób i usuwa historię przy migracji
+do Mojang. Historia jest zapisywana w tej samej transakcji co rejestracja/sukces auth;
+aktualizacja konta serializuje równoległe zapisy. Nie dodano zależności ani HTTP/DNS.
+
+To poszlaki wspólnego IP, nie identyfikacja osoby lub urządzenia ani detekcja VPN.
+Nowy nick i nowe IP bez wspólnej historii mogą pozostać niewykryte. Nie wykonuje się
+automatycznych kar ani zmian ochrony premium i PRE_AUTH. Pełne reguły, ograniczenia
+retencji i testy pozostałe do wykonania: dokument bezpieczeństwa, sekcja 26.

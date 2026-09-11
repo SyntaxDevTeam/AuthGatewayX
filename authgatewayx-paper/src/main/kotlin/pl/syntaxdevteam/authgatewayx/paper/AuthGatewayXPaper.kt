@@ -3,6 +3,9 @@ package pl.syntaxdevteam.authgatewayx.paper
 import io.papermc.paper.configuration.GlobalConfiguration
 import net.kyori.adventure.text.Component
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.entity.Player
+import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
+import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
 import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
@@ -26,6 +29,9 @@ import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
 import pl.syntaxdevteam.authgatewayx.paper.command.MutablePasswordCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableLogoutCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.LogoutCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableMultiAccountCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -64,11 +70,12 @@ class AuthGatewayXPaper : JavaPlugin() {
     private val readiness = RuntimeReadiness()
     private val passwordCommandGateway = MutablePasswordCommandGateway()
     private val logoutCommandGateway = MutableLogoutCommandGateway()
+    private val multiAccountCommandGateway = MutableMultiAccountCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
         saveDefaultConfig()
-        PasswordCommandRegistrar(this, passwordCommandGateway, logoutCommandGateway).register()
+        PasswordCommandRegistrar(this, passwordCommandGateway, logoutCommandGateway, multiAccountCommandGateway).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
         )
@@ -341,6 +348,20 @@ class AuthGatewayXPaper : JavaPlugin() {
             })
         }
         passwordCommandGateway.delegate = passwordDialogs
+        multiAccountCommandGateway.delegate = MultiAccountCommandController(
+            storage, { sender, task ->
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            }, MultiAccountCommandText(
+                messages.stringMessageToComponentNoPrefix("alts", "header"),
+                messages.stringMessageToComponentNoPrefix("alts", "entry"),
+                messages.stringMessageToComponentNoPrefix("alts", "empty"),
+                messages.stringMessageToComponentNoPrefix("alts", "truncated"),
+                messages.stringMessageToComponentNoPrefix("alts", "unavailable"),
+                messages.stringMessageToComponentNoPrefix("alts", "not_found"),
+            ),
+            isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
+            isReady = { readiness.acceptsAuthentication() },
+        )
         val logoutService = LogoutService(sessions, storage)
         val logoutKick = messages.stringMessageToComponentNoPrefix("auth", "logout_success")
         val offlineOnly = messages.stringMessageToComponentNoPrefix("password", "offline_only")
@@ -369,6 +390,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         readiness.force(RuntimeState.STOPPING)
         passwordCommandGateway.delegate = null
         logoutCommandGateway.delegate = null
+        multiAccountCommandGateway.delegate = null
         runtime?.close()
         runtime = null
     }

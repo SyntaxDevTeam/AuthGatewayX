@@ -8,6 +8,7 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | --- | --- | --- |
 | `authgatewayx.command.changepassword` | Zmiana własnego hasła | Wszyscy gracze |
 | `authgatewayx.command.logout` | Wylogowanie | Wszyscy gracze |
+| `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont offline | Operatorzy serwera |
 | `authgatewayx.admin.password` | Ustawianie hasła cudzego konta offline | Operatorzy serwera |
 
 Uprawnienia możesz przypisać w używanym na serwerze pluginie do zarządzania rangami. Zachowaj dokładną pisownię z tabeli.

@@ -673,3 +673,76 @@ nie pozwala obecnie wykonać niezależnego lookupu po nazwie lub IP, dlatego te 
 pozostają otwarte i wymagają rozszerzenia publicznego kontraktu PunisherX. Tryby
 `AUTO/REQUIRED/DISABLED` oraz `FAIL_OPEN/FAIL_CLOSED` są konfigurowalne. Odmowy są
 neutralne dla gracza i audytowane bez treści kary.
+
+# 26. Decyzja: raport podejrzanych multi-kont offline
+
+Wymagane jest wykrywanie poszlak powiązania różnych kont non-premium. Sam nick ani
+UUID offline nie identyfikuje urządzenia. Wspólny adres (także VPN/NAT) jest poszlaką,
+nie dowodem jednej osoby; nowy nick i adres bez wspólnej historii są niewykrywalne
+przez tę metodę. Nie wolno porównywać haseł ani tworzyć fingerprintów haseł.
+
+Implementacja raportu `/authgatewayx alts <nick>` korzysta z oddzielnego kontraktu
+`MultiAccountLookup` w storage-api. Dostęp: konsola lub uwierzytelniony administrator
+z `authgatewayx.admin.alts`; wynik nie zawiera surowych IP i nie uruchamia kar.
+Nie rozszerzamy publicznego `AuthGatewayApi` ani polityki premium/fallback.
+
+Migracja v5 tworzy `offline_account_addresses`: maksymalnie 16 ostatnich różnych
+adresów na konto, zapisanych atomowo z rejestracją lub sukcesem hasłowym. Same próby
+połączenia i błędne hasła nie tworzą powiązań. Historia zaczyna się od wdrożenia v5;
+nie rekonstruujemy niepewnych zdarzeń z historycznego `last_login_ip`.
+Raport uwzględnia tylko obserwacje obu kont z ostatnich 30 dni, najwyżej 20 wyników
+z jawnym oznaczeniem obcięcia. Nie wykonuje rekurencyjnego łączenia kont.
+Wygasłe wpisy są ignorowane w odczycie i usuwane przy następnym zapisie tego konta;
+nie jest to gwarancja fizycznego usunięcia po 30 dniach. Rozmiar tabeli jest ograniczony
+liczbą kont razy 16. Migracja do Mojang usuwa historię konta; raport wyklucza MOJANG.
+
+JDBC pozostaje na bounded executorze, z timeoutem zapytania raportowego i indeksem IP.
+Raporty administracyjne mają wspólną blokadę jednej operacji w toku; przeciążenie lub
+błąd daje jawny komunikat niedostępności, nigdy fałszywy „brak powiązań”. Wiadomości
+pochodzą z MessageHandler, odpowiedź graczowi wraca na EntityScheduler. Paper za
+Velocity używa adresu istniejącej sesji z modern forwarding; sam moduł proxy nie
+udostępnia komendy ani bazy offline. Nie dodajemy HTTP/DNS, bibliotek ani blokady VPN.
+
+- [x] Historia, raport i testy integracyjne SQLite wdrożone i zweryfikowane.
+- [x] Testy kontrolera: permisje, PRE_AUTH, równoległe zapytania, błąd DB,
+  cofnięcie uprawnień, nieaktywna sesja i shutdown; odpowiedź dopiero po dispatchu.
+- [ ] Testy serwerowe komendy/uprawnień na Paper/Purpur/Folia i za Velocity.
+- [ ] Testy migracji, współbieżności i raportu na MySQL/MariaDB/PostgreSQL.
+
+# 27. Decyzja: automatyczne alerty offline i opcjonalne VPN/GeoIP
+
+Po atomowej aktywacji sesji OFFLINE powstaje zadanie obserwacyjne. Alert mówi
+„podejrzenie multi-konta”, a nie potwierdza jednej osoby. Osobno sygnalizuje VPN,
+proxy lub Tor według dostawcy. Kraj i ASN są kontekstem adresu wyjściowego, nie
+lokalizacją osoby; hosting sam w sobie nie jest klasyfikowany jako VPN.
+
+`multi-account.alerts.enabled` włącza lokalne raporty (domyślnie true).
+`ip-intelligence.enabled` włącza opcjonalne HTTPS proxycheck.io v3 (domyślnie false).
+Integracja wysyła tylko IP, bez nicku/UUID/hasła, z `tag=0` i wersją `24-June-2026`.
+Klucz pochodzi z `AUTHGATEWAYX_PROXYCHECK_API_KEY` lub konfiguracji. Bez klucza można
+użyć limitu anonimowego dostawcy; limity i warunki: https://proxycheck.io/api/.
+To jawne rozszerzenie wcześniejszego zakresu: implementujemy alerty VPN/Geo jako
+opcję, bez banów, blokowania krajów ani zmiany decyzji auth.
+
+Wiadomości przez MessageHandler, osobna permisja `authgatewayx.admin.alerts`,
+odbiorca musi nadal mieć sesję ACTIVE i uprawnienie w chwili wysyłki przez
+EntityScheduler. Konsola jest osobną opcją. Wynik starej sesji/disconnect/shutdown
+jest porzucany. Limit równoległości i ograniczony cooldown kont działają przed DB/HTTP.
+Błąd, timeout lub przeciążenie obserwacji nie wpływa na auth. Niedostępność źródła
+nie jest wynikiem „bezpieczny”; lokalny alert może działać mimo awarii VPN/GeoIP.
+
+Lookup posiada deduplikację per IP, ograniczony cache z TTL wyniku i błędu,
+limit równoległości, minutowy budżet żądań i globalny cooldown po błędzie HTTP.
+Odpowiedź ma limit 64 KiB; HTTP działa na osobnym bounded executorze i ma timeout.
+Nie wykonujemy retry, reverse DNS ani odpytywania adresów lokalnych/prywatnych.
+Shutdown zamyka klienta, executor i czyści cache; restart resetuje stan lokalnych limitów.
+GeoIP pokazuje tylko kraj i ASN w alertach, bez miasta/współrzędnych i bez utrwalania
+nowych danych Geo w bazie.
+
+JSON: Gson 2.14.0 (release, Apache-2.0), do parsowania drzewa ograniczonej odpowiedzi,
+bez refleksyjnej deserializacji kont. Biblioteka ~300 KiB, dostępna w cache projektu,
+nie wymaga NMS; compileOnly w integrations, runtime przez PluginLoader Paper.
+Źródła: https://github.com/google/gson oraz https://proxycheck.io/api/.
+
+- [ ] Testy alertów, limiterów, cache i parsera oraz build.
+- [ ] Testy realnego API (w tym limit planu), Paper/Purpur/Folia i backendu Velocity.

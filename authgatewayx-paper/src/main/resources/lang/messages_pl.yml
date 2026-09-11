@@ -39,3 +39,11 @@ password:
   offline_only: "<red>Hasło można zmienić wyłącznie dla konta offline.</red>"
   success: "<green>Hasło zostało bezpiecznie zmienione.</green>"
   admin_target_kick: "<red>Administrator zmienił hasło tego konta. Zaloguj się ponownie przy użyciu nowego hasła.</red>"
+
+alts:
+  header: '<gold>Podejrzane powiązania konta {username} (ostatnie 30 dni).</gold><newline><gray>Wspólne IP to poszlaka, nie dowód jednej osoby. NAT i VPN mogą łączyć różnych graczy.</gray>'
+  entry: '<yellow>{username}</yellow><gray> — wspólne adresy: {count}</gray>'
+  empty: '<gray>Brak powiązań w dostępnej historii. Nie wyklucza to multi-konta ani użycia VPN.</gray>'
+  truncated: '<yellow>Pokazano pierwsze 20 wyników; istnieją dalsze powiązania.</yellow>'
+  unavailable: '<red>Raport jest chwilowo niedostępny lub trwa inne sprawdzanie. Spróbuj ponownie później.</red>'
+  not_found: '<red>Nie znaleziono konta offline o podanej nazwie.</red>'

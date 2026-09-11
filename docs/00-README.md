@@ -38,3 +38,7 @@ integracje CleanerX/PunisherX i obserwowalność.
 
 Checkbox `[x]` wolno ustawić dopiero po wdrożeniu, integracji i weryfikacji danego
 elementu w zakresie wymaganym przez dokumentację.
+
+Raport `/authgatewayx alts <nick>` udostępnia administratorowi poszlaki powiązań kont
+offline przez ograniczoną historię wspólnych adresów. Nie identyfikuje urządzenia ani
+VPN; szczegóły znajdują się w sekcji 26 dokumentu bezpieczeństwa i WIKI ochrony serwera.

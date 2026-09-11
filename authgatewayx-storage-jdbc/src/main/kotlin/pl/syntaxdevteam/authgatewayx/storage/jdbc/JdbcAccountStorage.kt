@@ -10,6 +10,8 @@ import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityAuditSink
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
+import pl.syntaxdevteam.authgatewayx.storage.MultiAccountLookup
+import pl.syntaxdevteam.authgatewayx.storage.MultiAccountReport
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
@@ -45,7 +47,7 @@ class JdbcAccountStorage(
     private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
     username: String? = null,
     password: String? = null,
-) : AccountStorage, SecurityAuditSink {
+) : AccountStorage, SecurityAuditSink, MultiAccountLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
         poolName = "AuthGatewayX-Storage"
@@ -136,6 +138,10 @@ class JdbcAccountStorage(
                     }
                     recordMigration(connection, 4)
                 }
+                if (!hasMigration(connection, 5)) {
+                    JdbcOfflineAddressHistory.migrate(connection)
+                    recordMigration(connection, 5)
+                }
                 connection.commit()
             } catch (failure: Throwable) {
                 connection.rollback()
@@ -154,6 +160,7 @@ class JdbcAccountStorage(
                     connection.rollback()
                     RegistrationResult.AddressLimitReached
                 } else {
+                    JdbcOfflineAddressHistory.record(connection, registration.accountId, registration.sourceAddress, registration.createdAt)
                     connection.commit()
                     created
                 }
@@ -225,15 +232,28 @@ class JdbcAccountStorage(
         }
     }
 
+    override fun findRelatedOfflineAccounts(username: AccountUsername, observedAt: Instant): CompletionStage<MultiAccountReport?> = executor.submit {
+        dataSource.connection.use { JdbcOfflineAddressHistory.find(it, username, observedAt) }
+    }
+
     override fun recordLoginSuccess(accountId: AccountId, sourceAddress: java.net.InetAddress, authenticatedAt: Instant): CompletionStage<Unit> = executor.submit {
         dataSource.connection.use { connection ->
-            connection.prepareStatement("""UPDATE accounts SET failed_login_count = 0, locked_until = NULL,
-                last_login_at = ?, last_login_ip = ?, updated_at = ? WHERE id = ?""".trimIndent()).use { statement ->
-                statement.setString(1, authenticatedAt.toString())
-                statement.setString(2, sourceAddress.hostAddress)
-                statement.setString(3, authenticatedAt.toString())
-                statement.setString(4, accountId.value.toString())
-                check(statement.executeUpdate() == 1) { "Account disappeared during login" }
+            connection.autoCommit = false
+            try {
+                // This update serializes address rotation with concurrent logins and premium migration.
+                connection.prepareStatement("""UPDATE accounts SET failed_login_count = 0, locked_until = NULL,
+                    last_login_at = ?, last_login_ip = ?, updated_at = ? WHERE id = ? AND identity_type = 'OFFLINE'""".trimIndent()).use { statement ->
+                    statement.setString(1, authenticatedAt.toString())
+                    statement.setString(2, sourceAddress.hostAddress)
+                    statement.setString(3, authenticatedAt.toString())
+                    statement.setString(4, accountId.value.toString())
+                    check(statement.executeUpdate() == 1) { "Offline account disappeared during login" }
+                }
+                JdbcOfflineAddressHistory.record(connection, accountId, sourceAddress, authenticatedAt)
+                connection.commit()
+            } catch (failure: Throwable) {
+                connection.rollback()
+                throw failure
             }
         }
     }
@@ -366,6 +386,10 @@ class JdbcAccountStorage(
             check(statement.executeUpdate() == 1) { "Account disappeared during Mojang identity binding" }
         }
         connection.prepareStatement("DELETE FROM registration_ip_slots WHERE account_id = ?").use { statement ->
+            statement.setString(1, account.id.value.toString())
+            statement.executeUpdate()
+        }
+        connection.prepareStatement("DELETE FROM offline_account_addresses WHERE account_id = ?").use { statement ->
             statement.setString(1, account.id.value.toString())
             statement.executeUpdate()
         }

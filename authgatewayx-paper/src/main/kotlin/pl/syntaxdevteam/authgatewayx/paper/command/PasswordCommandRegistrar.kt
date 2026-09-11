@@ -33,6 +33,7 @@ class PasswordCommandRegistrar(
     private val plugin: JavaPlugin,
     private val gateway: PasswordCommandGateway,
     private val logoutGateway: LogoutCommandGateway,
+    private val multiAccountGateway: MultiAccountCommandGateway,
 ) {
     fun register() {
         plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
@@ -54,6 +55,12 @@ class PasswordCommandRegistrar(
             )
             event.registrar().register(
                 Commands.literal("authgatewayx")
+                    .then(Commands.literal("alts")
+                        .requires { it.sender.hasPermission("authgatewayx.admin.alts") }
+                        .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                            multiAccountGateway.show(context.source.sender, StringArgumentType.getString(context, "username"))
+                            1
+                        }))
                     .then(Commands.literal("setpassword")
                         .requires { it.sender.hasPermission("authgatewayx.admin.password") }
                         .then(Commands.argument("username", StringArgumentType.word()).executes { context ->

@@ -107,3 +107,14 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - Panel WWW, REST API, Discord linking, e-mail i 2FA/TOTP.
 - Geyser/Floodgate oraz zewnętrzni dostawcy reputacji ASN/datacenter.
 - Pełny workflow odzyskiwania konta przez użytkownika.
+
+## Raport multi-kont offline
+
+- [ ] Sprawdzić `/authgatewayx alts` na Paper/Purpur/Folia: konsola, brak permisji,
+  PRE_AUTH, disconnect i cofnięcie uprawnienia podczas zapytania oraz shutdown.
+- [ ] Sprawdzić backend za Velocity modern forwarding: raport używa IP gracza.
+- [ ] Zweryfikować migrację v5, raport i równoległą rotację historii na zdalnych bazach.
+- [ ] Test obciążeniowy raportu dla dużej współdzielonej sieci i limitu zapytań.
+
+Zaimplementowany raport jest poszlaką wspólnego adresu. Ochrona VPN/ASN pozostaje
+osobnym przyszłym rozszerzeniem, a brak wspólnego śladu nie dowodzi braku multi-konta.

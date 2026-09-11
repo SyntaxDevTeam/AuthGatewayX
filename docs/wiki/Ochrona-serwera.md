@@ -31,3 +31,24 @@ Jeśli prowadzisz serwer dla większej grupy korzystającej z jednego internetu,
 Historia bezpieczeństwa obejmuje takie zdarzenia jak rejestracja, logowanie, odmowy, zmiana hasła i wylogowanie. Może zawierać nick, identyfikator konta i IP. Nie publikuj bazy ani pełnych danych graczy. Hasła nie są treścią tych wpisów.
 
 AuthGatewayX pomaga ograniczać nadużycia w logowaniu. Nie zastępuje ochrony hostingu przed atakiem przeciążającym całe łącze. Testy obciążeniowe obecnej wersji są jeszcze do wykonania.
+
+## Detektor podejrzanych multi-kont
+
+Administrator może użyć `/authgatewayx alts <nick>`. Raport porównuje historię
+poprawnych logowań i rejestracji kont offline, więc wcześniejsze wspólne IP może
+pozostać widoczne po zmianie adresu. Nie zapisuje powiązań na podstawie błędnych haseł
+ani samego wejścia pod cudzym nickiem. Nie nakłada automatycznie kar.
+
+Wspólne IP może oznaczać jedną osobę, rodzinę, NAT operatora albo wspólny VPN.
+Raport pokazuje poszlaki do oceny, bez ujawniania adresów. Nie wykrywa samego VPN;
+nowy nick i zupełnie nowe IP bez wspólnej historii mogą pozostać niewykryte.
+Brak wyników nie jest potwierdzeniem braku multi-konta.
+
+Plugin pamięta do 16 ostatnich różnych adresów na konto. Raport obejmuje obserwacje
+obu kont z ostatnich 30 dni, maksymalnie 20 wyników. Historia zaczyna się od instalacji
+wersji z tą funkcją i przetrwa restart. Wygasłe wpisy są pomijane; fizyczne usunięcie
+następuje przy kolejnym zapisie tego konta. Migracja konta do premium usuwa jego
+historię z detektora. Te limity nie zmieniają limitu rejestracji na IP.
+
+Raport działa na Paper/Purpur/Folia, także na backendzie za poprawnie skonfigurowanym
+Velocity modern forwarding. Komendę wykonuje się na serwerze gry lub w jego konsoli.

@@ -23,3 +23,6 @@ permissions:
   authgatewayx.admin.password:
     description: Allows setting the password of an offline account through a secure dialog.
     default: op
+  authgatewayx.admin.alts:
+    description: Allows reviewing suspected offline account links by shared address history.
+    default: op

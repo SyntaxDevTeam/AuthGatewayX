@@ -60,6 +60,7 @@
 - [ ] reconnect loop detection
 - [ ] temporary IP quarantine
 - [ ] registration abuse protection
+- [ ] raport podejrzanych multi-kont offline — kod i testy SQLite; wymagane testy serwerowe i zdalnych baz
 
 ## Anti-flood
 
