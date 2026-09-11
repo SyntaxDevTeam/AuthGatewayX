@@ -701,8 +701,7 @@ JDBC pozostaje na bounded executorze, z timeoutem zapytania raportowego i indeks
 Raporty administracyjne mają wspólną blokadę jednej operacji w toku; przeciążenie lub
 błąd daje jawny komunikat niedostępności, nigdy fałszywy „brak powiązań”. Wiadomości
 pochodzą z MessageHandler, odpowiedź graczowi wraca na EntityScheduler. Paper za
-Velocity używa adresu istniejącej sesji z modern forwarding; sam moduł proxy nie
-udostępnia komendy ani bazy offline. Sam raport nie używa HTTP/DNS ani blokady VPN;
+Velocity używa adresu istniejącej sesji z modern forwarding; moduł proxy odczytuje tę samą bazę i udostępnia komendę zgodnie z sekcją 28. Sam raport nie używa HTTP/DNS ani blokady VPN;
 opcjonalne automatyczne alerty opisuje nowsza decyzja w sekcji 27.
 
 - [x] Historia, raport i testy integracyjne SQLite wdrożone i zweryfikowane.
@@ -713,7 +712,8 @@ opcjonalne automatyczne alerty opisuje nowsza decyzja w sekcji 27.
 
 # 27. Decyzja: automatyczne alerty offline i opcjonalne VPN/GeoIP
 
-Po atomowej aktywacji sesji OFFLINE powstaje zadanie obserwacyjne. Alert mówi
+Na Paper po atomowej aktywacji sesji OFFLINE powstaje zadanie obserwacyjne.
+Odmienną politykę kontroli wejścia na Velocity opisuje sekcja 28. Alert mówi
 „podejrzenie multi-konta”, a nie potwierdza jednej osoby. Osobno sygnalizuje VPN,
 proxy lub Tor według dostawcy. Kraj i ASN są kontekstem adresu wyjściowego, nie
 lokalizacją osoby; hosting sam w sobie nie jest klasyfikowany jako VPN.
@@ -750,3 +750,36 @@ nie wymaga NMS; compileOnly w integrations, runtime przez PluginLoader Paper.
   Zweryfikowano timeout także po nagłówkach, HTTP 429, brak redirectów, limit 64 KiB,
   deduplikację, TTL/invalidację i shutdown. Testy nie wysyłają IP do rzeczywistego API.
 - [ ] Testy realnego API (w tym limit planu), Paper/Purpur/Folia i backendu Velocity.
+
+# 28. Decyzja: admission VPN i multi-kont na Velocity
+
+Velocity ma egzekwować konfigurowalne `DISABLED/ALERT/DENY` przed połączeniem z
+backendem. Domyślnie VPN ma DENY po włączeniu integracji IP (integracja nadal domyślnie
+wyłączona), a multi-konta ALERT po włączeniu wspólnego storage. Sygnał wspólnego IP
+nadal jest poszlaką; DENY dla multi-kont jest świadomą polityką współdzielonych sieci.
+Awaria wymaganego lookupu domyślnie DENY, z opcją ALERT/allow przez FAIL_OPEN.
+
+Proxy używa wyłącznie odczytu istniejącej historii v5 z tej samej bazy co Paper.
+Nie uruchamia migracji i nie zapisuje IP na podstawie niezweryfikowanego nicku.
+Sprawdza bieżące IP względem kont OFFLINE (poza deklarowanym nickiem), również dla
+nowej nazwy. Chronione nicki premium nadal wymagają Mojang; multi-account IP admission
+obejmuje wyłącznie ścieżkę OFFLINE. VPN obejmuje oba tryby. Cheap guards i ograniczenie
+równoległości poprzedzają HTTP/DB. Odmowa kończy PreLoginEvent przed wyborem backendu.
+
+Komenda `/authgatewayx alts <nick>` działa na proxy. Odbiorca informacji musi być
+konsolą lub mieć potwierdzone uwierzytelnienie: Mojang na proxy albo podpisane przez
+Paper potwierdzenie bieżącej sesji offline. Backend potwierdza sesję tylko po ACTIVE.
+Kanał challenge-response używa losowego nonce przypisanego do konkretnego Player,
+HMAC-SHA256, UUID i krótkiego terminu ważności. Wymaga osobnego wspólnego sekretu.
+Nie zmienia to sesji auth ani PRE_AUTH, służy wyłącznie ochronie dostępu administracji.
+Velocity konsumuje kanał jako handled przed sprawdzeniem źródła i akceptuje odpowiedź
+wyłącznie z aktualnego, zaufanego ServerConnection. Disconnect/server switch/shutdown
+unieważniają potwierdzenie. Klient nie może zadeklarować sobie stanu ACTIVE.
+
+- [x] Implementacja admission, komendy/alertów, konfiguracji i dowodu sesji.
+- [x] Testy odmowy przed backendem, awarii, limitów, współbieżności i spoof/replay.
+- [ ] Test end-to-end Velocity + Paper/Purpur/Folia oraz wspólne zdalne bazy.
+
+Potwierdzenie administracyjne jest jednorazowe (5 sekund), bez cache sesji.
+Raport wymaga świeżego potwierdzenia przed zapytaniem i przed odpowiedzią.
+Konfigurację, ograniczenia i wdrożenie opisuje [instrukcja proxy](09-proxy-risk-admission.md).

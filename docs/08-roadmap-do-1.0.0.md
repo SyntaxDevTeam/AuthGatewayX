@@ -122,3 +122,13 @@ opisuje sekcja 27 dokumentu bezpieczeństwa; brak wspólnego śladu nie dowodzi 
 
 - [ ] Alerty automatyczne: test serwerowy odbiorców/permisji/Folia i disconnect.
 - [ ] VPN/GeoIP: test realnego proxycheck.io, limitów planu i backendu Velocity.
+
+## Kontrole ryzyka na proxy
+
+- [x] Kontrole PreLogin VPN/multi-kont, akcje ALERT/DENY/DISABLED i obsługa awarii — testy automatyczne.
+- [x] Odczyt historii v5, test SQLite bieżącego IP bez zapisu próby połączenia.
+- [x] Podpisany jednorazowy dowód ACTIVE: testy spoof/replay, timeout, zmiana serwera i shutdown.
+- [ ] Test rzeczywistego Velocity + Paper/Purpur/Folia: odmowa bez wejścia na backend, alerty i komenda.
+- [ ] Test zdalnych baz i realnego dostawcy VPN przy limitach planu oraz reconnect flood.
+
+Instrukcja wdrożenia: [09-proxy-risk-admission.md](09-proxy-risk-admission.md).

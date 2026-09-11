@@ -148,6 +148,18 @@ class MultiAccountHistoryTest {
         assertNull(storage.findByUsername(name("Rejected")).toCompletableFuture().get())
     }
 
+    @Test
+    fun `proxy matches current address for a new name without writing an account`() = withStorage { storage, _, _ ->
+        storage.register("Existing", 1)
+        val result = storage.findOfflineAccountsByAddress(ip(1), name("NewName"), now).toCompletableFuture().get()
+        assertEquals(listOf("Existing"), result.accounts.map { it.username.value })
+        assertNull(storage.findByUsername(name("NewName")).toCompletableFuture().get())
+        assertTrue(storage.findOfflineAccountsByAddress(ip(1), name("existing"), now).toCompletableFuture().get().accounts.isEmpty())
+        assertTrue(storage.findOfflineAccountsByAddress(ip(2), name("NewName"), now).toCompletableFuture().get().accounts.isEmpty())
+        assertTrue(storage.findOfflineAccountsByAddress(ip(1), name("NewName"), now.plus(Duration.ofDays(31))).toCompletableFuture().get().accounts.isEmpty())
+        storage.verifyHistorySchema().toCompletableFuture().get()
+    }
+
     private fun withStorage(test: (JdbcAccountStorage, String, BoundedTaskExecutor) -> Unit) {
         val file = Files.createTempFile("authgatewayx-alts-", ".sqlite")
         val executor = BoundedTaskExecutor(4, 128, "alts-test")

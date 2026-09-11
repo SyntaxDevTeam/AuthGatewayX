@@ -10,3 +10,47 @@ connections:
 executors:
   mojang-threads: 4
   mojang-queue: 128
+
+# Read the SAME existing v5 account history as Paper. Proxy never runs migrations.
+# Prefer a SELECT-only database user and a shared MySQL/MariaDB/PostgreSQL server.
+# Disabled: no multi-account checks or reports. Do not use an unrelated empty database.
+storage:
+  enabled: false
+  jdbc-url: "jdbc:mysql://127.0.0.1:3306/authgatewayx"
+  username: "authgatewayx_reader"
+  password: "" # AUTHGATEWAYX_DB_PASSWORD overrides this.
+
+multi-account:
+  # Shared current IP is a suspicion; DENY may block households and shared VPN exits.
+  # DISABLED, ALERT, DENY. Checks OFFLINE names only, before contacting a backend.
+  action: ALERT
+
+ip-intelligence:
+  # Sends public IP (no username/UUID/password) to proxycheck.io over HTTPS.
+  enabled: false
+  api-key: "" # AUTHGATEWAYX_PROXYCHECK_API_KEY overrides this.
+  # Applies to both premium and offline connections. DISABLED, ALERT, DENY.
+  action: DENY
+  show-geo: true
+  timeout-millis: 2000
+  cache-ttl-seconds: 3600
+  failure-ttl-seconds: 60
+  maximum-cache-size: 10000
+  maximum-concurrent: 2
+  requests-per-minute: 30
+
+risk:
+  # FAIL_CLOSED denies if an enabled lookup is unknown, unavailable or at capacity/quota.
+  # FAIL_OPEN permits that connection without treating unknown as a clean result.
+  failure-strategy: FAIL_CLOSED
+  maximum-concurrent: 16
+
+alerts:
+  enabled: true
+  console: true
+  cooldown-seconds: 300
+
+staff-proof:
+  # Match Paper's independent random secret (>=32 bytes), not the forwarding secret.
+  # AUTHGATEWAYX_STAFF_PROOF_SECRET overrides this. Empty: console and Mojang staff only.
+  secret: ""

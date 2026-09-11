@@ -3010,3 +3010,15 @@ deduplikacja, budżet żądań i backoff. Gson 2.14.0 dostarcza PluginLoader Pap
 auth zależy od neutralnego kontraktu w integrations. Własny executor i HttpClient są
 zamykane w shutdown. Nie dodano nowych danych Geo do storage ani blokad krajów/VPN.
 Szczegóły i uzasadnienie rozszerzenia zakresu: dokument bezpieczeństwa, sekcja 27.
+
+## Aktualizacja: kontrole ryzyka na Velocity
+
+Velocity wykonuje opcjonalne kontrole VPN/proxy/Tor i wspólnego IP w PreLoginEvent,
+przed backendem. Odczytuje wspólną historię v5 bez migracji i zapisów; Paper nadal
+odpowiada za hasła, historię poprawnego auth i izolację PRE_AUTH. JDBC/HTTP używają
+ograniczonych executorów. Dystrybucja proxy zawiera Hikari, istniejące sterowniki JDBC
+oraz Gson; Paper nadal ładuje zależności przez PluginLoader.
+Komenda alts i alerty proxy wymagają permisji oraz uwierzytelnienia administratora.
+Dla offline służy osobny, jednorazowy podpisany dowód ACTIVE z backendu, obsługiwany
+na EntityScheduler Paper/Folia. Nie zastępuje premium handoff ani sesji auth.
+Szczegóły i aktualne ograniczenia: [kontrole na proxy](09-proxy-risk-admission.md).

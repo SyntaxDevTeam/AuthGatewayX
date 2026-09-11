@@ -19,6 +19,9 @@ import pl.syntaxdevteam.message.SyntaxMessages
 import java.nio.file.Path
 import java.nio.file.Files
 import java.time.Duration
+import java.util.concurrent.CompletableFuture
+import pl.syntaxdevteam.authgatewayx.integrations.network.ProxycheckIpLookup
+import pl.syntaxdevteam.authgatewayx.storage.jdbc.JdbcAccountStorage
 import java.util.concurrent.atomic.AtomicBoolean
 
 class AuthGatewayXVelocity @Inject constructor(
@@ -27,6 +30,12 @@ class AuthGatewayXVelocity @Inject constructor(
     @DataDirectory private val dataDirectory: Path,
 ) {
     private val ready = AtomicBoolean(false)
+    private val stopping = AtomicBoolean(false)
+    private var storageExecutor: BoundedTaskExecutor? = null
+    private var storage: JdbcAccountStorage? = null
+    private var network: ProxycheckIpLookup? = null
+    private var staffProof: VelocityStaffProof? = null
+    private var admin: VelocityRiskAdmin? = null
     private var executor: BoundedTaskExecutor? = null
     private var pending: PendingConnectionRegistry? = null
     private var floodGate: ConnectionFloodGate? = null
@@ -54,25 +63,77 @@ class AuthGatewayXVelocity @Inject constructor(
                 Duration.ofSeconds(configuration.positiveTtlSeconds), Duration.ofSeconds(configuration.negativeTtlSeconds),
                 configuration.maximumCacheSize,
             )
-            proxy.eventManager.register(this, VelocityLoginListener(ready, flood, lookup, connections, VelocityLoginMessages(
-                handler.stringMessageToComponentNoPrefix("auth", "unavailable"),
-                handler.stringMessageToComponentNoPrefix("auth", "rate_limited"),
-                handler.stringMessageToComponentNoPrefix("auth", "invalid_username"),
-                handler.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
-                handler.stringMessageToComponentNoPrefix("auth", "state_mismatch"),
-            )))
-            ready.set(true)
-            logger.info("AuthGatewayX Velocity authentication selector is READY")
+            val risk = configuration.risk
+            val proof = VelocityStaffProof(proxy, this, risk.proofSecret).also { staffProof = it }
+            proxy.eventManager.register(this, proof)
+            val ip = if (risk.networkEnabled && risk.networkAction != RiskAction.DISABLED) ProxycheckIpLookup.create(
+                risk.apiKey, Duration.ofMillis(risk.networkTimeoutMillis), Duration.ofSeconds(risk.cacheTtlSeconds),
+                Duration.ofSeconds(risk.failureTtlSeconds), risk.maximumCacheSize, risk.networkConcurrent, risk.requestsPerMinute,
+            ).also { network = it } else null
+            val database = if (risk.storageEnabled) {
+                val dbWork = BoundedTaskExecutor(2, 64, "authgatewayx-proxy-storage").also { storageExecutor = it }
+                dbWork.submit {
+                    JdbcAccountStorage(risk.jdbcUrl, 2, dbWork, username = risk.databaseUsername, password = risk.databasePassword)
+                        .also { storage = it }
+                }.thenCompose { db -> db.verifyHistorySchema().thenApply<JdbcAccountStorage?> { db } }
+            } else CompletableFuture.completedFuture<JdbcAccountStorage?>(null)
+            database.whenComplete { db, failure ->
+                synchronized(this) {
+                if (stopping.get()) { storage?.close(); return@whenComplete }
+                if (failure != null) {
+                    logger.error("AuthGatewayX shared history is unavailable; proxy admission remains closed")
+                    proxy.scheduler.buildTask(this, Runnable { closeResources() }).schedule()
+                    return@whenComplete
+                }
+                try {
+                    val commands = VelocityRiskAdmin(proxy, db, proof, ready::get,
+                        { key -> handler.stringMessageToComponentNoPrefix("risk", key) }, risk.alertCooldownSeconds, risk.consoleAlerts, risk.showGeo, risk.alertsEnabled)
+                    admin = commands
+                    proxy.commandManager.register(proxy.commandManager.metaBuilder("authgatewayx").plugin(this).build(), commands)
+                    proxy.eventManager.register(this, VelocityLoginListener(ready, flood, lookup, connections, VelocityLoginMessages(
+                        handler.stringMessageToComponentNoPrefix("auth", "unavailable"),
+                        handler.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                        handler.stringMessageToComponentNoPrefix("auth", "invalid_username"),
+                        handler.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+                        handler.stringMessageToComponentNoPrefix("auth", "state_mismatch"),
+                        handler.stringMessageToComponentNoPrefix("auth", "vpn_denied"),
+                        handler.stringMessageToComponentNoPrefix("auth", "multi_denied"),
+                    ), VelocityRiskChecks(db, ip, risk.multiAction, risk.networkAction, risk.failClosed),
+                        risk.maximumConcurrent, commands::notify))
+                    ready.set(true)
+                    logger.info("AuthGatewayX Velocity admission is READY; shared history={}, IP checks={}", risk.storageEnabled, risk.networkEnabled)
+                } catch (problem: Throwable) {
+                    ready.set(false)
+                    logger.error("AuthGatewayX proxy risk initialization failed", problem)
+                    proxy.scheduler.buildTask(this, Runnable { closeResources() }).schedule()
+                }
+                }
+            }
+
         } catch (failure: Throwable) {
             ready.set(false)
             logger.error("AuthGatewayX Velocity initialization failed; logins remain closed", failure)
+            closeResources()
         }
     }
 
     @Subscribe
     fun onShutdown(event: ProxyShutdownEvent) {
-        ready.set(false)
-        pending?.clear()
+        synchronized(this) {
+            stopping.set(true)
+            ready.set(false)
+            proxy.commandManager.unregister("authgatewayx")
+        }
+        closeResources()
+    }
+
+    private fun closeResources() {
+        staffProof?.close()
+        admin?.clear()
+        network?.close()
+        storage?.close()
+        storageExecutor?.close()
+        pending?.close()
         floodGate?.clear()
         executor?.close()
     }

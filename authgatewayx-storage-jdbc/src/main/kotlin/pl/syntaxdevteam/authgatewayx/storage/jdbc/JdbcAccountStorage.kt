@@ -10,7 +10,8 @@ import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityAuditSink
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
-import pl.syntaxdevteam.authgatewayx.storage.MultiAccountLookup
+import pl.syntaxdevteam.authgatewayx.storage.ConnectionAccountLookup
+import pl.syntaxdevteam.authgatewayx.storage.RelatedOfflineAccount
 import pl.syntaxdevteam.authgatewayx.storage.MultiAccountReport
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
@@ -47,7 +48,7 @@ class JdbcAccountStorage(
     private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
     username: String? = null,
     password: String? = null,
-) : AccountStorage, SecurityAuditSink, MultiAccountLookup {
+) : AccountStorage, SecurityAuditSink, ConnectionAccountLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
         poolName = "AuthGatewayX-Storage"
@@ -228,6 +229,33 @@ class JdbcAccountStorage(
                 statement.setString(3, accountId.value.toString())
                 if (expectedHash != null) statement.setString(4, expectedHash)
                 statement.executeUpdate() == 1
+            }
+        }
+    }
+
+    override fun verifyHistorySchema(): CompletionStage<Unit> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.createStatement().use {
+                it.queryTimeout = 5
+                it.executeQuery("SELECT account_id, source_ip, last_seen FROM offline_account_addresses WHERE 1 = 0").close()
+            }
+        }
+    }
+
+    override fun findOfflineAccountsByAddress(address: java.net.InetAddress, excluding: AccountUsername, at: Instant): CompletionStage<MultiAccountReport> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("""SELECT a.username FROM offline_account_addresses h
+                JOIN accounts a ON a.id = h.account_id
+                WHERE h.source_ip = ? AND h.last_seen >= ? AND a.identity_type = 'OFFLINE'
+                    AND a.canonical_username <> ? ORDER BY a.canonical_username LIMIT 21""".trimIndent()).use {
+                it.queryTimeout = 5
+                it.setString(1, address.hostAddress)
+                it.setLong(2, at.minus(Duration.ofDays(30)).toEpochMilli())
+                it.setString(3, excluding.canonical)
+                val names = it.executeQuery().use { rows -> buildList {
+                    while (rows.next()) add(RelatedOfflineAccount(AccountUsername.parse(rows.getString(1)), 1))
+                } }
+                MultiAccountReport(names.take(20), names.size > 20)
             }
         }
     }

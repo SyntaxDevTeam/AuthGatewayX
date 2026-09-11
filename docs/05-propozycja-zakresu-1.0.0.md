@@ -165,3 +165,9 @@ Zalecane do późniejszych wersji:
 - [ ] AsyncScheduler/bounded executor dla JDBC/HTTP/Argon2
 - [ ] backpressure dla kosztownych operacji
 - [ ] brak SNAPSHOT runtime dependencies w stabilnym 1.0.0, jeśli dostępne są release
+
+## Rozszerzenie WIP: ryzyko na proxy
+
+Zaimplementowano opcjonalne blokowanie VPN/proxy/Tor i podejrzanych multi-kont
+na Velocity przed backendem, wraz z raportem i alertami. Automatyczne testy przechodzą;
+walidacja serwerowa pozostaje otwarta w roadmapie. [Konfiguracja](09-proxy-risk-admission.md).

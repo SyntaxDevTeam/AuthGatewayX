@@ -14,6 +14,7 @@ data class VelocityConfiguration(
     val maximumPending: Int,
     val mojangThreads: Int,
     val mojangQueue: Int,
+    val risk: VelocityRiskConfiguration = VelocityRiskConfiguration(),
 ) {
     init {
         require(lookupTimeoutMillis > 0 && positiveTtlSeconds > 0 && negativeTtlSeconds > 0)
@@ -45,6 +46,7 @@ data class VelocityConfiguration(
                 positive(lookup, "negative-ttl-seconds"), positive(lookup, "maximum-cache-size").toInt(),
                 positive(connections, "pending-ttl-seconds"), positive(connections, "maximum-pending").toInt(),
                 positive(executors, "mojang-threads").toInt(), positive(executors, "mojang-queue").toInt(),
+                VelocityRiskConfiguration.parse(root),
             )
         }
     }

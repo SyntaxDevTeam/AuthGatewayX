@@ -259,3 +259,10 @@ ip-intelligence:
   maximum-concurrent: 2
   # Local quota guard, reset on restart; provider daily plan limits still apply.
   requests-per-minute: 30
+
+# Optional proof of ACTIVE status for OFFLINE proxy administrators; no auth bypass.
+# Use the same independent random secret (at least 32 bytes) on Velocity and Paper.
+# AUTHGATEWAYX_STAFF_PROOF_SECRET overrides this value. Empty disables the responder.
+# Only used when Paper runs behind Velocity modern forwarding.
+staff-proof:
+  secret: ""

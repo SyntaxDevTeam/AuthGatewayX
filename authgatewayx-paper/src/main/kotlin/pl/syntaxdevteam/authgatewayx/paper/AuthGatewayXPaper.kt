@@ -8,6 +8,8 @@ import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
 import pl.syntaxdevteam.authgatewayx.auth.alert.OfflineRiskAlerts
 import pl.syntaxdevteam.authgatewayx.integrations.network.ProxycheckIpLookup
+import pl.syntaxdevteam.authgatewayx.paper.alert.PaperStaffProof
+import pl.syntaxdevteam.authgatewayx.security.proof.StaffSessionProof
 import pl.syntaxdevteam.authgatewayx.paper.alert.PaperRiskAlertDelivery
 import pl.syntaxdevteam.authgatewayx.paper.alert.RiskAlertText
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
@@ -218,6 +220,14 @@ class AuthGatewayXPaper : JavaPlugin() {
                     })
                 }
             })
+        }
+        val proofSecret = System.getenv("AUTHGATEWAYX_STAFF_PROOF_SECRET") ?: config.getString("staff-proof.secret", "")!!
+        if (proofSecret.isNotEmpty() && GlobalConfiguration.get().proxies.velocity.enabled) {
+            val responder = PaperStaffProof(this, StaffSessionProof(proofSecret)) {
+                readiness.acceptsAuthentication() && sessions.get(ConnectionId(it.uniqueId))?.state == ConnectionState.ACTIVE
+            }
+            runtime?.staffProof = responder
+            responder.register()
         }
         val networkEnabled = config.getBoolean("ip-intelligence.enabled", false)
         val networkLookup = if (networkEnabled) ProxycheckIpLookup.create(
@@ -446,6 +456,7 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
+    @Volatile var staffProof: PaperStaffProof? = null
     @Volatile var riskAlerts: OfflineRiskAlerts? = null
     @Volatile var networkLookup: ProxycheckIpLookup? = null
     @Volatile var storage: JdbcAccountStorage? = null
@@ -453,6 +464,7 @@ private class RuntimeComponents(
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
 
     override fun close() {
+        staffProof?.close()
         riskAlerts?.close()
         networkLookup?.close()
         premiumProtocol?.close()

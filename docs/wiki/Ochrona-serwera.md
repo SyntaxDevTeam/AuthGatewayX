@@ -79,3 +79,23 @@ multi-kont i VPN pozostają poszlakami, a nie dowodem tożsamości.
 
 Po zmianie configu wykonaj pełny restart. Testy automatyczne używają atrap i lokalnego
 serwera HTTP; test realnego dostawcy oraz wszystkich platform pozostaje wymagany.
+
+## VPN i multi-konta na proxy
+
+Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
+`ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
+`show-geo` dodaje kraj i ASN. Kontrole odrzucają połączenie przed serwerem gry.
+Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje zmiany IP.
+
+`alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
+proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
+Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
+`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
+Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
+
+Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
+[instrukcja kontroli proxy](../09-proxy-risk-admission.md). Opcje alertów opisane
+powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.

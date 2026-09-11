@@ -204,3 +204,11 @@ Dla konfiguracji Velocity + Paper poprawny startup backendu powinien logować tr
 `Velocity modern forwarding; standalone Paper encryption interceptor disabled`. Jeśli
 Paper wybiera tryb standalone mimo pracy za Velocity, należy traktować to jako błąd
 konfiguracji forwarding i sprawdzić `paper-global.yml` oraz forwarding secret.
+
+## Kontrole ryzyka i administracyjne potwierdzenie sesji
+
+Opcjonalna odmowa VPN/multi-konta następuje już w PreLoginEvent proxy. Nie zmienia
+reguły Mojang ani integralności UUID opisanej powyżej. Oddzielny kanał podpisanego
+potwierdzenia ACTIVE służy wyłącznie dostępowi administratora offline do raportów
+i alertów; nie uwierzytelnia gracza i nie zwalnia PRE_AUTH. Wymaga osobnego sekretu.
+Zobacz [konfigurację i granice zaufania](09-proxy-risk-admission.md).
