@@ -6,6 +6,10 @@ import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
+import pl.syntaxdevteam.authgatewayx.auth.alert.OfflineRiskAlerts
+import pl.syntaxdevteam.authgatewayx.integrations.network.ProxycheckIpLookup
+import pl.syntaxdevteam.authgatewayx.paper.alert.PaperRiskAlertDelivery
+import pl.syntaxdevteam.authgatewayx.paper.alert.RiskAlertText
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
 import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
@@ -215,6 +219,42 @@ class AuthGatewayXPaper : JavaPlugin() {
                 }
             })
         }
+        val networkEnabled = config.getBoolean("ip-intelligence.enabled", false)
+        val networkLookup = if (networkEnabled) ProxycheckIpLookup.create(
+            System.getenv("AUTHGATEWAYX_PROXYCHECK_API_KEY") ?: config.getString("ip-intelligence.api-key", "")!!,
+            Duration.ofMillis(config.getLong("ip-intelligence.timeout-millis", 2000)),
+            Duration.ofSeconds(config.getLong("ip-intelligence.cache-ttl-seconds", 3600)),
+            Duration.ofSeconds(config.getLong("ip-intelligence.failure-ttl-seconds", 60)),
+            config.getInt("ip-intelligence.maximum-cache-size", 10_000),
+            config.getInt("ip-intelligence.maximum-concurrent", 2),
+            config.getInt("ip-intelligence.requests-per-minute", 30),
+        ) else null
+        runtime?.networkLookup = networkLookup
+        val alertDelivery = PaperRiskAlertDelivery(
+            recipients = { server.onlinePlayers.toList() },
+            entity = scheduler::entity,
+            active = { sessions.get(ConnectionId(it.uniqueId))?.state == ConnectionState.ACTIVE },
+            current = { readiness.acceptsAuthentication() && sessions.get(it.session.connectionId) === it.session },
+            console = if (config.getBoolean("multi-account.alerts.console", true)) ({ message -> server.consoleSender.sendMessage(message) }) else null,
+            text = RiskAlertText(
+                messages.stringMessageToComponentNoPrefix("risk_alert", "header"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "accounts"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "network"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "geo"),
+            ),
+            showGeo = networkEnabled && config.getBoolean("ip-intelligence.show-geo", true),
+        )
+        val riskAlerts = OfflineRiskAlerts(
+            storage, networkLookup,
+            config.getBoolean("multi-account.alerts.enabled", true),
+            config.getBoolean("ip-intelligence.notify-on-vpn", true),
+            Duration.ofSeconds(config.getLong("multi-account.alerts.cooldown-seconds", 300)),
+            config.getInt("multi-account.alerts.maximum-tracked-accounts", 10_000),
+            config.getInt("multi-account.alerts.maximum-concurrent", 2),
+            isCurrent = { readiness.acceptsAuthentication() && sessions.get(it.connectionId) === it },
+            emit = { alert -> scheduler.global(Runnable { alertDelivery.deliver(alert) }) },
+        )
+        runtime?.riskAlerts = riskAlerts
         val login = LoginService(storage, hasher, passwordExecutor,
             LoginAttemptGate(FloodLimit(5, 1, Duration.ofSeconds(2)), 50_000), storage, dummyHash,
             LockoutPolicy(positive("authentication.lockout.attempts"), Duration.ofSeconds(positive("authentication.lockout.duration-seconds").toLong())))
@@ -231,6 +271,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             admission.release(context.connectionId.value)
             isolation.activated(context)
             sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
+            sessions.get(context.connectionId)?.let { session -> runCatching { riskAlerts.observe(session) } }
         })
         val dialogs = AuthenticationDialogController(coordinator, scheduler, AuthenticationDialogText(
             messages.stringMessageToComponentNoPrefix("auth", "login_title"),
@@ -405,11 +446,15 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
+    @Volatile var riskAlerts: OfflineRiskAlerts? = null
+    @Volatile var networkLookup: ProxycheckIpLookup? = null
     @Volatile var storage: JdbcAccountStorage? = null
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
 
     override fun close() {
+        riskAlerts?.close()
+        networkLookup?.close()
         premiumProtocol?.close()
         sessions.clear()
         storage?.close()

@@ -40,7 +40,7 @@ pozostać widoczne po zmianie adresu. Nie zapisuje powiązań na podstawie błę
 ani samego wejścia pod cudzym nickiem. Nie nakłada automatycznie kar.
 
 Wspólne IP może oznaczać jedną osobę, rodzinę, NAT operatora albo wspólny VPN.
-Raport pokazuje poszlaki do oceny, bez ujawniania adresów. Nie wykrywa samego VPN;
+Raport pokazuje poszlaki do oceny, bez ujawniania adresów. Sam raport nie wykrywa VPN;
 nowy nick i zupełnie nowe IP bez wspólnej historii mogą pozostać niewykryte.
 Brak wyników nie jest potwierdzeniem braku multi-konta.
 
@@ -52,3 +52,30 @@ historię z detektora. Te limity nie zmieniają limitu rejestracji na IP.
 
 Raport działa na Paper/Purpur/Folia, także na backendzie za poprawnie skonfigurowanym
 Velocity modern forwarding. Komendę wykonuje się na serwerze gry lub w jego konsoli.
+
+## Automatyczne powiadomienia i VPN/GeoIP
+
+`multi-account.alerts.enabled: true` włącza powiadomienia o podejrzanych kontach po
+poprawnym logowaniu/rejestracji offline. Odbiorcy muszą być zalogowani i mieć
+`authgatewayx.admin.alerts` (domyślnie operatorzy). `multi-account.alerts.console`
+steruje kopią w konsoli. Domyślny cooldown jednego konta to 300 sekund.
+Alert pokazuje do pięciu powiązanych nicków; pełniejszy raport daje `/authgatewayx alts`.
+
+Opcjonalne `ip-intelligence.enabled: true` uruchamia [proxycheck.io v3](https://proxycheck.io/api/).
+Domyślnie ta opcja jest wyłączona. Po włączeniu publiczne IP gracza trafia do dostawcy
+przez HTTPS; nick, UUID i hasło nie są wysyłane. Klucz można ustawić w
+`AUTHGATEWAYX_PROXYCHECK_API_KEY` albo `ip-intelligence.api-key`. Pusty klucz korzysta
+z limitów anonimowych; sprawdź aktualny limit planu u dostawcy.
+
+`ip-intelligence.notify-on-vpn` pozwala zgłaszać VPN/proxy/Tor także bez powiązanego
+konta. `ip-intelligence.show-geo` dodaje kraj i ASN do podejrzanych alertów. Sam kraj,
+ASN ani hosting nie wywołują alarmu. Dane dotyczą wyjścia sieciowego, nie miejsca
+pobytu osoby. Znak `?` oznacza brak danych; awaria dostawcy nie oznacza „brak VPN”.
+
+Sprawdzenia są ograniczone równoległością, cooldownem, cache i budżetem żądań. Przy
+przeciążeniu część sprawdzeń może zostać pominięta. Timeout/błąd API nie zatrzymuje
+logowania ani lokalnego raportu. Nie są nakładane bany ani blokady krajów. Historia
+multi-kont i VPN pozostają poszlakami, a nie dowodem tożsamości.
+
+Po zmianie configu wykonaj pełny restart. Testy automatyczne używają atrap i lokalnego
+serwera HTTP; test realnego dostawcy oraz wszystkich platform pozostaje wymagany.

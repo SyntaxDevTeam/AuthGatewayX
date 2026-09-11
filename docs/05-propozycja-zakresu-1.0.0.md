@@ -60,6 +60,7 @@
 - [ ] reconnect loop detection
 - [ ] temporary IP quarantine
 - [ ] registration abuse protection
+- [ ] automatyczne alerty multi-kont i opcjonalne VPN/GeoIP — testy automatyczne przechodzą, wymagane testy platform i dostawcy
 - [ ] raport podejrzanych multi-kont offline — kod i testy SQLite; wymagane testy serwerowe i zdalnych baz
 
 ## Anti-flood
@@ -141,8 +142,8 @@ Zalecane do późniejszych wersji:
 - email authentication,
 - 2FA/TOTP,
 - Geyser/Floodgate,
-- external anti-bot providers,
-- ASN/datacenter reputation,
+- zewnętrzne mechanizmy egzekwowania ochrony anti-bot (poza opcjonalnymi alertami proxycheck.io),
+- blokowanie według reputacji ASN/datacenter (informacyjne ASN i alerty VPN są już opcjonalnie dostępne),
 - account recovery workflow.
 
 ## Standard SyntaxDevTeam / Paper lifecycle

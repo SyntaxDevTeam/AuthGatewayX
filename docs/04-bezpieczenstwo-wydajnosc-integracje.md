@@ -255,7 +255,8 @@ score >= threshold -> temporary quarantine/block
 
 ## Layer 4 — external integrations
 
-Opcjonalnie później:
+Opcjonalne informacyjne VPN/GeoIP przez proxycheck.io opisano w sekcji 27 dokumentu
+bezpieczeństwa. Dalsze egzekwowanie polityk pozostaje na później:
 
 - proxy reputation,
 - ASN policy,
@@ -701,7 +702,8 @@ Raporty administracyjne mają wspólną blokadę jednej operacji w toku; przeci�
 błąd daje jawny komunikat niedostępności, nigdy fałszywy „brak powiązań”. Wiadomości
 pochodzą z MessageHandler, odpowiedź graczowi wraca na EntityScheduler. Paper za
 Velocity używa adresu istniejącej sesji z modern forwarding; sam moduł proxy nie
-udostępnia komendy ani bazy offline. Nie dodajemy HTTP/DNS, bibliotek ani blokady VPN.
+udostępnia komendy ani bazy offline. Sam raport nie używa HTTP/DNS ani blokady VPN;
+opcjonalne automatyczne alerty opisuje nowsza decyzja w sekcji 27.
 
 - [x] Historia, raport i testy integracyjne SQLite wdrożone i zweryfikowane.
 - [x] Testy kontrolera: permisje, PRE_AUTH, równoległe zapytania, błąd DB,
@@ -744,5 +746,7 @@ bez refleksyjnej deserializacji kont. Biblioteka ~300 KiB, dostępna w cache pro
 nie wymaga NMS; compileOnly w integrations, runtime przez PluginLoader Paper.
 Źródła: https://github.com/google/gson oraz https://proxycheck.io/api/.
 
-- [ ] Testy alertów, limiterów, cache i parsera oraz build.
+- [x] Testy alertów, limiterów, cache, parsera, transportu HTTP i odbiorców oraz build.
+  Zweryfikowano timeout także po nagłówkach, HTTP 429, brak redirectów, limit 64 KiB,
+  deduplikację, TTL/invalidację i shutdown. Testy nie wysyłają IP do rzeczywistego API.
 - [ ] Testy realnego API (w tym limit planu), Paper/Purpur/Folia i backendu Velocity.

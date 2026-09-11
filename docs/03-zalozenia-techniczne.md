@@ -724,3 +724,19 @@ To poszlaki wspólnego IP, nie identyfikacja osoby lub urządzenia ani detekcja 
 Nowy nick i nowe IP bez wspólnej historii mogą pozostać niewykryte. Nie wykonuje się
 automatycznych kar ani zmian ochrony premium i PRE_AUTH. Pełne reguły, ograniczenia
 retencji i testy pozostałe do wykonania: dokument bezpieczeństwa, sekcja 26.
+
+## Automatyczne alerty offline i opcjonalna reputacja IP
+
+`OfflineRiskAlerts` uruchamia ograniczone zadanie po aktywacji sesji offline.
+`PaperRiskAlertDelivery` wysyła wiadomości MessageHandler wyłącznie zalogowanej
+administracji z `authgatewayx.admin.alerts` (EntityScheduler) oraz opcjonalnie konsoli.
+Cooldown, limit stanu i równoległości działają przed dodatkowymi zapytaniami.
+Stara sesja i shutdown unieważniają wynik. Błędy nie zmieniają decyzji auth.
+
+`ProxycheckIpLookup` w integrations opcjonalnie pobiera VPN/proxy/Tor, kraj i ASN z
+HTTPS proxycheck.io v3 (przypięte `24-June-2026`). Domyślnie brak zapytań zewnętrznych:
+`ip-intelligence.enabled=false`. Istnieją limity czasu/rozmiaru odpowiedzi, cache TTL,
+deduplikacja, budżet żądań i backoff. Gson 2.14.0 dostarcza PluginLoader Paper;
+auth zależy od neutralnego kontraktu w integrations. Własny executor i HttpClient są
+zamykane w shutdown. Nie dodano nowych danych Geo do storage ani blokad krajów/VPN.
+Szczegóły i uzasadnienie rozszerzenia zakresu: dokument bezpieczeństwa, sekcja 27.

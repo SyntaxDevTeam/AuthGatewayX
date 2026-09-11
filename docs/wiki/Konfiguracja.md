@@ -124,3 +124,42 @@ Tryby to `AUTO`, `REQUIRED` i `DISABLED`. Strategie to `FAIL_CLOSED` i `FAIL_OPE
 ## Czego nie dopisywać?
 
 Obecny plik nie udostępnia sekcji `anti-flood`, listy dozwolonych komend przed logowaniem ani przełącznika `premium.enabled`. Dopisanie takich nazw nie włączy nowej funkcji. Velocity ma własny, krótszy [plik ustawień](Velocity.md).
+
+## Alerty administracyjne, VPN i GeoIP
+
+```yaml
+multi-account:
+  alerts:
+    enabled: true
+    console: true
+    cooldown-seconds: 300
+    maximum-tracked-accounts: 10000
+    maximum-concurrent: 2
+ip-intelligence:
+  enabled: false
+  api-key: ""
+  notify-on-vpn: true
+  show-geo: true
+  timeout-millis: 2000
+  cache-ttl-seconds: 3600
+  failure-ttl-seconds: 60
+  maximum-cache-size: 10000
+  maximum-concurrent: 2
+  requests-per-minute: 30
+```
+
+Wklej brakujące sekcje do istniejącego configu, bez duplikowania kluczy. Włączenie
+`ip-intelligence` wysyła publiczne IP do proxycheck.io. Klucz z
+`AUTHGATEWAYX_PROXYCHECK_API_KEY` ma pierwszeństwo nad YAML. Sprawdzenia obejmują tylko
+udane uwierzytelnienia offline; alerty są informacyjne. Obie opcje `enabled` są
+niezależne: aby wyłączyć wszystkie sprawdzenia, ustaw obie na `false`.
+
+`show-geo` dodaje kraj i ASN do alertów, nie raportuje wszystkich wejść. `notify-on-vpn`
+steruje osobnym alarmem VPN/proxy/Tor. Wspólne ustawienia cooldownu, limitu zadań i
+konsoli z `multi-account.alerts` obejmują też alerty sieciowe.
+
+TTL cache wyniku wynosi 3600 s; TTL błędu i globalna przerwa po błędzie 60 s.
+Przekroczenie budżetu/minutę lub równoległości pomija sprawdzenie bez blokowania auth.
+Limity stanu: 1–100000, równoległość: 1–32, żądania/minutę: 1–1000,
+timeout: 100–10000 ms; cooldown i TTL muszą być dodatnie. Restart czyści pamięciowy
+cache i limity, ale nie zmienia dziennego limitu planu dostawcy.

@@ -226,3 +226,36 @@ integrations:
     # It also supports the current PunisherX public UUID API as a compatibility fallback.
     mode: AUTO
     failure-strategy: FAIL_CLOSED
+
+# Advisory alerts after successful OFFLINE login/registration. No automatic bans.
+multi-account:
+  alerts:
+    # Notify authenticated staff with authgatewayx.admin.alerts about shared IP history.
+    enabled: true
+    # Console output applies to both account and VPN alerts.
+    console: true
+    # Reconnect suppression per account, including checks with no suspicious result.
+    cooldown-seconds: 300
+    maximum-tracked-accounts: 10000
+    # Bound advisory database/network work; excess checks are skipped, login continues.
+    maximum-concurrent: 2
+
+# Optional proxycheck.io v3: enabling sends the player's public IP to this provider.
+# No username, UUID or password is sent. Geo describes the exit IP, not the person.
+# Disabled means no external requests. This feature only observes successful offline auth.
+ip-intelligence:
+  enabled: false
+  # AUTHGATEWAYX_PROXYCHECK_API_KEY overrides this value. Empty uses anonymous provider quota.
+  api-key: ""
+  # Independent of multi-account.alerts.enabled; requires ip-intelligence.enabled.
+  notify-on-vpn: true
+  # Add country code and ASN to suspicious alerts; no city, coordinates or country blocks.
+  show-geo: true
+  timeout-millis: 2000
+  cache-ttl-seconds: 3600
+  # Negative/error cache and global backoff on provider failure (no automatic retry).
+  failure-ttl-seconds: 60
+  maximum-cache-size: 10000
+  maximum-concurrent: 2
+  # Local quota guard, reset on restart; provider daily plan limits still apply.
+  requests-per-minute: 30

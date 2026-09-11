@@ -6,6 +6,7 @@ repositories { mavenCentral() }
 
 dependencies {
     implementation(project(":authgatewayx-domain"))
+    implementation(project(":authgatewayx-integrations"))
     implementation(project(":authgatewayx-security"))
     implementation(project(":authgatewayx-storage-api"))
     compileOnly(libs.jetbrains.annotations)

@@ -42,3 +42,6 @@ elementu w zakresie wymaganym przez dokumentację.
 Raport `/authgatewayx alts <nick>` udostępnia administratorowi poszlaki powiązań kont
 offline przez ograniczoną historię wspólnych adresów. Nie identyfikuje urządzenia ani
 VPN; szczegóły znajdują się w sekcji 26 dokumentu bezpieczeństwa i WIKI ochrony serwera.
+
+Automatyczne alerty lokalne oraz opcjonalne VPN/proxy/Tor i GeoIP są konfigurowalne;
+zewnętrzne sprawdzenia są domyślnie wyłączone. Zobacz WIKI konfiguracji i ochrony serwera.

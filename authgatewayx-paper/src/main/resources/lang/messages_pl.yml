@@ -47,3 +47,9 @@ alts:
   truncated: '<yellow>Pokazano pierwsze 20 wyników; istnieją dalsze powiązania.</yellow>'
   unavailable: '<red>Raport jest chwilowo niedostępny lub trwa inne sprawdzanie. Spróbuj ponownie później.</red>'
   not_found: '<red>Nie znaleziono konta offline o podanej nazwie.</red>'
+
+risk_alert:
+  header: '<gold>[AuthGatewayX] {username} zalogował się — sygnały do weryfikacji:</gold>'
+  accounts: '<yellow>Podejrzenie multi-konta. Wspólna historia IP z: {accounts}.</yellow><newline><gray>Wspólne IP nie dowodzi jednej osoby. Szczegóły: /authgatewayx alts &lt;nick&gt;</gray>'
+  network: '<yellow>Dostawca reputacji IP wskazuje: {signals}. To nie jest dowód multi-konta.</yellow>'
+  geo: '<gray>Adres wyjściowy: kraj {country}, ASN {asn}. „?” oznacza brak danych; GeoIP nie ustala miejsca pobytu gracza.</gray>'

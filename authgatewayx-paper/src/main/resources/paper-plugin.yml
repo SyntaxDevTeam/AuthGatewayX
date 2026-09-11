@@ -26,3 +26,6 @@ permissions:
   authgatewayx.admin.alts:
     description: Allows reviewing suspected offline account links by shared address history.
     default: op
+  authgatewayx.admin.alerts:
+    description: Receives advisory multi-account and VPN alerts after authentication.
+    default: op

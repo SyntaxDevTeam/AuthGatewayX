@@ -6,6 +6,8 @@ repositories { mavenCentral() }
 dependencies {
     api(project(":authgatewayx-domain"))
     implementation(project(":authgatewayx-security"))
+    compileOnly("com.google.code.gson:gson:2.14.0")
+    testImplementation("com.google.code.gson:gson:2.14.0")
     testImplementation(kotlin("test"))
 }
 kotlin { jvmToolchain(25) }

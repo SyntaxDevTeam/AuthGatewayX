@@ -105,7 +105,8 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 
 - Redis i synchronizacja wielu proxy.
 - Panel WWW, REST API, Discord linking, e-mail i 2FA/TOTP.
-- Geyser/Floodgate oraz zewnętrzni dostawcy reputacji ASN/datacenter.
+- Geyser/Floodgate oraz egzekwowanie blokad według reputacji ASN/datacenter
+  (opcjonalne informacyjne alerty proxycheck.io są już zaimplementowane).
 - Pełny workflow odzyskiwania konta przez użytkownika.
 
 ## Raport multi-kont offline
@@ -116,5 +117,8 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - [ ] Zweryfikować migrację v5, raport i równoległą rotację historii na zdalnych bazach.
 - [ ] Test obciążeniowy raportu dla dużej współdzielonej sieci i limitu zapytań.
 
-Zaimplementowany raport jest poszlaką wspólnego adresu. Ochrona VPN/ASN pozostaje
-osobnym przyszłym rozszerzeniem, a brak wspólnego śladu nie dowodzi braku multi-konta.
+Zaimplementowany raport jest poszlaką wspólnego adresu. Opcjonalne alerty VPN/ASN
+opisuje sekcja 27 dokumentu bezpieczeństwa; brak wspólnego śladu nie dowodzi braku multi-konta.
+
+- [ ] Alerty automatyczne: test serwerowy odbiorców/permisji/Folia i disconnect.
+- [ ] VPN/GeoIP: test realnego proxycheck.io, limitów planu i backendu Velocity.
