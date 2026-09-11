@@ -41,7 +41,7 @@ jobs:
           jar="$(find authgatewayx-paper/build/libs -maxdepth 1 -name 'AuthGatewayX-*.jar' ! -name '*-plain.jar' | head -n 1)"
           test -n "${jar}"
           unzip -p "${jar}" paper-plugin.yml | grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader$'
-          unzip -l "${jar}" | grep -q 'pl/syntaxdevteam/authgatewayx/storage/jdbc/SqliteAccountStorage.class'
+          unzip -l "${jar}" | grep -q 'pl/syntaxdevteam/authgatewayx/storage/jdbc/JdbcAccountStorage.class'
 
       - name: Verify Velocity distributable JAR
         run: |
