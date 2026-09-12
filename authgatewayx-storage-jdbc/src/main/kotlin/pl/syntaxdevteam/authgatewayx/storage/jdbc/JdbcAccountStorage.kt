@@ -237,7 +237,7 @@ class JdbcAccountStorage(
         dataSource.connection.use { connection ->
             connection.createStatement().use {
                 it.queryTimeout = 5
-                it.executeQuery("SELECT account_id, source_ip, last_seen FROM offline_account_addresses WHERE 1 = 0").close()
+                it.executeQuery("SELECT h.account_id, h.source_ip, h.last_seen, a.username, a.canonical_username, a.identity_type FROM offline_account_addresses h JOIN accounts a ON a.id = h.account_id WHERE 1 = 0").close()
             }
         }
     }

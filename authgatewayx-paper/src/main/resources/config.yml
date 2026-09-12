@@ -265,4 +265,4 @@ ip-intelligence:
 # AUTHGATEWAYX_STAFF_PROOF_SECRET overrides this value. Empty disables the responder.
 # Only used when Paper runs behind Velocity modern forwarding.
 staff-proof:
-  secret: ""
+  secret: "xTWAffiMRLtBlCX7ylkgAWGjYMXw4xUh"

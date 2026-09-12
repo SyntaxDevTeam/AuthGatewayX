@@ -132,3 +132,9 @@ opisuje sekcja 27 dokumentu bezpieczeństwa; brak wspólnego śladu nie dowodzi 
 - [ ] Test zdalnych baz i realnego dostawcy VPN przy limitach planu oraz reconnect flood.
 
 Instrukcja wdrożenia: [09-proxy-risk-admission.md](09-proxy-risk-admission.md).
+
+### Korekta po teście Velocity (2026-09-12)
+
+- [x] Adapter MessageHandler bez tworzenia `config.yml`, test rzeczywistej inicjalizacji biblioteki i zgodności języka.
+- [x] Diagnostyka błędów JDBC bez ujawniania sekretów, test kategorii przyczyn.
+- [ ] Ponowny test startu na zgłoszonej instalacji Velocity po sprawdzeniu wspólnej bazy.

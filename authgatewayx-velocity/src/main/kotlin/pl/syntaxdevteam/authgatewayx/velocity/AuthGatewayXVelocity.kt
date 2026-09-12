@@ -17,7 +17,6 @@ import pl.syntaxdevteam.core.logging.DebugLevel
 import pl.syntaxdevteam.core.proxy.ProxySyntaxCore
 import pl.syntaxdevteam.message.SyntaxMessages
 import java.nio.file.Path
-import java.nio.file.Files
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import pl.syntaxdevteam.authgatewayx.integrations.network.ProxycheckIpLookup
@@ -47,9 +46,16 @@ class AuthGatewayXVelocity @Inject constructor(
             val container = container()
             val configuration = VelocityConfiguration.load(dataDirectory, javaClass.classLoader)
             ProxySyntaxCore.initVelocity(proxy, container, logger, dataDirectory.toFile(), DebugLevel.OFF, "velocity")
-            val messageConfig = dataDirectory.resolve("config.yml")
-            if (Files.notExists(messageConfig)) Files.writeString(messageConfig, "language: PL\n")
-            val handler = SyntaxMessages.initialize(container, dataDirectory, logger)
+            val handler = SyntaxMessages.configure(
+                VelocityMessageResources(dataDirectory, javaClass.classLoader),
+                object : pl.syntaxdevteam.message.PluginMetaProvider { override val name = "AuthGatewayX" },
+                object : pl.syntaxdevteam.message.MessageLogger {
+                    private fun plain(message: String) = net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText()
+                        .serialize(net.kyori.adventure.text.minimessage.MiniMessage.miniMessage().deserialize(message))
+                    override fun success(message: String) { logger.info(plain(message)) }
+                    override fun err(message: String) { logger.error(plain(message)) }
+                },
+            )
             val work = BoundedTaskExecutor(configuration.mojangThreads, configuration.mojangQueue, "authgatewayx-mojang")
             val connections = PendingConnectionRegistry(Duration.ofSeconds(configuration.pendingTtlSeconds), configuration.maximumPending)
             val flood = ConnectionFloodGate(
@@ -81,7 +87,7 @@ class AuthGatewayXVelocity @Inject constructor(
                 synchronized(this) {
                 if (stopping.get()) { storage?.close(); return@whenComplete }
                 if (failure != null) {
-                    logger.error("AuthGatewayX shared history is unavailable; proxy admission remains closed")
+                    logger.error("AuthGatewayX shared history is unavailable; proxy admission remains closed. {}", StorageStartupDiagnostic.describe(failure))
                     proxy.scheduler.buildTask(this, Runnable { closeResources() }).schedule()
                     return@whenComplete
                 }

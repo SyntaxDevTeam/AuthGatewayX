@@ -90,3 +90,18 @@ Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekret
 Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
 [instrukcja kontroli proxy](../09-proxy-risk-admission.md). Opcje alertów opisane
 powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+## Diagnostyka startu i plik języka
+
+`language: PL` należy do `authgatewayx.yml`. Adapter MessageHandler odczytuje ten
+plik i nie tworzy dodatkowego `config.yml`. Istniejący stary plik pozostaje bez zmian;
+gdy w głównym pliku brakuje `language`, jego dotychczasowa wartość jest nadal odczytywana.
+Po przeniesieniu `language` do `authgatewayx.yml` można usunąć stary `config.yml`.
+
+`shared history is unavailable; proxy admission remains closed` oznacza błąd
+otwarcia wspólnej bazy lub sprawdzenia wymaganych tabel/kolumn i uprawnień SELECT.
+Log zawiera teraz klasę przyczyny, SQLState, kod sterownika i wskazówkę bez ujawniania
+hasła czy URL połączenia. Najpierw sprawdź, czy Paper uruchomił migrację v5
+w tej samej bazie. Oddzielna pusta baza proxy nie wystarczy. Przy zdalnym proxy
+`127.0.0.1` wskazuje maszynę proxy, nie serwer Paper. Po poprawieniu ustawień wykonaj restart.
+Sprawdzenie startowe obejmuje zarówno historię, jak i tabelę kont; proxy nie wykonuje migracji.

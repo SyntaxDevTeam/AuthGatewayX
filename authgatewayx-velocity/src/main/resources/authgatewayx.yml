@@ -1,3 +1,5 @@
+language: PL
+
 premium:
   lookup:
     timeout-millis: 3000
@@ -53,4 +55,4 @@ alerts:
 staff-proof:
   # Match Paper's independent random secret (>=32 bytes), not the forwarding secret.
   # AUTHGATEWAYX_STAFF_PROOF_SECRET overrides this. Empty: console and Mojang staff only.
-  secret: ""
+  secret: "xTWAffiMRLtBlCX7ylkgAWGjYMXw4xUh"

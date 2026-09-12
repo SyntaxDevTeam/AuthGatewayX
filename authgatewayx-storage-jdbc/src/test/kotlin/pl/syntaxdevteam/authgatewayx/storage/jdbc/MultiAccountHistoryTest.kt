@@ -160,6 +160,19 @@ class MultiAccountHistoryTest {
         storage.verifyHistorySchema().toCompletableFuture().get()
     }
 
+    @Test
+    fun `proxy schema verification rejects missing account columns without migrating`() = withStorage { storage, url, _ ->
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { it.executeUpdate("ALTER TABLE accounts RENAME COLUMN canonical_username TO renamed_username") }
+        }
+        assertFailsWith<java.util.concurrent.ExecutionException> { storage.verifyHistorySchema().toCompletableFuture().get() }
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT renamed_username FROM accounts WHERE 1 = 0").close()
+            }
+        }
+    }
+
     private fun withStorage(test: (JdbcAccountStorage, String, BoundedTaskExecutor) -> Unit) {
         val file = Files.createTempFile("authgatewayx-alts-", ".sqlite")
         val executor = BoundedTaskExecutor(4, 128, "alts-test")
