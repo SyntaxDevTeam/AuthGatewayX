@@ -157,3 +157,17 @@ hasła czy URL połączenia. Najpierw sprawdź, czy Paper uruchomił migrację v
 w tej samej bazie. Oddzielna pusta baza proxy nie wystarczy. Przy zdalnym proxy
 `127.0.0.1` wskazuje maszynę proxy, nie serwer Paper. Po poprawieniu ustawień wykonaj restart.
 Sprawdzenie startowe obejmuje zarówno historię, jak i tabelę kont; proxy nie wykonuje migracji.
+
+### Powtarzana odmowa AGX-STARTUP
+
+Odmowa `Authentication service is unavailable. [AGX-STARTUP]` oznacza brak READY,
+przed kontrolą VPN i Mojang. Przy próbie wejścia konsola powtarza zapamiętany etap
+STARTING lub FAILED i bezpieczny opis przyczyny, najwyżej raz na 10 sekund dla całego
+proxy. Etap DATABASE oznacza oczekiwanie na wspólną bazę albo jej błąd; CONFIGURATION,
+MESSAGES, STAFF_PROOF i LISTENERS wskazują inne części startu. Pełny wyjątek nadal
+znajduje się w logu inicjalizacji (dla JDBC stosowana jest diagnostyka bez sekretów).
+Startup podaje bezwzględną ścieżkę używanego `authgatewayx.yml` i stan włączenia
+integracji. Edycja pliku `src/main/resources` nie aktualizuje istniejącego pliku proxy.
+Jeżeli po pełnym restarcie brak znacznika zarówno przy starcie, jak i w odmowie,
+należy sprawdzić, jaki JAR i która instancja proxy rzeczywiście obsługują połączenie.
+Nie omijamy wymaganej inicjalizacji przez wymuszenie READY.

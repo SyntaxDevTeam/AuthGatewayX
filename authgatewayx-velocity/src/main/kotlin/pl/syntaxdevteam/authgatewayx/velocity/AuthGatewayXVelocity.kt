@@ -4,7 +4,6 @@ import com.google.inject.Inject
 import com.velocitypowered.api.event.Subscribe
 import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
-import com.velocitypowered.api.event.connection.PreLoginEvent
 import com.velocitypowered.api.plugin.PluginContainer
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
@@ -30,6 +29,12 @@ class AuthGatewayXVelocity @Inject constructor(
 ) {
     private val ready = AtomicBoolean(false)
     private val stopping = AtomicBoolean(false)
+    private val readiness = VelocityReadinessGuard(ready, logger::error)
+    private var phase = VelocityReadinessGuard.Phase.CONFIGURATION
+    private fun phase(value: VelocityReadinessGuard.Phase) {
+        phase = value
+        readiness.starting(value)
+    }
     private var storageExecutor: BoundedTaskExecutor? = null
     private var storage: JdbcAccountStorage? = null
     private var network: ProxycheckIpLookup? = null
@@ -41,11 +46,14 @@ class AuthGatewayXVelocity @Inject constructor(
 
     @Subscribe
     fun onInitialize(event: ProxyInitializeEvent) {
-        proxy.eventManager.register(this, ReadinessGuard(ready))
+        proxy.eventManager.register(this, readiness)
+        logger.info("AuthGatewayX startup diagnostics AGX-STARTUP; configuration: {}", dataDirectory.resolve("authgatewayx.yml").toAbsolutePath())
         try {
             val container = container()
             val configuration = VelocityConfiguration.load(dataDirectory, javaClass.classLoader)
+            phase(VelocityReadinessGuard.Phase.SYNTAX_CORE)
             ProxySyntaxCore.initVelocity(proxy, container, logger, dataDirectory.toFile(), DebugLevel.OFF, "velocity")
+            phase(VelocityReadinessGuard.Phase.MESSAGES)
             val handler = SyntaxMessages.configure(
                 VelocityMessageResources(dataDirectory, javaClass.classLoader),
                 object : pl.syntaxdevteam.message.PluginMetaProvider { override val name = "AuthGatewayX" },
@@ -56,6 +64,7 @@ class AuthGatewayXVelocity @Inject constructor(
                     override fun err(message: String) { logger.error(plain(message)) }
                 },
             )
+            phase(VelocityReadinessGuard.Phase.EXECUTORS)
             val work = BoundedTaskExecutor(configuration.mojangThreads, configuration.mojangQueue, "authgatewayx-mojang")
             val connections = PendingConnectionRegistry(Duration.ofSeconds(configuration.pendingTtlSeconds), configuration.maximumPending)
             val flood = ConnectionFloodGate(
@@ -70,12 +79,16 @@ class AuthGatewayXVelocity @Inject constructor(
                 configuration.maximumCacheSize,
             )
             val risk = configuration.risk
+            logger.info("AuthGatewayX configured: shared history={}, IP checks={}", risk.storageEnabled, risk.networkEnabled)
+            phase(VelocityReadinessGuard.Phase.STAFF_PROOF)
             val proof = VelocityStaffProof(proxy, this, risk.proofSecret).also { staffProof = it }
             proxy.eventManager.register(this, proof)
+            phase(VelocityReadinessGuard.Phase.IP_LOOKUP)
             val ip = if (risk.networkEnabled && risk.networkAction != RiskAction.DISABLED) ProxycheckIpLookup.create(
                 risk.apiKey, Duration.ofMillis(risk.networkTimeoutMillis), Duration.ofSeconds(risk.cacheTtlSeconds),
                 Duration.ofSeconds(risk.failureTtlSeconds), risk.maximumCacheSize, risk.networkConcurrent, risk.requestsPerMinute,
             ).also { network = it } else null
+            phase(VelocityReadinessGuard.Phase.DATABASE)
             val database = if (risk.storageEnabled) {
                 val dbWork = BoundedTaskExecutor(2, 64, "authgatewayx-proxy-storage").also { storageExecutor = it }
                 dbWork.submit {
@@ -87,11 +100,13 @@ class AuthGatewayXVelocity @Inject constructor(
                 synchronized(this) {
                 if (stopping.get()) { storage?.close(); return@whenComplete }
                 if (failure != null) {
+                    readiness.failed(phase, StorageStartupDiagnostic.describe(failure))
                     logger.error("AuthGatewayX shared history is unavailable; proxy admission remains closed. {}", StorageStartupDiagnostic.describe(failure))
                     proxy.scheduler.buildTask(this, Runnable { closeResources() }).schedule()
                     return@whenComplete
                 }
                 try {
+                    phase(VelocityReadinessGuard.Phase.LISTENERS)
                     val commands = VelocityRiskAdmin(proxy, db, proof, ready::get,
                         { key -> handler.stringMessageToComponentNoPrefix("risk", key) }, risk.alertCooldownSeconds, risk.consoleAlerts, risk.showGeo, risk.alertsEnabled)
                     admin = commands
@@ -110,6 +125,7 @@ class AuthGatewayXVelocity @Inject constructor(
                     logger.info("AuthGatewayX Velocity admission is READY; shared history={}, IP checks={}", risk.storageEnabled, risk.networkEnabled)
                 } catch (problem: Throwable) {
                     ready.set(false)
+                    readiness.failed(phase, problem.javaClass.simpleName)
                     logger.error("AuthGatewayX proxy risk initialization failed", problem)
                     proxy.scheduler.buildTask(this, Runnable { closeResources() }).schedule()
                 }
@@ -118,6 +134,7 @@ class AuthGatewayXVelocity @Inject constructor(
 
         } catch (failure: Throwable) {
             ready.set(false)
+            readiness.failed(phase, failure.javaClass.simpleName)
             logger.error("AuthGatewayX Velocity initialization failed; logins remain closed", failure)
             closeResources()
         }
@@ -126,6 +143,7 @@ class AuthGatewayXVelocity @Inject constructor(
     @Subscribe
     fun onShutdown(event: ProxyShutdownEvent) {
         synchronized(this) {
+            phase(VelocityReadinessGuard.Phase.SHUTDOWN)
             stopping.set(true)
             ready.set(false)
             proxy.commandManager.unregister("authgatewayx")
@@ -147,14 +165,4 @@ class AuthGatewayXVelocity @Inject constructor(
     private fun container(): PluginContainer = proxy.pluginManager.getPlugin("authgatewayx")
         .orElseThrow { IllegalStateException("AuthGatewayX PluginContainer is unavailable") }
 
-    private class ReadinessGuard(private val ready: AtomicBoolean) {
-        @Subscribe
-        fun onPreLogin(event: PreLoginEvent) {
-            if (!ready.get()) {
-                event.result = PreLoginEvent.PreLoginComponentResult.denied(
-                    net.kyori.adventure.text.Component.text("Authentication service is unavailable."),
-                )
-            }
-        }
-    }
 }

@@ -138,3 +138,6 @@ Instrukcja wdrożenia: [09-proxy-risk-admission.md](09-proxy-risk-admission.md).
 - [x] Adapter MessageHandler bez tworzenia `config.yml`, test rzeczywistej inicjalizacji biblioteki i zgodności języka.
 - [x] Diagnostyka błędów JDBC bez ujawniania sekretów, test kategorii przyczyn.
 - [ ] Ponowny test startu na zgłoszonej instalacji Velocity po sprawdzeniu wspólnej bazy.
+
+- [x] Diagnostyka AGX-STARTUP przy odmowie: testy zachowania blokady, limitu logów i cudzej odmowy.
+- [ ] Ustalenie przyczyny braku READY na zgłoszonym proxy na podstawie logu startowego/AGX-STARTUP.
