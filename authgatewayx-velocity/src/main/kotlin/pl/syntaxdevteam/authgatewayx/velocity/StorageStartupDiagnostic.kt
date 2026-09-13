@@ -21,7 +21,7 @@ internal object StorageStartupDiagnostic {
         }
         val hint = when {
             driverUnavailable ->
-                "JDBC driver is unavailable for the configured scheme: verify the distributable JAR and use a scheme matching the database (for example jdbc:mysql: or jdbc:mariadb:)."
+                "JDBC driver is unavailable for the configured database type: verify the distributable JAR and ensure the configured database type matches the server."
             state == "42P01" || state == "42S02" || sql?.errorCode == 1146 ->
                 "History schema is missing: start updated Paper against the same database to run migration v5 first."
             state?.startsWith("28") == true || sql?.errorCode == 1045 ->
