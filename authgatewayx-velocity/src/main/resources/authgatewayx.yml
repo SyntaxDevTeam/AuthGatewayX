@@ -18,6 +18,10 @@ executors:
 # Disabled: no multi-account checks or reports. Do not use an unrelated empty database.
 storage:
   enabled: false
+  # Match the JDBC scheme to the real database server.
+  # MySQL: jdbc:mysql://host:3306/database
+  # MariaDB: jdbc:mariadb://host:3306/database
+  # PostgreSQL: jdbc:postgresql://host:5432/database
   jdbc-url: "jdbc:mysql://127.0.0.1:3306/authgatewayx"
   username: "authgatewayx_reader"
   password: "" # AUTHGATEWAYX_DB_PASSWORD overrides this.

@@ -49,6 +49,11 @@ jobs:
           test -n "${jar}"
           unzip -p "${jar}" velocity-plugin.json | grep -q '"id": "authgatewayx"'
           unzip -p "${jar}" velocity-plugin.json | grep -q 'pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity'
+          unzip -l "${jar}" | grep -q 'com/zaxxer/hikari/HikariDataSource.class'
+          unzip -l "${jar}" | grep -q 'org/sqlite/JDBC.class'
+          unzip -l "${jar}" | grep -q 'com/mysql/cj/jdbc/Driver.class'
+          unzip -l "${jar}" | grep -q 'org/mariadb/jdbc/Driver.class'
+          unzip -l "${jar}" | grep -q 'org/postgresql/Driver.class'
 
   publish:
     name: Publish ${{ matrix.name }}

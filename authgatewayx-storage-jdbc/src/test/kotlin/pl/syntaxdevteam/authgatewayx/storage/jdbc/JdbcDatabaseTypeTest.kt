@@ -13,4 +13,12 @@ class JdbcDatabaseTypeTest {
         assertEquals(JdbcDatabaseType.POSTGRESQL, JdbcDatabaseType.fromJdbcUrl("jdbc:postgresql://localhost/db"))
         assertFailsWith<IllegalArgumentException> { JdbcDatabaseType.fromJdbcUrl("jdbc:h2:mem:test") }
     }
+
+    @Test
+    fun `database types expose explicit jdbc driver classes`() {
+        assertEquals("org.sqlite.JDBC", JdbcDatabaseType.SQLITE.driverClassName)
+        assertEquals("com.mysql.cj.jdbc.Driver", JdbcDatabaseType.MYSQL.driverClassName)
+        assertEquals("org.mariadb.jdbc.Driver", JdbcDatabaseType.MARIADB.driverClassName)
+        assertEquals("org.postgresql.Driver", JdbcDatabaseType.POSTGRESQL.driverClassName)
+    }
 }

@@ -30,6 +30,14 @@ import java.util.concurrent.CompletionStage
 enum class JdbcDatabaseType {
     SQLITE, MYSQL, MARIADB, POSTGRESQL;
 
+    val driverClassName: String
+        get() = when (this) {
+            SQLITE -> "org.sqlite.JDBC"
+            MYSQL -> "com.mysql.cj.jdbc.Driver"
+            MARIADB -> "org.mariadb.jdbc.Driver"
+            POSTGRESQL -> "org.postgresql.Driver"
+        }
+
     companion object {
         fun fromJdbcUrl(url: String): JdbcDatabaseType = when {
             url.startsWith("jdbc:sqlite:") -> SQLITE
@@ -51,6 +59,7 @@ class JdbcAccountStorage(
 ) : AccountStorage, SecurityAuditSink, ConnectionAccountLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
+        this.driverClassName = databaseType.driverClassName
         poolName = "AuthGatewayX-Storage"
         this.maximumPoolSize = maximumPoolSize
         minimumIdle = minOf(1, maximumPoolSize)

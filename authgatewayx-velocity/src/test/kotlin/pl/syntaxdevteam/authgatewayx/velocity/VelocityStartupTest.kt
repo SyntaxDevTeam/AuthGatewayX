@@ -40,6 +40,7 @@ class VelocityStartupTest {
             SQLException("password=secret jdbc:mysql://private", "42S02", 1146) to "migration v5",
             SQLException("password=secret", "28000", 1045) to "authentication failed",
             SQLException("password=secret", "42501") to "SELECT",
+            SQLException("No suitable driver found for jdbc:mariadb://private?password=secret", "08001") to "JDBC driver is unavailable",
             SQLException("password=secret", "08001") to "Cannot reach",
         )
         failures.forEach { (failure, expected) ->

@@ -63,6 +63,12 @@ W folderze danych AuthGatewayX na proxy znajduje się `authgatewayx.yml`. To oso
 | `executors.mojang-threads` | `4` | Liczba jednoczesnych zadań sprawdzania nicków |
 | `executors.mojang-queue` | `128` | Maksymalna liczba zadań czekających |
 
+Przy `storage.enabled: true` schemat URL JDBC musi odpowiadać rzeczywistemu silnikowi:
+`jdbc:mysql://...` dla MySQL, `jdbc:mariadb://...` dla MariaDB,
+`jdbc:postgresql://...` dla PostgreSQL oraz `jdbc:sqlite:...` dla SQLite.
+AuthGatewayX jawnie wybiera klasę sterownika na podstawie tego schematu zamiast
+polegać wyłącznie na automatycznym ServiceLoaderze classloadera Velocity.
+
 Po zmianach wykonaj restart odpowiedniego serwera lub proxy.
 
 ## Próba działania
@@ -101,7 +107,9 @@ Po przeniesieniu `language` do `authgatewayx.yml` można usunąć stary `config.
 `shared history is unavailable; proxy admission remains closed` oznacza błąd
 otwarcia wspólnej bazy lub sprawdzenia wymaganych tabel/kolumn i uprawnień SELECT.
 Log zawiera teraz klasę przyczyny, SQLState, kod sterownika i wskazówkę bez ujawniania
-hasła czy URL połączenia. Najpierw sprawdź, czy Paper uruchomił migrację v5
+hasła czy URL połączenia. Diagnostyka `JDBC driver is unavailable` oznacza brak klasy
+sterownika w dystrybucji albo niezgodny schemat JDBC; nie jest klasyfikowana jako awaria
+sieci tylko dlatego, że sterownik zwrócił SQLState `08001`. Najpierw sprawdź, czy Paper uruchomił migrację v5
 w tej samej bazie. Oddzielna pusta baza proxy nie wystarczy. Przy zdalnym proxy
 `127.0.0.1` wskazuje maszynę proxy, nie serwer Paper. Po poprawieniu ustawień wykonaj restart.
 Sprawdzenie startowe obejmuje zarówno historię, jak i tabelę kont; proxy nie wykonuje migracji.

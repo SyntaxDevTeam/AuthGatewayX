@@ -49,6 +49,12 @@ staff-proof:
   secret: ""
 ```
 
+Schemat URL wybiera sterownik: użyj `jdbc:mysql://...` dla MySQL,
+`jdbc:mariadb://...` dla MariaDB, `jdbc:postgresql://...` dla PostgreSQL albo
+`jdbc:sqlite:...` dla lokalnego SQLite. Nie używaj `jdbc:mysql:` tylko dlatego,
+że MariaDB jest zgodna z protokołem MySQL — AuthGatewayX wiąże schemat z konkretnym
+sterownikiem JDBC.
+
 `DISABLED` pomija dany mechanizm, `ALERT` informuje, `DENY` odrzuca. Multi-konta
 sprawdzane są tylko dla nazw wybranych jako OFFLINE; VPN dla obu trybów. Multi-account
 DENY dotyczy dowolnego innego konta offline znanego z bieżącego IP w ostatnich 30 dniach,
@@ -81,7 +87,10 @@ Backend musi nadal zapisywać historię udanych logowań. Zawartość bazy przek
 na zakres wykrywania; proxy nie zbiera historii nieudanych prób.
 
 `AUTHGATEWAYX_DB_PASSWORD` ma pierwszeństwo nad YAML. HikariCP ma dwa połączenia,
-executor dwa wątki i kolejkę 64, zapytania timeout 5 s. Wyniki ograniczone są do 20 kont.
+executor dwa wątki i kolejkę 64, zapytania timeout 5 s. `JdbcDatabaseType` ustawia
+jawny `driverClassName` dla SQLite/MySQL/MariaDB/PostgreSQL, aby uruchomienie na
+izolowanym classloaderze Velocity nie zależało od automatycznej rejestracji
+`java.sql.Driver`. Wyniki ograniczone są do 20 kont.
 Nie dodano skanowania całej historii security_events ani rekurencyjnego grafu kont.
 
 ## Dostawca VPN/GeoIP
@@ -153,7 +162,9 @@ Po przeniesieniu `language` do `authgatewayx.yml` można usunąć stary `config.
 `shared history is unavailable; proxy admission remains closed` oznacza błąd
 otwarcia wspólnej bazy lub sprawdzenia wymaganych tabel/kolumn i uprawnień SELECT.
 Log zawiera teraz klasę przyczyny, SQLState, kod sterownika i wskazówkę bez ujawniania
-hasła czy URL połączenia. Najpierw sprawdź, czy Paper uruchomił migrację v5
+hasła czy URL połączenia. Brak sterownika (`No suitable driver`, brak klasy drivera)
+ma osobną kategorię diagnostyczną i nie jest mylony z awarią sieci przy SQLState
+`08001`. Najpierw sprawdź, czy Paper uruchomił migrację v5
 w tej samej bazie. Oddzielna pusta baza proxy nie wystarczy. Przy zdalnym proxy
 `127.0.0.1` wskazuje maszynę proxy, nie serwer Paper. Po poprawieniu ustawień wykonaj restart.
 Sprawdzenie startowe obejmuje zarówno historię, jak i tabelę kont; proxy nie wykonuje migracji.

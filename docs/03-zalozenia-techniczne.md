@@ -107,6 +107,12 @@ Warstwa JDBC:
 HikariCP
 ```
 
+`JdbcDatabaseType` mapuje schemat URL na konkretną klasę drivera
+(`org.sqlite.JDBC`, `com.mysql.cj.jdbc.Driver`, `org.mariadb.jdbc.Driver`,
+`org.postgresql.Driver`) i przekazuje ją jawnie do HikariCP. Jest to wymagane dla
+przewidywalnego działania również pod izolowanym classloaderem Velocity; runtime nie
+może zależeć wyłącznie od automatycznego ServiceLoadera JDBC.
+
 Operacje storage nie mogą blokować głównego wątku serwera.
 
 ## 5. Hasła
