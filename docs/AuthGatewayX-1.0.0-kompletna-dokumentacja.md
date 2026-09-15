@@ -1211,10 +1211,14 @@ przedmioty, combat/damage, chat, portale, pojazdy i wszystkie komendy.
 Jawne blokady obejmują również wiadra, książki i lecterny, armor standy, strzyżenie,
 wędkowanie, wystrzelenie pocisku i niszczenie hanging entities. Sugestie komend są
 czyszczone dla gracza w `PRE_AUTH`.
-`PreAuthIsolationManager` przez EntityScheduler ustawia invulnerability, wyłącza
-kolizję i pickup, ukrywa gracza oraz egzekwuje timeout.
+`PreAuthIsolationManager` przez EntityScheduler wyłącza kolizję i pickup, ukrywa
+gracza oraz egzekwuje timeout. Ochrona przed obrażeniami jest event-scoped w
+`PreAuthIsolationListener`; manager nie włącza serializowanej flagi
+`Player#setInvulnerable(true)` i zeruje pozostałość tej flagi po starszych buildach.
+Dzięki temu awaria lub wymuszone zatrzymanie w PRE_AUTH nie zapisuje trwałej
+nietykalności gracza używanej później w stanie ACTIVE.
 
-Po atomowej aktywacji sesji hook koordynatora przywraca zapisane flagi i widoczność.
+Po atomowej aktywacji sesji hook koordynatora przywraca zapisane flagi kolizji/pickupu i widoczność.
 Disconnect usuwa snapshot oraz sesję. Pełna blokada komend zastępuje wcześniejszą
 przykładową allowlistę, ponieważ Dialog API nie wymaga przesyłania hasła w komendzie.
 
