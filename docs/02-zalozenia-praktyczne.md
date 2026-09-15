@@ -404,9 +404,13 @@ Dialog API usuwa potrzebę allowlisty `/login` i `/register`. Blokowanie wszystk
 komend eliminuje obejścia przez aliasy i namespace; `/quit` nie wymaga komendy, ponieważ
 klient może rozłączyć się normalnie.
 
-Gracz jest invulnerable, bez kolizji i pickupów oraz wzajemnie ukryty względem graczy
+Gracz jest chroniony przed obrażeniami przez anulowanie eventów, bez kolizji i pickupów oraz wzajemnie ukryty względem graczy
 aktywnych. Zmiany player state i timeout korzystają z EntityScheduler. Oryginalne flagi
-są przywracane dopiero po atomowym `PRE_AUTH -> ACTIVE`. Disconnect usuwa sesję i
+są przywracane dopiero po atomowym `PRE_AUTH -> ACTIVE`. Manager nie ustawia trwałej
+flagi `Player#setInvulnerable(true)`: ta flaga zapisuje się w danych gracza i po awarii
+mogłaby pozostawić konto nietykalne także w stanie ACTIVE. Przy wejściu zerowana jest
+pozostałość tej flagi po starszych buildach, natomiast ochronę PRE_AUTH zapewnia
+listener obrażeń. Disconnect usuwa sesję i
 snapshot kwarantanny.
 
 Po uwierzytelnieniu konto offline może użyć `/changepassword`. Komenda otwiera natywny

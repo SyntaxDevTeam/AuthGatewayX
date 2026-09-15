@@ -1000,8 +1000,12 @@ uruchomionym proxy.
 
 `PreAuthEntryListener` tworzy i przełącza sesję do PRE_AUTH przy wejściu.
 `PreAuthIsolationListener` egzekwuje blokady eventów niezależnie od klienta, a
-`PreAuthIsolationManager` odpowiada za invulnerability, collision, pickup, visibility
-i timeout. Operacje gracza oraz hide/show są kierowane przez EntityScheduler.
+`PreAuthIsolationManager` odpowiada za collision, pickup, visibility i timeout, a
+invulnerability jest egzekwowana wyłącznie przez anulowanie eventów obrażeń w
+`PreAuthIsolationListener`. Manager nie włącza serializowanej flagi encji
+`Player#setInvulnerable(true)` i zeruje jej pozostałość po starszych buildach, aby
+awaria podczas PRE_AUTH nie pozostawiała gracza trwale nietykalnego po zalogowaniu.
+Operacje gracza oraz hide/show są kierowane przez EntityScheduler.
 Listener posiada jawne guardy dla dodatkowych powierzchni wpływu na świat: wiader,
 książek i lecternów, armor standów, strzyżenia, wędkowania, pocisków i hanging
 entities. Sugestie komend są czyszczone przez `PlayerCommandSendEvent`.

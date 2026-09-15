@@ -23,8 +23,12 @@ class PreAuthIsolationManager(
     fun enter(player: Player) {
         scheduler.entity(player, Runnable {
             if (!player.isOnline || !access.isPreAuth(player.uniqueId)) return@Runnable
-            snapshots.putIfAbsent(player.uniqueId, PlayerSnapshot(player.isInvulnerable, player.isCollidable, player.canPickupItems))
-            player.isInvulnerable = true
+            snapshots.putIfAbsent(player.uniqueId, PlayerSnapshot(player.isCollidable, player.canPickupItems))
+            // Entity invulnerability is serialized in player data. Older builds enabled it here,
+            // so a crash or forced shutdown could make the player permanently invulnerable after
+            // authentication. Damage is already denied by PreAuthIsolationListener; normalize the
+            // legacy flag instead of using persistent entity state for a connection-scoped guard.
+            if (player.isInvulnerable) player.isInvulnerable = false
             player.isCollidable = false
             player.canPickupItems = false
             plugin.server.onlinePlayers.forEach { other ->
@@ -48,7 +52,6 @@ class PreAuthIsolationManager(
     fun release(player: Player) {
         scheduler.entity(player, Runnable {
             val snapshot = snapshots.remove(player.uniqueId) ?: return@Runnable
-            player.isInvulnerable = snapshot.invulnerable
             player.isCollidable = snapshot.collidable
             player.canPickupItems = snapshot.canPickupItems
             plugin.server.onlinePlayers.forEach { other ->
@@ -65,7 +68,6 @@ class PreAuthIsolationManager(
     }
 
     private data class PlayerSnapshot(
-        val invulnerable: Boolean,
         val collidable: Boolean,
         val canPickupItems: Boolean,
     )

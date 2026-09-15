@@ -49,6 +49,19 @@ class PreAuthIsolationListenerSurfaceTest {
         assertFalse(handler.ignoreCancelled)
     }
 
+    @Test
+    fun `invulnerability is event scoped and never retained in the player snapshot`() {
+        val snapshot = PreAuthIsolationManager::class.java.declaredClasses.single {
+            it.simpleName == "PlayerSnapshot"
+        }
+
+        assertFalse(
+            snapshot.declaredFields.any { it.name == "invulnerable" },
+            "Persistent Bukkit invulnerability must not be used for connection-scoped PRE_AUTH isolation",
+        )
+        assertTrue(EntityDamageEvent::class.java in cancellableEvents)
+    }
+
     private val cancellableEvents = listOf(
         PlayerMoveEvent::class.java,
         PlayerTeleportEvent::class.java,
