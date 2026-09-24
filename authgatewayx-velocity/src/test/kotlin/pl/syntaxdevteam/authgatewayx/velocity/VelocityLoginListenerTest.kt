@@ -31,7 +31,7 @@ class VelocityLoginListenerTest {
                          network: IpIntelligenceLookup? = null) = VelocityLoginListener(ready,
         ConnectionFloodGate(FloodLimit(100,100,Duration.ofSeconds(1)),FloodLimit(100,100,Duration.ofSeconds(1)),100),
         lookup,pending,VelocityLoginMessages(Component.text("unavailable"),Component.text("rate"),Component.text("name"),Component.text("mojang"),Component.text("state"),Component.text("vpn"),Component.text("multi")),
-        VelocityRiskChecks(null,network,RiskAction.ALERT,RiskAction.DENY,true),1,{_,_,_->})
+        VelocityRiskChecks(null,network,RiskAction.ALERT,RiskAction.DENY,true),1,{_,_,_,_->})
 
     @Test fun `VPN denial completes prelogin exactly once and never grants pending backend admission`() {
         val pending = PendingConnectionRegistry(Duration.ofSeconds(30),100)
