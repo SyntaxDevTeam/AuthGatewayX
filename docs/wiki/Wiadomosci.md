@@ -15,6 +15,7 @@ Nadaj oknom logowania styl swojego serwera. Teksty Paper znajdziesz w `plugins/A
 | `auth.submit_label`, `auth.cancel_label` | Teksty przycisków |
 | Pozostałe wpisy `auth` | Sukcesy, blokady i problemy z logowaniem |
 | Wpisy `password` | Okna i wyniki zmiany hasła |
+| Wpisy `risk_alert` | Alerty administracyjne: UUID, IP (z permisją), multi-konta, reputacja i GeoIP |
 
 ## Przykład własnych tekstów
 
@@ -43,3 +44,7 @@ Zrób kopię, edytuj teksty przy wyłączonym serwerze i uruchom go ponownie. Sp
 Komunikat o błędzie powinien nadal mówić prawdę. Przy nieudanym logowaniu premium pozostaw informację o potrzebie zalogowania się na właściwe konto w launcherze.
 
 Velocity ma osobny plik `lang/messages_pl.yml` w swoim folderze danych. Zmiana tekstów Paper nie zmienia automatycznie komunikatów proxy.
+
+## Dane w alertach administracyjnych
+
+Alerty ryzyka korzystają z osobnych placeholderów dla UUID, typu konta, metody uwierzytelnienia, powiązanych kont, reputacji IP, GeoIP i operatora sieci. Źródłowy adres IP jest renderowany osobno dla każdego odbiorcy: gracz administracji zobaczy go tylko z `authgatewayx.admin.view-ip`; konsola otrzymuje pełny wariant. GeoIP opisuje przybliżone przypisanie adresu wyjściowego, dlatego plugin celowo nie prezentuje współrzędnych jako lokalizacji gracza.

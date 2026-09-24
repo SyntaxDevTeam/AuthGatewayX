@@ -29,15 +29,28 @@ class ProxycheckIpLookupTest {
             Duration.ofSeconds(60), Duration.ofSeconds(10), clock)
 
     @Test
-    fun `parser keeps exact flags and limits untrusted geography to codes`() {
+    fun `parser keeps exact flags and useful bounded v3 network metadata`() {
         val parsed = ProxycheckIpLookup.parse("""{"status":"warning","8.8.8.8":{
-            "detections":{"vpn":true,"proxy":false,"tor":null,"hosting":true},
-            "location":{"country_code":"PL"},"network":{"asn":"AS123"}}}""", "8.8.8.8")!!
+            "detections":{"vpn":true,"proxy":false,"tor":null,"hosting":true,"confidence":91,"risk_score":67},
+            "location":{"continent":"Europe","country":"Poland","country_code":"PL","region":"Mazowieckie","city":"Warsaw","timezone":"Europe/Warsaw"},
+            "network":{"asn":"AS123","provider":"Example ISP","organisation":"Example Network","type":"Residential"},
+            "operator":{"name":"Example VPN"}}}""", "8.8.8.8")!!
         assertTrue(parsed.vpn == true)
         assertFalse(parsed.proxy!!)
         assertNull(parsed.tor)
         assertEquals("PL", parsed.countryCode)
         assertEquals("AS123", parsed.asn)
+        assertEquals("Europe", parsed.continent)
+        assertEquals("Poland", parsed.country)
+        assertEquals("Mazowieckie", parsed.region)
+        assertEquals("Warsaw", parsed.city)
+        assertEquals("Europe/Warsaw", parsed.timezone)
+        assertEquals("Example ISP", parsed.provider)
+        assertEquals("Example Network", parsed.organisation)
+        assertEquals("Residential", parsed.networkType)
+        assertEquals("Example VPN", parsed.operatorName)
+        assertEquals(91, parsed.confidence)
+        assertEquals(67, parsed.riskScore)
         assertNull(ProxycheckIpLookup.parse("""{"status":"denied"}""", "8.8.8.8"))
         assertNull(ProxycheckIpLookup.parse("invalid", "8.8.8.8"))
         val unknown = ProxycheckIpLookup.parse("""{"status":"ok","8.8.8.8":{

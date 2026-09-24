@@ -26,7 +26,17 @@ class PaperRiskAlertDeliveryTest {
         } as Player
         val tasks = mutableListOf<Runnable>()
         val delivery = PaperRiskAlertDelivery({ listOf(player) }, { _, task -> tasks.add(task) }, { active }, { current }, null,
-            RiskAlertText(Component.text("{username}"), Component.text("{accounts}"), Component.text("{signals}"), Component.text("{country}")), true)
+            RiskAlertText(
+                Component.text("{username}"),
+                Component.text("{uuid} {identity} {method}"),
+                Component.text("{ip}"),
+                Component.text("{count} {accounts}"),
+                Component.text("{signals} {confidence} {risk}"),
+                Component.text("{city} {region} {country} {country_code} {continent} {timezone}"),
+                Component.text("{asn} {owner} {network_type}"),
+                Component.text("{operator}"),
+                Component.text("{username}"),
+            ), true)
         delivery.deliver(alert)
         assertEquals(0, sends)
         permission = false; tasks.removeFirst().run(); assertEquals(0, sends)

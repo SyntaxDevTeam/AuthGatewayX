@@ -49,7 +49,12 @@ alts:
   not_found: '<red>Nie znaleziono konta offline o podanej nazwie.</red>'
 
 risk_alert:
-  header: '<gold>[AuthGatewayX] {username} zalogował się — sygnały do weryfikacji:</gold>'
-  accounts: '<yellow>Podejrzenie multi-konta. Wspólna historia IP z: {accounts}.</yellow><newline><gray>Wspólne IP nie dowodzi jednej osoby. Szczegóły: /authgatewayx alts &lt;nick&gt;</gray>'
-  network: '<yellow>Dostawca reputacji IP wskazuje: {signals}. To nie jest dowód multi-konta.</yellow>'
-  geo: '<gray>Adres wyjściowy: kraj {country}, ASN {asn}. „?” oznacza brak danych; GeoIP nie ustala miejsca pobytu gracza.</gray>'
+  header: '<gold>[AuthGatewayX] Podejrzane logowanie: <yellow>{username}</yellow></gold>'
+  identity: '<gray>UUID:</gray> <white>{uuid}</white> <dark_gray>•</dark_gray> <gray>typ:</gray> <white>{identity}</white> <dark_gray>•</dark_gray> <gray>auth:</gray> <white>{method}</white>'
+  ip: '<gray>IP:</gray> <white>{ip}</white>'
+  accounts: '<gray>Powiązane konta ({count}):</gray> <yellow>{accounts}</yellow>'
+  network: '<gray>Reputacja IP:</gray> <yellow>{signals}</yellow><gray> • pewność {confidence} • ryzyko {risk}</gray>'
+  geo: '<gray>GeoIP:</gray> <white>{city}, {region}, {country} ({country_code})</white><gray> • {continent} • {timezone}</gray>'
+  network_owner: '<gray>Sieć:</gray> <white>{asn}</white><gray> • {owner} • typ {network_type}</gray>'
+  operator: '<gray>Operator anonimizujący:</gray> <yellow>{operator}</yellow>'
+  hint: '<dark_gray>Sygnały są pomocnicze, nie stanowią dowodu jednej osoby. Szczegóły: /authgatewayx alts {username}</dark_gray>'

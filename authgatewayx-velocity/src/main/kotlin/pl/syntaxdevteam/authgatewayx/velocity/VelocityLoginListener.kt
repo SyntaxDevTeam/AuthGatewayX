@@ -12,6 +12,7 @@ import pl.syntaxdevteam.authgatewayx.integrations.mojang.PremiumUsernameLookup
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.PremiumUsernameStatus
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionDecision
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.util.concurrent.Semaphore
 import java.util.concurrent.CompletableFuture
@@ -36,7 +37,7 @@ class VelocityLoginListener(
     private val messages: VelocityLoginMessages,
     private val riskChecks: VelocityRiskChecks,
     maximumConcurrent: Int,
-    private val notify: (String, ProxyRiskResult, Boolean) -> Unit,
+    private val notify: (String, InetAddress, ProxyRiskResult, Boolean) -> Unit,
 
 ) {
     private val capacity = Semaphore(maximumConcurrent)
@@ -74,7 +75,7 @@ class VelocityLoginListener(
                         RiskDenial.UNAVAILABLE -> messages.unavailable
                     }
                     event.result = PreLoginEvent.PreLoginComponentResult.denied(message)
-                    runCatching { notify(username.value, decision.risk, true) }
+                    runCatching { notify(username.value, address, decision.risk, true) }
                 } else if (!pending.put(key, decision)) {
                     event.result = PreLoginEvent.PreLoginComponentResult.denied(messages.rateLimited)
                 } else {
@@ -95,7 +96,7 @@ class VelocityLoginListener(
             null -> false
         }
         if (!ready.get() || !valid) event.result = ResultedEvent.ComponentResult.denied(messages.stateMismatch)
-        else if (event.result.isAllowed) runCatching { notify(player.username, selected!!.risk, false) }
+        else if (event.result.isAllowed) runCatching { notify(player.username, player.remoteAddress.address, selected!!.risk, false) }
     }
 
     @Subscribe

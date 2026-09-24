@@ -37,6 +37,8 @@ ip-intelligence:
   api-key: "" # AUTHGATEWAYX_PROXYCHECK_API_KEY overrides this.
   # Applies to both premium and offline connections. DISABLED, ALERT, DENY.
   action: DENY
+  # Adds approximate country/region/city/timezone plus ASN/provider/operator metadata to staff alerts.
+  # Source IP itself is controlled separately by authgatewayx.admin.view-ip.
   show-geo: true
   timeout-millis: 2000
   cache-ttl-seconds: 3600

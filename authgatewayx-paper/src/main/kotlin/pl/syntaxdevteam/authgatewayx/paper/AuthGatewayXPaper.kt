@@ -248,9 +248,14 @@ class AuthGatewayXPaper : JavaPlugin() {
             console = if (config.getBoolean("multi-account.alerts.console", true)) ({ message -> server.consoleSender.sendMessage(message) }) else null,
             text = RiskAlertText(
                 messages.stringMessageToComponentNoPrefix("risk_alert", "header"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "identity"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "ip"),
                 messages.stringMessageToComponentNoPrefix("risk_alert", "accounts"),
                 messages.stringMessageToComponentNoPrefix("risk_alert", "network"),
                 messages.stringMessageToComponentNoPrefix("risk_alert", "geo"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "network_owner"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "operator"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "hint"),
             ),
             showGeo = networkEnabled && config.getBoolean("ip-intelligence.show-geo", true),
         )

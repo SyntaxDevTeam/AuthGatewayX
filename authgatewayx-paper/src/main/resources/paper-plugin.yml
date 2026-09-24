@@ -29,3 +29,6 @@ permissions:
   authgatewayx.admin.alerts:
     description: Receives advisory multi-account and VPN alerts after authentication.
     default: op
+  authgatewayx.admin.view-ip:
+    description: Reveals source IP addresses inside AuthGatewayX administrative alerts.
+    default: op

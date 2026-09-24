@@ -9,10 +9,13 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextReplacementConfig
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.storage.MultiAccountLookup
+import java.net.InetAddress
 import java.time.Instant
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.atomic.AtomicBoolean
+
+private const val VIEW_IP_PERMISSION = "authgatewayx.admin.view-ip"
 
 class VelocityRiskAdmin(
     private val proxy: ProxyServer,
@@ -29,12 +32,14 @@ class VelocityRiskAdmin(
     private val cooldowns = LinkedHashMap<String, Instant>()
     private var nextAlert = Instant.MIN
 
-    // Other subcommands, including setpassword, remain routed to the backend.
-    override fun hasPermission(invocation: SimpleCommand.Invocation): Boolean = invocation.arguments().firstOrNull()?.equals("alts", true) == true
+    override fun hasPermission(invocation: SimpleCommand.Invocation): Boolean =
+        invocation.arguments().firstOrNull()?.equals("alts", true) == true
+
     override fun execute(invocation: SimpleCommand.Invocation) {
         val source = invocation.source()
         if (!ready() || !source.hasPermission("authgatewayx.admin.alts")) return
-        val name = invocation.arguments().takeIf { it.size == 2 }?.get(1)?.let { runCatching { AccountUsername.parse(it) }.getOrNull() }
+        val name = invocation.arguments().takeIf { it.size == 2 }?.get(1)
+            ?.let { runCatching { AccountUsername.parse(it) }.getOrNull() }
         if (name == null) { source.sendMessage(text("usage")); return }
         if (accounts == null || !busy.compareAndSet(false, true)) { source.sendMessage(text("unavailable")); return }
         authorize(source).whenComplete firstProof@ { authorized, authFailure ->
@@ -44,18 +49,26 @@ class VelocityRiskAdmin(
                 return@firstProof
             }
             val query = try { accounts.findRelatedOfflineAccounts(name, Instant.now()) }
-                catch (_: Exception) { CompletableFuture.failedFuture<pl.syntaxdevteam.authgatewayx.storage.MultiAccountReport?>(IllegalStateException("Report unavailable")) }
+            catch (_: Exception) {
+                CompletableFuture.failedFuture<pl.syntaxdevteam.authgatewayx.storage.MultiAccountReport?>(
+                    IllegalStateException("Report unavailable"),
+                )
+            }
             query.whenComplete { report, failure ->
                 authorize(source).whenComplete finalProof@ { confirmed, proofFailure ->
                     try {
-                        if (!ready() || confirmed != true || proofFailure != null || !source.hasPermission("authgatewayx.admin.alts")) return@finalProof
+                        if (!ready() || confirmed != true || proofFailure != null ||
+                            !source.hasPermission("authgatewayx.admin.alts")) return@finalProof
                         when {
                             failure != null -> source.sendMessage(text("unavailable"))
                             report == null -> source.sendMessage(text("not_found"))
                             else -> {
                                 source.sendMessage(text("header").fill("username", name.value))
                                 if (report.accounts.isEmpty()) source.sendMessage(text("empty"))
-                                report.accounts.forEach { source.sendMessage(text("entry").fill("username", it.username.value).fill("count", it.sharedAddressCount.toString())) }
+                                report.accounts.forEach {
+                                    source.sendMessage(text("entry").fill("username", it.username.value)
+                                        .fill("count", it.sharedAddressCount.toString()))
+                                }
                                 if (report.truncated) source.sendMessage(text("truncated"))
                             }
                         }
@@ -72,7 +85,7 @@ class VelocityRiskAdmin(
     }
 
     @Synchronized
-    fun notify(username: String, risk: ProxyRiskResult, denied: Boolean) {
+    fun notify(username: String, address: InetAddress, risk: ProxyRiskResult, denied: Boolean) {
         if (!ready() || !alertsEnabled || (!risk.suspicious && !risk.unavailable)) return
         val now = Instant.now()
         if (now < nextAlert || cooldowns[username]?.isAfter(now) == true) return
@@ -80,26 +93,64 @@ class VelocityRiskAdmin(
         if (cooldowns.size >= 10_000) return
         cooldowns[username] = now.plusSeconds(cooldownSeconds)
         nextAlert = now.plusSeconds(1)
-        var message = text(if (denied) "denied_alert" else "connection_alert").fill("username", username)
-        risk.report?.takeIf { it.accounts.isNotEmpty() }?.let { report ->
-            message = message.append(Component.newline()).append(text("account_alert").fill("accounts",
-                report.accounts.take(5).joinToString(", ") { it.username.value } + if (report.truncated || report.accounts.size > 5) " …" else ""))
-        }
-        risk.network?.let { ip ->
-            val signals = buildList { if (ip.vpn == true) add("VPN"); if (ip.proxy == true) add("PROXY"); if (ip.tor == true) add("TOR") }
-            message = message.append(Component.newline()).append(text(if(showGeo) "network_alert" else "network_alert_no_geo").fill("signals", signals.joinToString(", ").ifEmpty { "?" })
-                .fill("country", ip.countryCode ?: "?").fill("asn", ip.asn ?: "?"))
-        }
-        if (risk.unavailable) message = message.append(Component.newline()).append(text("lookup_unavailable"))
-        val rendered = message
-        if (consoleAlerts) proxy.consoleCommandSource.sendMessage(rendered)
+
+        if (consoleAlerts) proxy.consoleCommandSource.sendMessage(render(username, address, risk, denied, revealIp = true))
         proxy.allPlayers.filter { it.isActive && it.hasPermission("authgatewayx.admin.alerts") }.forEach { recipient ->
             proof.authorize(recipient).thenAccept { authorized ->
-                if (authorized && ready() && recipient.isActive && recipient.hasPermission("authgatewayx.admin.alerts")) recipient.sendMessage(rendered)
+                if (authorized && ready() && recipient.isActive && recipient.hasPermission("authgatewayx.admin.alerts")) {
+                    recipient.sendMessage(render(username, address, risk, denied, recipient.hasPermission(VIEW_IP_PERMISSION)))
+                }
             }
         }
     }
+
+    private fun render(username: String, address: InetAddress, risk: ProxyRiskResult, denied: Boolean, revealIp: Boolean): Component {
+        var message = text(if (denied) "denied_alert" else "connection_alert").fill("username", username)
+        if (revealIp) message = message.line(text("ip_alert").fill("ip", address.hostAddress))
+
+        risk.report?.takeIf { it.accounts.isNotEmpty() }?.let { report ->
+            val accounts = report.accounts.take(5).joinToString(", ") {
+                "${it.username.value} (${it.sharedAddressCount} IP)"
+            } + if (report.truncated || report.accounts.size > 5) " …" else ""
+            message = message.line(text("account_alert").fill("count", report.accounts.size.toString()).fill("accounts", accounts))
+        }
+
+        risk.network?.let { network ->
+            val signals = buildList {
+                if (network.vpn == true) add("VPN")
+                if (network.proxy == true) add("PROXY")
+                if (network.tor == true) add("TOR")
+            }
+            if (signals.isNotEmpty()) {
+                message = message.line(text("network_alert")
+                    .fill("signals", signals.joinToString(", "))
+                    .fill("confidence", network.confidence?.let { "${it}%" } ?: "brak danych")
+                    .fill("risk", network.riskScore?.let { "${it}%" } ?: "brak danych"))
+            }
+            if (showGeo && listOf(network.continent, network.country, network.countryCode, network.region, network.city, network.timezone)
+                    .any { it != null }) {
+                message = message.line(text("geo_alert")
+                    .fill("city", network.city.display()).fill("region", network.region.display())
+                    .fill("country", network.country.display()).fill("country_code", network.countryCode.display())
+                    .fill("continent", network.continent.display()).fill("timezone", network.timezone.display()))
+            }
+            if (showGeo && listOf(network.asn, network.provider, network.organisation, network.networkType).any { it != null }) {
+                val owner = listOfNotNull(network.provider, network.organisation).distinct().joinToString(" / ").ifEmpty { "brak danych" }
+                message = message.line(text("network_owner_alert")
+                    .fill("asn", network.asn.display()).fill("owner", owner).fill("network_type", network.networkType.display()))
+            }
+            if (showGeo) network.operatorName?.let { message = message.line(text("operator_alert").fill("operator", it)) }
+        }
+
+        if (risk.unavailable) message = message.line(text("lookup_unavailable"))
+        if (risk.suspicious) message = message.line(text("advisory").fill("username", username))
+        return message
+    }
+
     @Synchronized fun clear() { cooldowns.clear() }
-    private fun Component.fill(key: String, value: String) = replaceText(TextReplacementConfig.builder()
-        .matchLiteral("{$key}").replacement(Component.text(value)).build())
+    private fun Component.line(line: Component): Component = append(Component.newline()).append(line)
+    private fun String?.display(): String = this ?: "brak danych"
+    private fun Component.fill(key: String, value: String) = replaceText(
+        TextReplacementConfig.builder().matchLiteral("{$key}").replacement(Component.text(value)).build(),
+    )
 }

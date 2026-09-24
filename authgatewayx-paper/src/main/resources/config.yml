@@ -249,7 +249,8 @@ ip-intelligence:
   api-key: ""
   # Independent of multi-account.alerts.enabled; requires ip-intelligence.enabled.
   notify-on-vpn: true
-  # Add country code and ASN to suspicious alerts; no city, coordinates or country blocks.
+  # Add approximate GeoIP (country/region/city/timezone) plus ASN/provider/operator metadata.
+  # Coordinates are intentionally not displayed because IP geolocation is approximate, not a player location.
   show-geo: true
   timeout-millis: 2000
   cache-ttl-seconds: 3600

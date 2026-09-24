@@ -132,9 +132,34 @@ class ProxycheckIpLookup internal constructor(
             fun flag(key: String): Boolean? = detections[key]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isBoolean }?.asBoolean
             fun JsonObject.code(key: String, pattern: Regex): String? = this[key]
                 ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString?.takeIf(pattern::matches)
-            val country = entry["location"]?.takeIf { it.isJsonObject }?.asJsonObject?.code("country_code", Regex("[A-Z]{2}"))
-            val asn = entry["network"]?.takeIf { it.isJsonObject }?.asJsonObject?.code("asn", Regex("AS[0-9]{1,10}"))
-            IpIntelligence(flag("vpn"), flag("proxy"), flag("tor"), country, asn)
+            fun JsonObject.text(maximumLength: Int, vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
+                this[key]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+                    ?.trim()?.takeIf { value -> value.isNotEmpty() && value.length <= maximumLength && value.none(Char::isISOControl) }
+            }
+            fun JsonObject.percent(vararg keys: String): Int? = keys.firstNotNullOfOrNull { key ->
+                this[key]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isNumber }?.asInt?.takeIf { it in 0..100 }
+            }
+            val location = entry["location"]?.takeIf { it.isJsonObject }?.asJsonObject
+            val network = entry["network"]?.takeIf { it.isJsonObject }?.asJsonObject
+            val operator = entry["operator"]?.takeIf { it.isJsonObject }?.asJsonObject
+            IpIntelligence(
+                vpn = flag("vpn"),
+                proxy = flag("proxy"),
+                tor = flag("tor"),
+                countryCode = location?.code("country_code", Regex("[A-Z]{2}")),
+                asn = network?.code("asn", Regex("AS[0-9]{1,10}")),
+                continent = location?.text(64, "continent"),
+                country = location?.text(64, "country", "country_name"),
+                region = location?.text(96, "region", "region_name"),
+                city = location?.text(96, "city"),
+                timezone = location?.text(64, "timezone"),
+                provider = network?.text(160, "provider"),
+                organisation = network?.text(160, "organisation", "organization"),
+                networkType = network?.text(32, "type"),
+                operatorName = operator?.text(160, "name"),
+                confidence = detections.percent("confidence", "confidence_score"),
+                riskScore = detections.percent("risk", "risk_score"),
+            )
         }.getOrNull()
 
         internal fun isPublicAddress(address: InetAddress): Boolean {
