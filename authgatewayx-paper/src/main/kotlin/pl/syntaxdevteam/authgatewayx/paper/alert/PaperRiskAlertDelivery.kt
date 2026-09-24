@@ -6,6 +6,7 @@ import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.auth.alert.OfflineRiskAlert
 
 private const val VIEW_IP_PERMISSION = "authgatewayx.admin.view-ip"
+private const val VIEW_GEO_PERMISSION = "authgatewayx.admin.view-geo"
 
 /** API reads and sends happen on each recipient's entity scheduler. */
 class PaperRiskAlertDelivery(
@@ -19,19 +20,23 @@ class PaperRiskAlertDelivery(
 ) {
     fun deliver(alert: OfflineRiskAlert) {
         if (!current(alert)) return
-        console?.invoke(render(alert, revealIp = true))
+        console?.invoke(render(alert, revealIp = true, revealGeo = true))
         recipients().forEach { recipient ->
             entity(recipient, Runnable {
                 if (current(alert) && recipient.isOnline && active(recipient) &&
                     recipient.hasPermission("authgatewayx.admin.alerts")
                 ) {
-                    recipient.sendMessage(render(alert, recipient.hasPermission(VIEW_IP_PERMISSION)))
+                    recipient.sendMessage(render(
+                        alert,
+                        revealIp = recipient.hasPermission(VIEW_IP_PERMISSION),
+                        revealGeo = recipient.hasPermission(VIEW_GEO_PERMISSION),
+                    ))
                 }
             })
         }
     }
 
-    private fun render(alert: OfflineRiskAlert, revealIp: Boolean): Component {
+    private fun render(alert: OfflineRiskAlert, revealIp: Boolean, revealGeo: Boolean): Component {
         val session = alert.session
         var message = text.header.withText("{username}", session.username.value)
         message = message.line(text.identity
@@ -63,7 +68,7 @@ class PaperRiskAlertDelivery(
                     .withText("{risk}", network.riskScore?.let { "${it}%" } ?: "brak danych"))
             }
 
-            if (showGeo && listOf(network.continent, network.country, network.countryCode, network.region, network.city, network.timezone)
+            if (showGeo && revealGeo && listOf(network.continent, network.country, network.countryCode, network.region, network.city, network.timezone)
                     .any { it != null }) {
                 message = message.line(text.geo
                     .withText("{city}", network.city.display())
@@ -74,7 +79,7 @@ class PaperRiskAlertDelivery(
                     .withText("{timezone}", network.timezone.display()))
             }
 
-            if (showGeo && listOf(network.asn, network.provider, network.organisation, network.networkType).any { it != null }) {
+            if (showGeo && revealGeo && listOf(network.asn, network.provider, network.organisation, network.networkType).any { it != null }) {
                 val owner = listOfNotNull(network.provider, network.organisation).distinct().joinToString(" / ").ifEmpty { "brak danych" }
                 message = message.line(text.networkOwner
                     .withText("{asn}", network.asn.display())
@@ -82,7 +87,7 @@ class PaperRiskAlertDelivery(
                     .withText("{network_type}", network.networkType.display()))
             }
 
-            if (showGeo) network.operatorName?.let {
+            if (showGeo && revealGeo) network.operatorName?.let {
                 message = message.line(text.operator.withText("{operator}", it))
             }
         }

@@ -32,3 +32,6 @@ permissions:
   authgatewayx.admin.view-ip:
     description: Reveals source IP addresses inside AuthGatewayX administrative alerts.
     default: op
+  authgatewayx.admin.view-geo:
+    description: Reveals GeoIP, ASN, provider and network operator metadata inside administrative alerts.
+    default: op

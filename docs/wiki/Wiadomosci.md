@@ -15,7 +15,7 @@ Nadaj oknom logowania styl swojego serwera. Teksty Paper znajdziesz w `plugins/A
 | `auth.submit_label`, `auth.cancel_label` | Teksty przycisków |
 | Pozostałe wpisy `auth` | Sukcesy, blokady i problemy z logowaniem |
 | Wpisy `password` | Okna i wyniki zmiany hasła |
-| Wpisy `risk_alert` | Alerty administracyjne: UUID, IP (z permisją), multi-konta, reputacja i GeoIP |
+| Wpisy `risk_alert` | Alerty administracyjne: UUID, IP/GeoIP (z osobnymi permisjami), multi-konta i reputacja |
 
 ## Przykład własnych tekstów
 
@@ -47,4 +47,4 @@ Velocity ma osobny plik `lang/messages_pl.yml` w swoim folderze danych. Zmiana t
 
 ## Dane w alertach administracyjnych
 
-Alerty ryzyka korzystają z osobnych placeholderów dla UUID, typu konta, metody uwierzytelnienia, powiązanych kont, reputacji IP, GeoIP i operatora sieci. Źródłowy adres IP jest renderowany osobno dla każdego odbiorcy: gracz administracji zobaczy go tylko z `authgatewayx.admin.view-ip`; konsola otrzymuje pełny wariant. GeoIP opisuje przybliżone przypisanie adresu wyjściowego, dlatego plugin celowo nie prezentuje współrzędnych jako lokalizacji gracza.
+Alerty ryzyka korzystają z osobnych placeholderów dla UUID, typu konta, metody uwierzytelnienia, powiązanych kont, reputacji IP, GeoIP i operatora sieci. Dane wrażliwe są renderowane osobno dla każdego odbiorcy: `authgatewayx.admin.view-ip` ujawnia wyłącznie źródłowy adres IP, a `authgatewayx.admin.view-geo` ujawnia GeoIP, ASN, provider/organizację sieci oraz operatora VPN/proxy. Permisje są niezależne; samo `authgatewayx.admin.alerts` pokazuje alert i sygnały bezpieczeństwa bez tych danych. Konsola otrzymuje pełny wariant. GeoIP opisuje przybliżone przypisanie adresu wyjściowego, dlatego plugin celowo nie prezentuje współrzędnych jako lokalizacji gracza.

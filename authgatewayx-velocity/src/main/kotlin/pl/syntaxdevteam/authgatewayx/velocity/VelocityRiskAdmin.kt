@@ -16,6 +16,7 @@ import java.util.concurrent.CompletionStage
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val VIEW_IP_PERMISSION = "authgatewayx.admin.view-ip"
+private const val VIEW_GEO_PERMISSION = "authgatewayx.admin.view-geo"
 
 class VelocityRiskAdmin(
     private val proxy: ProxyServer,
@@ -94,17 +95,33 @@ class VelocityRiskAdmin(
         cooldowns[username] = now.plusSeconds(cooldownSeconds)
         nextAlert = now.plusSeconds(1)
 
-        if (consoleAlerts) proxy.consoleCommandSource.sendMessage(render(username, address, risk, denied, revealIp = true))
+        if (consoleAlerts) proxy.consoleCommandSource.sendMessage(
+            render(username, address, risk, denied, revealIp = true, revealGeo = true),
+        )
         proxy.allPlayers.filter { it.isActive && it.hasPermission("authgatewayx.admin.alerts") }.forEach { recipient ->
             proof.authorize(recipient).thenAccept { authorized ->
                 if (authorized && ready() && recipient.isActive && recipient.hasPermission("authgatewayx.admin.alerts")) {
-                    recipient.sendMessage(render(username, address, risk, denied, recipient.hasPermission(VIEW_IP_PERMISSION)))
+                    recipient.sendMessage(render(
+                        username,
+                        address,
+                        risk,
+                        denied,
+                        revealIp = recipient.hasPermission(VIEW_IP_PERMISSION),
+                        revealGeo = recipient.hasPermission(VIEW_GEO_PERMISSION),
+                    ))
                 }
             }
         }
     }
 
-    private fun render(username: String, address: InetAddress, risk: ProxyRiskResult, denied: Boolean, revealIp: Boolean): Component {
+    private fun render(
+        username: String,
+        address: InetAddress,
+        risk: ProxyRiskResult,
+        denied: Boolean,
+        revealIp: Boolean,
+        revealGeo: Boolean,
+    ): Component {
         var message = text(if (denied) "denied_alert" else "connection_alert").fill("username", username)
         if (revealIp) message = message.line(text("ip_alert").fill("ip", address.hostAddress))
 
@@ -127,19 +144,19 @@ class VelocityRiskAdmin(
                     .fill("confidence", network.confidence?.let { "${it}%" } ?: "brak danych")
                     .fill("risk", network.riskScore?.let { "${it}%" } ?: "brak danych"))
             }
-            if (showGeo && listOf(network.continent, network.country, network.countryCode, network.region, network.city, network.timezone)
+            if (showGeo && revealGeo && listOf(network.continent, network.country, network.countryCode, network.region, network.city, network.timezone)
                     .any { it != null }) {
                 message = message.line(text("geo_alert")
                     .fill("city", network.city.display()).fill("region", network.region.display())
                     .fill("country", network.country.display()).fill("country_code", network.countryCode.display())
                     .fill("continent", network.continent.display()).fill("timezone", network.timezone.display()))
             }
-            if (showGeo && listOf(network.asn, network.provider, network.organisation, network.networkType).any { it != null }) {
+            if (showGeo && revealGeo && listOf(network.asn, network.provider, network.organisation, network.networkType).any { it != null }) {
                 val owner = listOfNotNull(network.provider, network.organisation).distinct().joinToString(" / ").ifEmpty { "brak danych" }
                 message = message.line(text("network_owner_alert")
                     .fill("asn", network.asn.display()).fill("owner", owner).fill("network_type", network.networkType.display()))
             }
-            if (showGeo) network.operatorName?.let { message = message.line(text("operator_alert").fill("operator", it)) }
+            if (showGeo && revealGeo) network.operatorName?.let { message = message.line(text("operator_alert").fill("operator", it)) }
         }
 
         if (risk.unavailable) message = message.line(text("lookup_unavailable"))
