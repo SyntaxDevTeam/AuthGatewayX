@@ -38,6 +38,9 @@ import pl.syntaxdevteam.authgatewayx.paper.command.LogoutCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableMultiAccountCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableAccountInfoCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -77,11 +80,14 @@ class AuthGatewayXPaper : JavaPlugin() {
     private val passwordCommandGateway = MutablePasswordCommandGateway()
     private val logoutCommandGateway = MutableLogoutCommandGateway()
     private val multiAccountCommandGateway = MutableMultiAccountCommandGateway()
+    private val accountInfoCommandGateway = MutableAccountInfoCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
         saveDefaultConfig()
-        PasswordCommandRegistrar(this, passwordCommandGateway, logoutCommandGateway, multiAccountCommandGateway).register()
+        PasswordCommandRegistrar(
+            this, passwordCommandGateway, logoutCommandGateway, multiAccountCommandGateway, accountInfoCommandGateway,
+        ).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
         )
@@ -404,10 +410,45 @@ class AuthGatewayXPaper : JavaPlugin() {
             })
         }
         passwordCommandGateway.delegate = passwordDialogs
+        accountInfoCommandGateway.delegate = AccountInfoCommandController(
+            inspection = storage,
+            alts = storage,
+            network = networkLookup,
+            mojang = premiumLookup,
+            sessions = sessions,
+            dispatch = { sender, task ->
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            },
+            text = AccountInfoCommandText(
+                messages.stringMessageToComponentNoPrefix("info", "title"),
+                messages.stringMessageToComponentNoPrefix("info", "close"),
+                messages.stringMessageToComponentNoPrefix("info", "not_found"),
+                messages.stringMessageToComponentNoPrefix("info", "unavailable"),
+                messages.stringMessageToComponentNoPrefix("info", "external_identity"),
+                messages.stringMessageToComponentNoPrefix("info", "identity"),
+                messages.stringMessageToComponentNoPrefix("info", "lifecycle"),
+                messages.stringMessageToComponentNoPrefix("info", "session"),
+                messages.stringMessageToComponentNoPrefix("info", "ip"),
+                messages.stringMessageToComponentNoPrefix("info", "ip_history_header"),
+                messages.stringMessageToComponentNoPrefix("info", "ip_history_entry"),
+                messages.stringMessageToComponentNoPrefix("info", "geo"),
+                messages.stringMessageToComponentNoPrefix("info", "network"),
+                messages.stringMessageToComponentNoPrefix("info", "security_header"),
+                messages.stringMessageToComponentNoPrefix("info", "security_summary"),
+                messages.stringMessageToComponentNoPrefix("info", "security_entry"),
+                messages.stringMessageToComponentNoPrefix("info", "alts_header"),
+                messages.stringMessageToComponentNoPrefix("info", "alts_entry"),
+                messages.stringMessageToComponentNoPrefix("info", "no_data"),
+            ),
+            isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
+            isReady = { readiness.acceptsAuthentication() },
+        )
         multiAccountCommandGateway.delegate = MultiAccountCommandController(
             storage, { sender, task ->
                 if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
             }, MultiAccountCommandText(
+                messages.stringMessageToComponentNoPrefix("alts", "title"),
+                messages.stringMessageToComponentNoPrefix("alts", "close"),
                 messages.stringMessageToComponentNoPrefix("alts", "header"),
                 messages.stringMessageToComponentNoPrefix("alts", "entry"),
                 messages.stringMessageToComponentNoPrefix("alts", "empty"),
@@ -447,6 +488,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         passwordCommandGateway.delegate = null
         logoutCommandGateway.delegate = null
         multiAccountCommandGateway.delegate = null
+        accountInfoCommandGateway.delegate = null
         runtime?.close()
         runtime = null
     }
