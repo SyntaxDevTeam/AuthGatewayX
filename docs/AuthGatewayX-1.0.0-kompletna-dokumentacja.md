@@ -2982,22 +2982,38 @@ konfigurowalne, odmowy audytowane i pokazywane neutralnie. Name/IP/network looku
 pozostaje otwarty, ponieważ obecny publiczny kontrakt PunisherX nie udostępnia takich
 operacji.
 
-## Raport podejrzanych multi-kont offline
+## Administracyjny raport konta i powiązania adresowe
 
-Dodano `/authgatewayx alts <nick>` dla zalogowanego administratora lub konsoli,
-z osobnym uprawnieniem `authgatewayx.admin.alts`. `MultiAccountLookup` i
-`JdbcOfflineAddressHistory` porównują wspólne adresy po poprawnej rejestracji/logowaniu.
-Migracja v5 dodaje ograniczoną historię (16 adresów na konto); raport filtruje obie
-strony do 30 dni i zwraca najwyżej 20 kont z flagą obcięcia. Błędy nie są traktowane
-jako pusty raport. `MultiAccountCommandController` używa MessageHandler i schedulerów
-Paper/Folia. Baza nie gromadzi śladów z nieudanych prób i usuwa historię przy migracji
-do Mojang. Historia jest zapisywana w tej samej transakcji co rejestracja/sukces auth;
-aktualizacja konta serializuje równoległe zapisy. Nie dodano zależności ani HTTP/DNS.
+`/authgatewayx info <nick>` jest głównym narzędziem diagnostycznym administratora.
+Konsola otrzymuje pełny raport tekstowy. Uwierzytelniony administrator w grze otrzymuje
+natywny Minecraft Dialog, którego sekcje są budowane wyłącznie z danych, do których ma
+uprawnienia. Podstawowy raport wymaga `authgatewayx.admin.info` i pokazuje nick, ID
+konta AGX, Minecraft UUID, typ tożsamości PREMIUM/NON-PREMIUM, stan konta, daty życia
+rekordu, status aktywnej sesji i metodę uwierzytelnienia. Dodatkowo wykonywana jest
+bieżąca klasyfikacja nicku przez istniejący lookup Mojang; dzięki temu również nick bez
+rekordu w bazie AGX może zostać sklasyfikowany jako premium, non-premium lub chwilowo
+niedostępny.
 
-To poszlaki wspólnego IP, nie identyfikacja osoby lub urządzenia ani detekcja VPN.
-Nowy nick i nowe IP bez wspólnej historii mogą pozostać niewykryte. Nie wykonuje się
-automatycznych kar ani zmian ochrony premium i PRE_AUTH. Pełne reguły, ograniczenia
-retencji i testy pozostałe do wykonania: dokument bezpieczeństwa, sekcja 26.
+Dane wrażliwe są rozdzielone: `authgatewayx.admin.view-ip` odsłania aktualne/ostatnie
+IP i ograniczoną historię adresów; `authgatewayx.admin.view-geo` odsłania GeoIP,
+ASN, operatora, typ sieci oraz sygnały VPN/proxy/Tor i reputację; 
+`authgatewayx.admin.view-security` odsłania licznik błędnych logowań, blokadę konta
+i ostatnie wpisy audytu. Adres IP wpisu audytu pojawia się tylko wtedy, gdy odbiorca ma
+również `authgatewayx.admin.view-ip`. Hashe haseł ani inne sekrety nigdy nie trafiają
+do raportu. Konsola serwera jest traktowana jako zaufany odbiorca i widzi wszystkie
+sekcje.
+
+`/authgatewayx alts <nick>` pozostaje osobną komendą z
+`authgatewayx.admin.alts`, ale nie jest już ograniczona do kont offline. Migracja v6
+zachowuje historyczną nazwę tabeli `offline_account_addresses` dla kompatybilności,
+jednocześnie rozszerzając ją na konta OFFLINE i MOJANG. Przy migracji istniejące konta
+bez wpisu historii otrzymują pojedynczą obserwację z ostatniego zapisanego IP; przy
+weryfikacji lub migracji do premium historia nie jest już usuwana. Raport nadal
+obejmuje 30 dni, maksymalnie 16 adresów na konto i 20 powiązanych kont.
+
+Wspólny adres IP pozostaje wyłącznie poszlaką. NAT, CGNAT, sieci szkolne/hotelowe i VPN
+mogą łączyć niepowiązanych użytkowników. Raport nie wykonuje automatycznych kar ani nie
+traktuje wspólnego IP jako dowodu jednej osoby.
 
 ## Automatyczne alerty offline i opcjonalna reputacja IP
 
