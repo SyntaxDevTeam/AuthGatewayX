@@ -78,7 +78,11 @@ class AccountInfoCommandController(
             return
         }
 
-        val baseStage = safe { inspection.inspect(parsed) }
+        val baseStage = try {
+            inspection.inspect(parsed)
+        } catch (failure: Throwable) {
+            CompletableFuture.failedFuture<AccountInspection?>(failure)
+        }
         val mojangStage = safeMojang { mojang.lookupProfile(parsed) }
         baseStage.thenCombine(mojangStage) { snapshot, mojangResult -> snapshot to mojangResult }
             .thenCompose { (snapshot, mojangResult) ->
