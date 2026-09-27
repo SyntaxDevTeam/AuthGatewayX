@@ -191,7 +191,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                 runCatching {
                     installAuthentication(
                         initialized.first, initialized.second, hasher, messages, scheduler, sessions,
-                        passwordExecutor, mojangExecutor, usernameBurstGate, behaviorGate, cheapGuard,
+                        passwordExecutor, mojangExecutor, migrationExecutor, usernameBurstGate, behaviorGate, cheapGuard,
                     )
                 }
                     .onSuccess { readiness.force(RuntimeState.READY); logger.info("AuthGatewayX authentication runtime is READY") }
@@ -209,6 +209,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         sessions: InMemorySessionRegistry,
         passwordExecutor: BoundedTaskExecutor,
         mojangExecutor: BoundedTaskExecutor,
+        migrationExecutor: BoundedTaskExecutor,
         usernameBurstGate: UsernameBurstGate,
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,

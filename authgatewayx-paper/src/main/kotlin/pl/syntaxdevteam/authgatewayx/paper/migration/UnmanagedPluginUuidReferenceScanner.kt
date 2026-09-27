@@ -19,7 +19,7 @@ import java.util.concurrent.CompletionStage
 class UnmanagedPluginUuidReferenceScanner(
     private val pluginsRoot: Path,
     private val authGatewayDataDirectory: Path,
-    private val managedDataOwners: () -> Set<String>,
+    private val managedDataOwnersSupplier: () -> Set<String>,
     private val executor: BoundedTaskExecutor,
     private val maximumFiles: Int,
     private val maximumFileBytes: Long,
@@ -35,7 +35,7 @@ class UnmanagedPluginUuidReferenceScanner(
 
     override fun inspect(context: IdentityMigrationContext): CompletionStage<IdentityMigrationInspection> =
         executor.submit {
-            val excluded = managedDataOwners()
+            val excluded = managedDataOwnersSupplier()
                 .map { it.lowercase(Locale.ROOT) }
                 .toMutableSet()
                 .apply { add(authGatewayDataDirectory.fileName.toString().lowercase(Locale.ROOT)) }
