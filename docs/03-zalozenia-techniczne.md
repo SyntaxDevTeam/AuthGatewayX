@@ -758,3 +758,34 @@ Komenda alts i alerty proxy wymagają permisji oraz uwierzytelnienia administrat
 Dla offline służy osobny, jednorazowy podpisany dowód ACTIVE z backendu, obsługiwany
 na EntityScheduler Paper/Folia. Nie zastępuje premium handoff ani sesji auth.
 Szczegóły i aktualne ograniczenia: [kontrole na proxy](09-proxy-risk-admission.md).
+
+## Aktualizacja 2026-09-27 — jawna migracja OFFLINE -> MOJANG
+
+Migracja istniejącego konta offline do premium jest operacją dwufazową. Poprawne Mojang
+authentication nie może samo nadpisać `minecraft_uuid` w rekordzie `accounts`.
+
+```text
+verified Mojang identity
+        ->
+existing OFFLINE account
+        ->
+MigrationRequired
+        ->
+old password verification
+        ->
+identity_migrations: PREPARED
+        ->
+controlled UUID data migration
+        ->
+compare-and-set account finalization
+        ->
+MOJANG
+```
+
+Migracja v7 dodaje `identity_migrations` oraz `account_identities`. Wewnętrzne
+`account_id` pozostaje stałe przez cały proces. Poprzednie UUID ma być zachowane jako
+historia tożsamości, a nie tracone przez zwykły UPDATE rekordu głównego.
+
+Nie wolno implementować uniwersalnego search/replace UUID w danych pluginów. Integracje
+muszą przenosić dane przez jawne, kontrolowane migratory z możliwością wykrycia konfliktu
+i błędu przed finalizacją AuthGatewayX.

@@ -20,6 +20,7 @@ import java.util.UUID
 class AuthenticationDialogRouter(
     private val storage: AccountStorage,
     private val dialogs: AuthenticationDialogController,
+    private val migrationDialogs: PremiumMigrationDialogController,
     private val access: PreAuthAccess,
     private val scheduler: PaperPlatformScheduler,
     private val premiumLookup: MojangProfileIdentityLookup,
@@ -103,6 +104,14 @@ class AuthenticationDialogRouter(
                 }
                 when (authenticationResult) {
                     is VerifiedMojangAuthenticationResult.Success -> onMojangActivated(player)
+                    is VerifiedMojangAuthenticationResult.MigrationRequired -> {
+                        if (!access.isPreAuth(player.uniqueId)) return@Runnable
+                        migrationDialogs.show(
+                            player,
+                            authenticationResult.account,
+                            authenticationResult.targetMinecraftUuid,
+                        )
+                    }
                     VerifiedMojangAuthenticationResult.IdentityConflict -> player.kick(identityConflictMessage)
                 }
             })

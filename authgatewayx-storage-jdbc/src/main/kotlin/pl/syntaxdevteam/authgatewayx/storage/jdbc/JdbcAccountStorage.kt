@@ -21,6 +21,10 @@ import pl.syntaxdevteam.authgatewayx.storage.AccountSecurityObservation
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationPreparationResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationStatus
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationTicket
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
@@ -161,6 +165,44 @@ class JdbcAccountStorage(
                     JdbcOfflineAddressHistory.backfillAllAccounts(connection)
                     recordMigration(connection, 6)
                 }
+                if (!hasMigration(connection, 7)) {
+                    connection.createStatement().use { statement ->
+                        statement.executeUpdate("""CREATE TABLE IF NOT EXISTS account_identities (
+                            account_id VARCHAR(36) NOT NULL,
+                            minecraft_uuid VARCHAR(36) NOT NULL,
+                            username VARCHAR(16) NOT NULL,
+                            identity_type VARCHAR(16) NOT NULL,
+                            active INTEGER NOT NULL,
+                            first_seen_at VARCHAR(40) NOT NULL,
+                            last_seen_at VARCHAR(40),
+                            PRIMARY KEY (account_id, minecraft_uuid, identity_type)
+                        )""".trimIndent())
+                        statement.executeUpdate("""CREATE TABLE IF NOT EXISTS identity_migrations (
+                            id VARCHAR(36) PRIMARY KEY,
+                            account_id VARCHAR(36) NOT NULL,
+                            username VARCHAR(16) NOT NULL,
+                            source_uuid VARCHAR(36) NOT NULL,
+                            target_uuid VARCHAR(36) NOT NULL,
+                            source_ip VARCHAR(45) NOT NULL,
+                            status VARCHAR(16) NOT NULL,
+                            created_at VARCHAR(40) NOT NULL,
+                            updated_at VARCHAR(40) NOT NULL,
+                            failure_reason VARCHAR(512),
+                            UNIQUE (account_id, target_uuid)
+                        )""".trimIndent())
+                        statement.executeUpdate("""INSERT INTO account_identities
+                            (account_id, minecraft_uuid, username, identity_type, active, first_seen_at, last_seen_at)
+                            SELECT a.id, a.minecraft_uuid, a.username, a.identity_type, 1, a.created_at, NULL
+                            FROM accounts a
+                            WHERE NOT EXISTS (
+                                SELECT 1 FROM account_identities i
+                                WHERE i.account_id = a.id
+                                  AND i.minecraft_uuid = a.minecraft_uuid
+                                  AND i.identity_type = a.identity_type
+                            )""".trimIndent())
+                    }
+                    recordMigration(connection, 7)
+                }
                 connection.commit()
             } catch (failure: Throwable) {
                 connection.rollback()
@@ -197,6 +239,210 @@ class JdbcAccountStorage(
 
     override fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity): CompletionStage<MojangIdentityBindingResult> =
         executor.submit { bindVerifiedMojangIdentityBlocking(identity) }
+
+    override fun preparePremiumMigration(
+        accountId: AccountId,
+        username: AccountUsername,
+        sourceMinecraftUuid: UUID,
+        targetMinecraftUuid: UUID,
+        sourceAddress: InetAddress,
+        preparedAt: Instant,
+    ): CompletionStage<PremiumMigrationPreparationResult> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                val account = findAccountById(connection, accountId)
+                val targetOwner = findAccount(connection, "minecraft_uuid", targetMinecraftUuid.toString())
+                if (
+                    account == null ||
+                    account.username.canonical != username.canonical ||
+                    account.identityType != IdentityType.OFFLINE ||
+                    account.minecraftUuid != sourceMinecraftUuid ||
+                    targetMinecraftUuid == sourceMinecraftUuid ||
+                    (targetOwner != null && targetOwner.id != accountId)
+                ) {
+                    connection.rollback()
+                    return@submit PremiumMigrationPreparationResult.IdentityConflict
+                }
+
+                val existing = findMigrationTicket(connection, accountId, targetMinecraftUuid)
+                if (existing != null) {
+                    val ticket = if (existing.status == PremiumMigrationStatus.FAILED) {
+                        connection.prepareStatement("""UPDATE identity_migrations
+                            SET status = 'PREPARED', source_ip = ?, updated_at = ?, failure_reason = NULL
+                            WHERE id = ?""".trimIndent()).use { statement ->
+                            statement.setString(1, sourceAddress.hostAddress)
+                            statement.setString(2, preparedAt.toString())
+                            statement.setString(3, existing.id.toString())
+                            check(statement.executeUpdate() == 1)
+                        }
+                        existing.copy(
+                            sourceAddress = sourceAddress,
+                            status = PremiumMigrationStatus.PREPARED,
+                            updatedAt = preparedAt,
+                            failureReason = null,
+                        )
+                    } else {
+                        existing
+                    }
+                    recordIdentity(connection, account, active = true, seenAt = preparedAt)
+                    connection.commit()
+                    return@submit PremiumMigrationPreparationResult.Prepared(ticket)
+                }
+
+                val ticket = PremiumMigrationTicket(
+                    UUID.randomUUID(),
+                    accountId,
+                    username,
+                    sourceMinecraftUuid,
+                    targetMinecraftUuid,
+                    sourceAddress,
+                    PremiumMigrationStatus.PREPARED,
+                    preparedAt,
+                    preparedAt,
+                    null,
+                )
+                connection.prepareStatement("""INSERT INTO identity_migrations
+                    (id, account_id, username, source_uuid, target_uuid, source_ip, status, created_at, updated_at, failure_reason)
+                    VALUES (?, ?, ?, ?, ?, ?, 'PREPARED', ?, ?, NULL)""".trimIndent()).use { statement ->
+                    statement.setString(1, ticket.id.toString())
+                    statement.setString(2, accountId.value.toString())
+                    statement.setString(3, username.value)
+                    statement.setString(4, sourceMinecraftUuid.toString())
+                    statement.setString(5, targetMinecraftUuid.toString())
+                    statement.setString(6, sourceAddress.hostAddress)
+                    statement.setString(7, preparedAt.toString())
+                    statement.setString(8, preparedAt.toString())
+                    statement.executeUpdate()
+                }
+                recordIdentity(connection, account, active = true, seenAt = preparedAt)
+                connection.commit()
+                PremiumMigrationPreparationResult.Prepared(ticket)
+            } catch (failure: Throwable) {
+                connection.rollback()
+                throw failure
+            }
+        }
+    }
+
+    override fun markPremiumMigrationStarted(migrationId: UUID, startedAt: Instant): CompletionStage<Boolean> = executor.submit {
+        dataSource.connection.use { connection ->
+            val updated = connection.prepareStatement("""UPDATE identity_migrations
+                SET status = 'MIGRATING', updated_at = ?, failure_reason = NULL
+                WHERE id = ? AND status = 'PREPARED'""".trimIndent()).use { statement ->
+                statement.setString(1, startedAt.toString())
+                statement.setString(2, migrationId.toString())
+                statement.executeUpdate() == 1
+            }
+            if (updated) true else connection.prepareStatement(
+                "SELECT status FROM identity_migrations WHERE id = ?",
+            ).use { statement ->
+                statement.setString(1, migrationId.toString())
+                statement.executeQuery().use { rows ->
+                    rows.next() && rows.getString(1) == PremiumMigrationStatus.MIGRATING.name
+                }
+            }
+        }
+    }
+
+    override fun completePremiumMigration(
+        migrationId: UUID,
+        completedAt: Instant,
+    ): CompletionStage<PremiumMigrationCompletionResult> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                val ticket = findMigrationTicket(connection, migrationId)
+                    ?: run {
+                        connection.rollback()
+                        return@submit PremiumMigrationCompletionResult.NotFound
+                    }
+                if (ticket.status == PremiumMigrationStatus.COMPLETED) {
+                    val account = findAccountById(connection, ticket.accountId)
+                    connection.rollback()
+                    return@submit if (account != null && account.minecraftUuid == ticket.targetMinecraftUuid) {
+                        PremiumMigrationCompletionResult.Completed(account)
+                    } else {
+                        PremiumMigrationCompletionResult.IdentityConflict
+                    }
+                }
+                if (ticket.status != PremiumMigrationStatus.PREPARED && ticket.status != PremiumMigrationStatus.MIGRATING) {
+                    connection.rollback()
+                    return@submit PremiumMigrationCompletionResult.IdentityConflict
+                }
+
+                val account = findAccountById(connection, ticket.accountId)
+                val targetOwner = findAccount(connection, "minecraft_uuid", ticket.targetMinecraftUuid.toString())
+                if (
+                    account == null ||
+                    account.identityType != IdentityType.OFFLINE ||
+                    account.minecraftUuid != ticket.sourceMinecraftUuid ||
+                    account.username.canonical != ticket.username.canonical ||
+                    (targetOwner != null && targetOwner.id != account.id)
+                ) {
+                    connection.rollback()
+                    return@submit PremiumMigrationCompletionResult.IdentityConflict
+                }
+
+                connection.prepareStatement("""UPDATE accounts
+                    SET identity_type = 'MOJANG', minecraft_uuid = ?, password_hash = NULL, state = 'REGISTERED',
+                        failed_login_count = 0, locked_until = NULL, last_login_at = ?, last_login_ip = ?,
+                        premium_verified_at = ?, updated_at = ?
+                    WHERE id = ? AND identity_type = 'OFFLINE' AND minecraft_uuid = ?""".trimIndent()).use { statement ->
+                    statement.setString(1, ticket.targetMinecraftUuid.toString())
+                    statement.setString(2, completedAt.toString())
+                    statement.setString(3, ticket.sourceAddress.hostAddress)
+                    statement.setString(4, completedAt.toString())
+                    statement.setString(5, completedAt.toString())
+                    statement.setString(6, ticket.accountId.value.toString())
+                    statement.setString(7, ticket.sourceMinecraftUuid.toString())
+                    if (statement.executeUpdate() != 1) {
+                        connection.rollback()
+                        return@submit PremiumMigrationCompletionResult.IdentityConflict
+                    }
+                }
+                connection.prepareStatement("DELETE FROM registration_ip_slots WHERE account_id = ?").use { statement ->
+                    statement.setString(1, ticket.accountId.value.toString())
+                    statement.executeUpdate()
+                }
+
+                recordIdentity(connection, account, active = false, seenAt = completedAt)
+                val migrated = account.copy(
+                    identityType = IdentityType.MOJANG,
+                    minecraftUuid = ticket.targetMinecraftUuid,
+                    state = AccountState.REGISTERED,
+                    updatedAt = completedAt,
+                )
+                recordIdentity(connection, migrated, active = true, seenAt = completedAt)
+
+                connection.prepareStatement("""UPDATE identity_migrations
+                    SET status = 'COMPLETED', updated_at = ?, failure_reason = NULL WHERE id = ?""".trimIndent()).use { statement ->
+                    statement.setString(1, completedAt.toString())
+                    statement.setString(2, migrationId.toString())
+                    check(statement.executeUpdate() == 1)
+                }
+                JdbcOfflineAddressHistory.record(connection, ticket.accountId, ticket.sourceAddress, completedAt)
+                connection.commit()
+                PremiumMigrationCompletionResult.Completed(migrated)
+            } catch (failure: Throwable) {
+                connection.rollback()
+                throw failure
+            }
+        }
+    }
+
+    override fun failPremiumMigration(migrationId: UUID, failedAt: Instant, reason: String): CompletionStage<Unit> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("""UPDATE identity_migrations
+                SET status = 'FAILED', updated_at = ?, failure_reason = ?
+                WHERE id = ? AND status <> 'COMPLETED'""".trimIndent()).use { statement ->
+                statement.setString(1, failedAt.toString())
+                statement.setString(2, reason.take(500))
+                statement.setString(3, migrationId.toString())
+                statement.executeUpdate()
+            }
+        }
+    }
 
     override fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?> = executor.submit {
         dataSource.connection.use { connection ->
@@ -465,12 +711,14 @@ class JdbcAccountStorage(
         account: AuthAccount,
         identity: VerifiedMojangIdentity,
     ): MojangIdentityBindingResult {
-        if (account.identityType == IdentityType.MOJANG && account.minecraftUuid != identity.minecraftUuid) {
+        if (account.identityType == IdentityType.OFFLINE) {
+            return MojangIdentityBindingResult.MigrationRequired(account, identity.minecraftUuid)
+        }
+        if (account.minecraftUuid != identity.minecraftUuid) {
             return MojangIdentityBindingResult.IdentityConflict
         }
-        val migrated = account.identityType == IdentityType.OFFLINE
         val updated = updateMojangAccount(connection, account, identity)
-        return MojangIdentityBindingResult.Bound(updated, migrated)
+        return MojangIdentityBindingResult.Bound(updated, false)
     }
 
     private fun bindUuidAccount(
@@ -580,6 +828,79 @@ class JdbcAccountStorage(
         }
         return false
     }
+
+    private fun findAccountById(connection: Connection, accountId: AccountId): AuthAccount? {
+        connection.prepareStatement("SELECT * FROM accounts WHERE id = ?").use { statement ->
+            statement.setString(1, accountId.value.toString())
+            statement.executeQuery().use { results -> return if (results.next()) mapAccount(results) else null }
+        }
+    }
+
+    private fun findMigrationTicket(
+        connection: Connection,
+        accountId: AccountId,
+        targetMinecraftUuid: UUID,
+    ): PremiumMigrationTicket? {
+        connection.prepareStatement("""SELECT * FROM identity_migrations
+            WHERE account_id = ? AND target_uuid = ? ORDER BY created_at DESC""".trimIndent()).use { statement ->
+            statement.setString(1, accountId.value.toString())
+            statement.setString(2, targetMinecraftUuid.toString())
+            statement.executeQuery().use { rows -> return if (rows.next()) mapMigrationTicket(rows) else null }
+        }
+    }
+
+    private fun findMigrationTicket(connection: Connection, migrationId: UUID): PremiumMigrationTicket? {
+        connection.prepareStatement("SELECT * FROM identity_migrations WHERE id = ?").use { statement ->
+            statement.setString(1, migrationId.toString())
+            statement.executeQuery().use { rows -> return if (rows.next()) mapMigrationTicket(rows) else null }
+        }
+    }
+
+    private fun recordIdentity(
+        connection: Connection,
+        account: AuthAccount,
+        active: Boolean,
+        seenAt: Instant,
+    ) {
+        val updated = connection.prepareStatement("""UPDATE account_identities
+            SET username = ?, active = ?, last_seen_at = ?
+            WHERE account_id = ? AND minecraft_uuid = ? AND identity_type = ?""".trimIndent()).use { statement ->
+            statement.setString(1, account.username.value)
+            statement.setInt(2, if (active) 1 else 0)
+            statement.setString(3, if (active) null else seenAt.toString())
+            statement.setString(4, account.id.value.toString())
+            statement.setString(5, account.minecraftUuid.toString())
+            statement.setString(6, account.identityType.name)
+            statement.executeUpdate()
+        }
+        if (updated == 0) {
+            connection.prepareStatement("""INSERT INTO account_identities
+                (account_id, minecraft_uuid, username, identity_type, active, first_seen_at, last_seen_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)""".trimIndent()).use { statement ->
+                statement.setString(1, account.id.value.toString())
+                statement.setString(2, account.minecraftUuid.toString())
+                statement.setString(3, account.username.value)
+                statement.setString(4, account.identityType.name)
+                statement.setInt(5, if (active) 1 else 0)
+                statement.setString(6, account.createdAt.toString())
+                statement.setString(7, if (active) null else seenAt.toString())
+                statement.executeUpdate()
+            }
+        }
+    }
+
+    private fun mapMigrationTicket(results: java.sql.ResultSet) = PremiumMigrationTicket(
+        UUID.fromString(results.getString("id")),
+        AccountId(UUID.fromString(results.getString("account_id"))),
+        AccountUsername.parse(results.getString("username")),
+        UUID.fromString(results.getString("source_uuid")),
+        UUID.fromString(results.getString("target_uuid")),
+        InetAddress.getByName(results.getString("source_ip")),
+        PremiumMigrationStatus.valueOf(results.getString("status")),
+        Instant.parse(results.getString("created_at")),
+        Instant.parse(results.getString("updated_at")),
+        results.getString("failure_reason"),
+    )
 
     private fun findAccount(connection: Connection, column: String, value: String): AuthAccount? {
         val allowedColumn = requireNotNull(mapOf("canonical_username" to "canonical_username", "minecraft_uuid" to "minecraft_uuid")[column])

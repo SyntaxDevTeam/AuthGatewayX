@@ -20,10 +20,30 @@ Zamknij grę, zaloguj się ponownie w launcherze na konto będące właściciele
 
 Jeśli problem dotyczy wielu osób, administracja powinna sprawdzić połączenie serwera z usługami Minecrafta. Niedostępność tych usług może również zablokować sprawdzenie nowego nicku offline.
 
-## Kupno premium i zmiana nicku
+## Kupno premium przy zachowaniu dotychczasowego nicku
 
-Przejście konta offline na premium jest częścią rozwijanej obsługi kont. Przed zmianą skontaktuj się z administracją i zadbaj o kopię danych. Pełna obsługa konfliktów i migracji nadal wymaga weryfikacji.
+Jeżeli konto non-premium o danym nicku już istnieje, a właściciel później kupi Minecraft
+i posiada oficjalne konto premium o tej samej nazwie, AuthGatewayX nie przełącza już
+automatycznie UUID przy pierwszym wejściu.
 
-Nie zakładaj, że ekwipunek, działki, pieniądze lub rangi z innych pluginów przeniosą się automatycznie. Każdy z tych pluginów może inaczej rozpoznawać konto.
+Po poprawnym uwierzytelnieniu Mojang zobaczysz osobny dialog migracyjny. Należy podać
+**hasło używane wcześniej na tym serwerze do konta non-premium**. Nie jest to hasło do
+Microsofta/Mojang.
 
-Obecny config nie ma przełącznika do wyłączenia ochrony konkretnego nicku ani listy wyjątków premium.
+Poprawne hasło potwierdza, że osoba posiada jednocześnie:
+
+1. zweryfikowane konto premium z nowym UUID,
+2. poprzednie konto offline ze starym UUID.
+
+Po potwierdzeniu tworzony jest bezpieczny ticket migracji. Do czasu przeniesienia danych
+zależnych od UUID konto AuthGatewayX pozostaje OFFLINE i zachowuje stare UUID oraz hash
+hasła. Dzięki temu samo pierwsze wejście premium nie odcina gracza od poprzedniej
+tożsamości.
+
+Dane takie jak ekwipunek, statystyki, ekonomia, działki, rangi lub dane innych pluginów
+nie mogą być przenoszone przez ślepe wyszukiwanie i zamianę UUID. Każdy magazyn danych
+musi mieć kontrolowany migrator. AuthGatewayX finalizuje `OFFLINE -> MOJANG` dopiero
+po zakończeniu takich migracji.
+
+Jeżeli migracja nie została jeszcze zakończona, skontaktuj się z administracją. Nie próbuj
+usuwać plików `playerdata` ani ręcznie edytować baz danych bez kopii zapasowej.

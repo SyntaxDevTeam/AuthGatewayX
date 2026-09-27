@@ -3042,3 +3042,45 @@ Komenda alts i alerty proxy wymagają permisji oraz uwierzytelnienia administrat
 Dla offline służy osobny, jednorazowy podpisany dowód ACTIVE z backendu, obsługiwany
 na EntityScheduler Paper/Folia. Nie zastępuje premium handoff ani sesji auth.
 Szczegóły i aktualne ograniczenia: [kontrole na proxy](09-proxy-risk-admission.md).
+
+## Aktualizacja 2026-09-27 — bezpieczna migracja UUID OFFLINE -> MOJANG
+
+Pierwsze poprawnie zweryfikowane wejście premium na nick istniejącego konta `OFFLINE`
+nie może już automatycznie nadpisywać `minecraft_uuid`. Taki zapis był poprawny wyłącznie
+dla samego AuthGatewayX, ale mógł osierocić dane innych systemów związane ze starym UUID.
+
+Aktualny kontrakt:
+
+```text
+official Mojang UUID verified
+        ->
+existing OFFLINE account with same canonical username
+        ->
+MigrationRequired
+        ->
+Minecraft migration dialog
+        ->
+verify old AuthGatewayX password through LoginService
+        ->
+identity_migrations = PREPARED
+        ->
+controlled data migrators
+        ->
+mark MIGRATING
+        ->
+completePremiumMigration CAS
+        ->
+MOJANG + new UUID
+```
+
+Do czasu finalizacji `accounts` zachowuje poprzednie UUID, typ `OFFLINE` i `password_hash`.
+Migracja v7 dodaje `identity_migrations` oraz `account_identities`. Historia tożsamości
+ma umożliwiać jednoznaczne powiązanie starego i nowego UUID także po zakończeniu procesu.
+
+Weryfikacja starego hasła nie ma osobnego, uproszczonego mechanizmu: korzysta z istniejącego
+`LoginService`, więc zachowuje Argon2id, rate limiting, lockout, audit i zerowanie tablicy hasła.
+
+Nie implementuje się automatycznego search/replace UUID w dowolnych plikach lub bazach pluginów.
+Finalizacja pozostaje zablokowana logicznie do momentu wykonania kontrolowanych migratorów.
+Ten etap dostarcza gate, autoryzację, trwały ticket, historię i atomową operację finalizującą;
+migratory konkretnych magazynów danych są kolejnym etapem blokera 1.0.0.

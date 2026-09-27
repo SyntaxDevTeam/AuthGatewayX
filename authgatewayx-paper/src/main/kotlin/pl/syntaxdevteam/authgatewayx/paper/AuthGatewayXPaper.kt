@@ -15,6 +15,7 @@ import pl.syntaxdevteam.authgatewayx.paper.alert.RiskAlertText
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
 import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationService
 import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
 import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
@@ -32,6 +33,8 @@ import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PremiumMigrationDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PremiumMigrationDialogText
 import pl.syntaxdevteam.authgatewayx.paper.command.MutablePasswordCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableLogoutCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.LogoutCommandGateway
@@ -288,6 +291,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
             storage,
         )
+        val premiumMigration = PremiumMigrationService(login, storage, storage)
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)
@@ -316,6 +320,26 @@ class AuthGatewayXPaper : JavaPlugin() {
                 }
             },
         )
+        val premiumMigrationDialogs = PremiumMigrationDialogController(
+            premiumMigration,
+            scheduler,
+            PremiumMigrationDialogText(
+                messages.stringMessageToComponentNoPrefix("migration", "title"),
+                messages.stringMessageToComponentNoPrefix("migration", "prompt"),
+                messages.stringMessageToComponentNoPrefix("migration", "password_label"),
+                messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+                messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+                messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+                messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+                messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+                messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+                messages.stringMessageToComponentNoPrefix("migration", "cancelled"),
+                messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+            ),
+        ) { player, _ ->
+            if (player.isOnline) player.kick(messages.stringMessageToComponentNoPrefix("migration", "prepared"))
+        }
         val premiumLookup = MojangProfileLookup(
             mojangExecutor,
             Duration.ofMillis(positive("premium.lookup.timeout-millis").toLong()),
@@ -360,7 +384,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             FailureStrategy.valueOf(config.getString("integrations.punisherx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
         )
         val router = AuthenticationDialogRouter(
-            storage, dialogs, access, scheduler,
+            storage, dialogs, premiumMigrationDialogs, access, scheduler,
             premiumLookup = premiumLookup,
             mojangAuthentication = mojangAuthentication,
             loginAdmission = loginAdmission,
@@ -384,6 +408,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             },
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
+        server.pluginManager.registerEvents(premiumMigrationDialogs, this)
         val passwordDialogs = PasswordChangeDialogController(passwordChange, scheduler, sessions, PasswordChangeDialogText(
             messages.stringMessageToComponentNoPrefix("password", "own_title"),
             messages.stringMessageToComponentNoPrefix("password", "admin_title"),

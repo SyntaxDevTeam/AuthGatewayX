@@ -40,6 +40,10 @@ data class VerifiedMojangAuthenticationContext(
 
 sealed interface VerifiedMojangAuthenticationResult {
     data class Success(val account: AuthAccount, val migratedFromOffline: Boolean) : VerifiedMojangAuthenticationResult
+    data class MigrationRequired(
+        val account: AuthAccount,
+        val targetMinecraftUuid: UUID,
+    ) : VerifiedMojangAuthenticationResult
     data object IdentityConflict : VerifiedMojangAuthenticationResult
 }
 
@@ -76,6 +80,18 @@ class VerifiedMojangAuthenticationService(
                         if (binding.migratedFromOffline) "OFFLINE_ACCOUNT_MIGRATED" else "FORWARDED_UUID_MATCH",
                     )
                     VerifiedMojangAuthenticationResult.Success(binding.account, binding.migratedFromOffline)
+                }
+                is MojangIdentityBindingResult.MigrationRequired -> {
+                    audit(
+                        context,
+                        binding.account,
+                        SecurityEventType.PREMIUM_MIGRATION_REQUIRED,
+                        "OFFLINE_ACCOUNT_REQUIRES_EXPLICIT_MIGRATION",
+                    )
+                    VerifiedMojangAuthenticationResult.MigrationRequired(
+                        binding.account,
+                        binding.targetMinecraftUuid,
+                    )
                 }
                 MojangIdentityBindingResult.IdentityConflict -> {
                     audit(context, null, SecurityEventType.PREMIUM_AUTH_FAILURE, "IDENTITY_CONFLICT")

@@ -9,6 +9,8 @@ import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationPreparationResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
@@ -127,22 +129,55 @@ class SqliteAccountStorageTest {
     }
 
     @Test
-    fun `verified Mojang identity migrates offline account and preserves internal account id`() = withStorage { storage ->
+    fun `verified Mojang identity requires explicit migration for an existing offline account`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         val registration = registration("UpgradeMe")
         assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
         val identity = verifiedIdentity("UpgradeMe", "11111111-2222-3333-4444-555555555555")
 
-        val result = assertIs<MojangIdentityBindingResult.Bound>(
+        val result = assertIs<MojangIdentityBindingResult.MigrationRequired>(
             storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
         )
 
-        assertTrue(result.migratedFromOffline)
         assertEquals(registration.accountId, result.account.id)
-        assertEquals(IdentityType.MOJANG, result.account.identityType)
-        assertEquals(identity.minecraftUuid, result.account.minecraftUuid)
-        assertNull(storage.findPasswordHash(result.account.id).toCompletableFuture().get())
-        assertNull(storage.findCredentials(identity.username).toCompletableFuture().get())
+        assertEquals(registration.minecraftUuid, result.account.minecraftUuid)
+        assertEquals(identity.minecraftUuid, result.targetMinecraftUuid)
+        assertEquals(IdentityType.OFFLINE, result.account.identityType)
+        assertEquals(registration.passwordHash, storage.findPasswordHash(result.account.id).toCompletableFuture().get())
+        assertNotNull(storage.findCredentials(identity.username).toCompletableFuture().get())
+    }
+
+    @Test
+    fun `explicit premium migration preserves account id and only then removes offline credentials`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("ExplicitUpgrade")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        val targetUuid = UUID.fromString("22222222-3333-4444-5555-666666666666")
+        val preparedAt = Instant.parse("2026-09-27T18:00:00Z")
+
+        val prepared = assertIs<PremiumMigrationPreparationResult.Prepared>(
+            storage.preparePremiumMigration(
+                registration.accountId,
+                registration.username,
+                registration.minecraftUuid,
+                targetUuid,
+                registration.sourceAddress,
+                preparedAt,
+            ).toCompletableFuture().get(),
+        )
+        assertTrue(storage.markPremiumMigrationStarted(prepared.ticket.id, preparedAt.plusSeconds(1)).toCompletableFuture().get())
+        assertEquals(IdentityType.OFFLINE, storage.findByUsername(registration.username).toCompletableFuture().get()!!.identityType)
+        assertNotNull(storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
+
+        val completed = assertIs<PremiumMigrationCompletionResult.Completed>(
+            storage.completePremiumMigration(prepared.ticket.id, preparedAt.plusSeconds(2)).toCompletableFuture().get(),
+        )
+
+        assertEquals(registration.accountId, completed.account.id)
+        assertEquals(IdentityType.MOJANG, completed.account.identityType)
+        assertEquals(targetUuid, completed.account.minecraftUuid)
+        assertNull(storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
+        assertNull(storage.findCredentials(registration.username).toCompletableFuture().get())
     }
 
     @Test

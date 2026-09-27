@@ -114,21 +114,58 @@ commitowany do repozytorium.
 
 ## 6. Konto i sesja po poprawnym handoff
 
-Po zgodności UUID `VerifiedMojangAuthenticationService`:
+Po zgodności UUID istnieją teraz dwa różne przypadki.
 
-1. atomowo wiąże zweryfikowaną tożsamość z rekordem `accounts`,
-2. tworzy konto `MOJANG`, jeśli nie istniało,
-3. jeżeli istniało konto `OFFLINE` o tej samej nazwie, migruje je do `MOJANG` z
-   zachowaniem wewnętrznego `account_id`,
-4. po migracji usuwa `password_hash`, resetuje lockout i usuwa offline registration
-   slot,
-5. aktywuje sesję jako `IdentityType.MOJANG` + `AuthenticationMethod.MOJANG`,
-6. zwalnia gracza z `PRE_AUTH` bez wyświetlania formularza hasła,
-7. zapisuje `PREMIUM_VERIFIED` albo `OFFLINE_TO_PREMIUM_MIGRATION` w security audit.
+### Nowe lub już zmigrowane konto premium
 
-`findCredentials()` zwraca dane wyłącznie dla kont `OFFLINE` posiadających hash hasła,
-więc zmigrowane konto premium nie może później wejść ścieżką hasłową.
+Jeżeli nazwa nie posiada konta `OFFLINE` albo istniejący rekord jest już `MOJANG`,
+`VerifiedMojangAuthenticationService` może związać/odświeżyć oficjalną tożsamość,
+utworzyć sesję `MOJANG` i zwolnić PRE_AUTH.
 
+### Istniejące konto OFFLINE o tej samej nazwie
+
+Samo poprawne Mojang authentication **nie wykonuje już automatycznej podmiany UUID**.
+Storage zwraca `MigrationRequired`, a Paper otwiera osobny dialog migracyjny.
+
+Gracz musi potwierdzić własność poprzedniego konta hasłem AuthGatewayX. Weryfikacja
+korzysta z tego samego `LoginService`, Argon2id, rate limitera i lockoutu co zwykłe
+logowanie offline. Po sukcesie tworzony jest trwały rekord `identity_migrations`
+ze stanem `PREPARED`, zawierający:
+
+- niezmienny `account_id`,
+- poprzedni UUID offline,
+- docelowy oficjalny UUID Mojang,
+- nazwę konta,
+- adres źródłowy i czas przygotowania.
+
+Na tym etapie rekord `accounts` **pozostaje OFFLINE**: stary UUID i hash hasła nie są
+usuwane. Jest to celowe. Finalizacja może nastąpić dopiero po bezpiecznym przeniesieniu
+danych zależnych od UUID (vanilla i pluginy) przez kontrolowane migratory.
+
+Storage udostępnia osobne przejścia:
+
+```text
+PREPARED
+    -> MIGRATING
+    -> COMPLETED
+
+PREPARED/MIGRATING
+    -> FAILED
+```
+
+`completePremiumMigration(...)` wykonuje compare-and-set względem `account_id`,
+starego UUID i typu `OFFLINE`. Dopiero wtedy atomowo zmienia konto na `MOJANG`,
+ustawia docelowy UUID, usuwa `password_hash`, resetuje lockout i zwalnia slot
+rejestracyjny. Konflikt docelowego UUID lub zmiana stanu konta kończy się fail-closed.
+
+Migracja v7 dodaje również `account_identities`, aby przyszłe zmiany tożsamości nie
+nadpisywały jedynego śladu poprzedniego UUID.
+
+**Ważne:** obecny etap implementuje bezpieczny gate, autoryzację starego konta,
+trwały ticket i atomową finalizację. Nie wykonuje ogólnego search/replace UUID w
+katalogach lub bazach innych pluginów. Taki mechanizm byłby podatny na uszkodzenie
+danych i naruszenie kluczy obcych. Poszczególne magazyny danych wymagają kontrolowanych
+providerów/migratorów; do czasu ich wykonania ticket pozostaje `PREPARED`.
 ## 7. Konflikty
 
 Fail closed obowiązuje między innymi gdy:

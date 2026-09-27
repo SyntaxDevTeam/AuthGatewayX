@@ -32,6 +32,9 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
   profil oraz brak fallbacku offline na każdej ścieżce błędu.
 - [ ] Dokończyć i przetestować migrację konta `OFFLINE -> MOJANG`, w tym konflikt nazwy,
   konflikt UUID, równoległe logowania oraz audit migracji.
+  - Gate migracyjny i weryfikacja starego hasła są wdrożone; trwały ticket v7 i historia UUID
+    są gotowe. Checkbox pozostaje otwarty do czasu dodania/testów providerów danych, recovery
+    oraz pełnych testów równoległości i backendów zdalnych.
 - [ ] Dodać bezpieczną politykę concurrent login/kick lub deny i test dwóch jednoczesnych
   logowań tego samego konta.
 - [ ] Zweryfikować disconnect podczas Argon2/JDBC/HTTP oraz późne callbacki po shutdownie.

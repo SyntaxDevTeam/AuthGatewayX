@@ -7,6 +7,7 @@ import java.net.InetAddress
 import java.time.Instant
 import java.time.Duration
 import java.util.UUID
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 
 data class OfflineRegistration(
@@ -35,7 +36,42 @@ sealed interface RegistrationResult {
 
 sealed interface MojangIdentityBindingResult {
     data class Bound(val account: AuthAccount, val migratedFromOffline: Boolean) : MojangIdentityBindingResult
+    data class MigrationRequired(
+        val account: AuthAccount,
+        val targetMinecraftUuid: UUID,
+    ) : MojangIdentityBindingResult
     data object IdentityConflict : MojangIdentityBindingResult
+}
+
+enum class PremiumMigrationStatus {
+    PREPARED,
+    MIGRATING,
+    COMPLETED,
+    FAILED,
+}
+
+data class PremiumMigrationTicket(
+    val id: UUID,
+    val accountId: AccountId,
+    val username: AccountUsername,
+    val sourceMinecraftUuid: UUID,
+    val targetMinecraftUuid: UUID,
+    val sourceAddress: InetAddress,
+    val status: PremiumMigrationStatus,
+    val createdAt: Instant,
+    val updatedAt: Instant,
+    val failureReason: String?,
+)
+
+sealed interface PremiumMigrationPreparationResult {
+    data class Prepared(val ticket: PremiumMigrationTicket) : PremiumMigrationPreparationResult
+    data object IdentityConflict : PremiumMigrationPreparationResult
+}
+
+sealed interface PremiumMigrationCompletionResult {
+    data class Completed(val account: AuthAccount) : PremiumMigrationCompletionResult
+    data object NotFound : PremiumMigrationCompletionResult
+    data object IdentityConflict : PremiumMigrationCompletionResult
 }
 
 data class AccountCredentials(
@@ -54,6 +90,27 @@ interface AccountStorage : AutoCloseable {
     fun migrate(): CompletionStage<Unit>
     fun registerOffline(registration: OfflineRegistration): CompletionStage<RegistrationResult>
     fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity): CompletionStage<MojangIdentityBindingResult>
+    fun preparePremiumMigration(
+        accountId: AccountId,
+        username: AccountUsername,
+        sourceMinecraftUuid: UUID,
+        targetMinecraftUuid: UUID,
+        sourceAddress: InetAddress,
+        preparedAt: Instant,
+    ): CompletionStage<PremiumMigrationPreparationResult> =
+        CompletableFuture.completedFuture(PremiumMigrationPreparationResult.IdentityConflict)
+
+    fun markPremiumMigrationStarted(migrationId: UUID, startedAt: Instant): CompletionStage<Boolean> =
+        CompletableFuture.completedFuture(false)
+
+    fun completePremiumMigration(
+        migrationId: UUID,
+        completedAt: Instant,
+    ): CompletionStage<PremiumMigrationCompletionResult> =
+        CompletableFuture.completedFuture(PremiumMigrationCompletionResult.NotFound)
+
+    fun failPremiumMigration(migrationId: UUID, failedAt: Instant, reason: String): CompletionStage<Unit> =
+        CompletableFuture.completedFuture(Unit)
     fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?>
     fun findPasswordHash(accountId: AccountId): CompletionStage<String?>
     fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?>
