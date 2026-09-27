@@ -46,7 +46,9 @@ internal object JdbcOfflineAddressHistory {
                         rows.getString("last_login_at"),
                         rows.getString("updated_at"),
                         rows.getString("created_at"),
-                    ).filterNotNull().mapNotNull { runCatching(Instant::parse).getOrNull() }.firstOrNull()
+                    ).filterNotNull().mapNotNull { value ->
+                        runCatching { Instant.parse(value) }.getOrNull()
+                    }.firstOrNull()
                         ?: continue
                     add(BackfillEntry(
                         accountId = rows.getString("id"),
