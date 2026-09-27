@@ -23,8 +23,9 @@ class MultiAccountCommandControllerTest {
         var pending = CompletableFuture<MultiAccountReport?>()
         val replies = mutableListOf<Component>()
         val dispatched = mutableListOf<Runnable>()
-        val text = MultiAccountCommandText(Component.text("header"), Component.text("entry"),
-            Component.text("empty"), Component.text("truncated"), Component.text("unavailable"), Component.text("notFound"))
+        val text = MultiAccountCommandText(Component.text("title"), Component.text("close"),
+            Component.text("header"), Component.text("entry"), Component.text("empty"),
+            Component.text("truncated"), Component.text("unavailable"), Component.text("notFound"))
         val controller = MultiAccountCommandController(object : MultiAccountLookup {
             override fun findRelatedOfflineAccounts(username: AccountUsername, observedAt: Instant): CompletableFuture<MultiAccountReport?> {
                 calls++
@@ -50,11 +51,12 @@ class MultiAccountCommandControllerTest {
     @Test
     fun `no permission and pre auth never query storage`() {
         val h = Harness()
+        val player = h.sender(player = true)
         h.permission = false
-        h.controller.show(h.sender(), "Player")
+        h.controller.show(player, "Player")
         h.permission = true
         h.active = false
-        h.controller.show(h.sender(player = true), "Player")
+        h.controller.show(player, "Player")
         assertEquals(0, h.calls)
     }
 
@@ -78,7 +80,8 @@ class MultiAccountCommandControllerTest {
     @Test
     fun `permission is rechecked after async query before disclosing report`() {
         val h = Harness()
-        h.controller.show(h.sender(), "Player")
+        val player = h.sender(player = true)
+        h.controller.show(player, "Player")
         h.pending.complete(MultiAccountReport(emptyList(), false))
         assertTrue(h.replies.isEmpty())
         h.permission = false

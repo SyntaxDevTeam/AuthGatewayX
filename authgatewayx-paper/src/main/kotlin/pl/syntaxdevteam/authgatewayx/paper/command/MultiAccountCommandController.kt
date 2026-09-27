@@ -6,6 +6,7 @@ import org.bukkit.command.CommandSender
 import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
+import pl.syntaxdevteam.authgatewayx.paper.dialog.showAdminReportDialog
 import pl.syntaxdevteam.authgatewayx.storage.MultiAccountLookup
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicBoolean
@@ -20,6 +21,8 @@ class MutableMultiAccountCommandGateway : MultiAccountCommandGateway {
 }
 
 data class MultiAccountCommandText(
+    val title: Component,
+    val close: Component,
     val header: Component,
     val entry: Component,
     val empty: Component,
@@ -42,11 +45,11 @@ class MultiAccountCommandController(
         if (!allowed(sender) || !isReady()) return
         val parsed = runCatching { AccountUsername.parse(username) }.getOrNull()
         if (parsed == null) {
-            sender.sendMessage(text.notFound)
+            present(sender, username, listOf(text.notFound))
             return
         }
         if (!inFlight.compareAndSet(false, true)) {
-            sender.sendMessage(text.unavailable)
+            present(sender, parsed.value, listOf(text.unavailable))
             return
         }
         try {
@@ -56,16 +59,20 @@ class MultiAccountCommandController(
                     val reply = Runnable {
                         if (!isReady() || !allowed(sender)) return@Runnable
                         when {
-                            failure != null -> sender.sendMessage(text.unavailable)
-                            report == null -> sender.sendMessage(text.notFound)
+                            failure != null -> present(sender, parsed.value, listOf(text.unavailable))
+                            report == null -> present(sender, parsed.value, listOf(text.notFound))
                             else -> {
-                                sender.sendMessage(text.header.withText("{username}", parsed.value))
-                                if (report.accounts.isEmpty()) sender.sendMessage(text.empty)
+                                val sections = mutableListOf(
+                                    text.header.withText("{username}", parsed.value),
+                                )
+                                if (report.accounts.isEmpty()) sections += text.empty
                                 report.accounts.forEach {
-                                    sender.sendMessage(text.entry.withText("{username}", it.username.value)
-                                        .withText("{count}", it.sharedAddressCount.toString()))
+                                    sections += text.entry
+                                        .withText("{username}", it.username.value)
+                                        .withText("{count}", it.sharedAddressCount.toString())
                                 }
-                                if (report.truncated) sender.sendMessage(text.truncated)
+                                if (report.truncated) sections += text.truncated
+                                present(sender, parsed.value, sections)
                             }
                         }
                     }
@@ -74,12 +81,22 @@ class MultiAccountCommandController(
             }
         } catch (_: Exception) {
             inFlight.set(false)
-            sender.sendMessage(text.unavailable)
+            present(sender, parsed.value, listOf(text.unavailable))
         }
     }
 
-    private fun allowed(sender: CommandSender): Boolean = sender.hasPermission("authgatewayx.admin.alts") &&
-        (sender is ConsoleCommandSender || sender is Player && sender.isOnline && isAuthenticated(sender))
+    private fun present(sender: CommandSender, username: String, sections: List<Component>) {
+        if (sender is Player) {
+            showAdminReportDialog(sender, text.title.withText("{username}", username), sections, text.close)
+        } else {
+            sections.forEach(sender::sendMessage)
+        }
+    }
+
+    private fun allowed(sender: CommandSender): Boolean =
+        sender is ConsoleCommandSender ||
+            sender.hasPermission("authgatewayx.admin.alts") &&
+            (sender !is Player || sender.isOnline && isAuthenticated(sender))
 
     private fun Component.withText(placeholder: String, value: String): Component = replaceText(
         TextReplacementConfig.builder().matchLiteral(placeholder).replacement(Component.text(value)).build(),

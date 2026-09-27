@@ -9,6 +9,10 @@ import java.sql.Connection
 import java.time.Duration
 import java.time.Instant
 
+/**
+ * Historical name retained for schema compatibility. Since migration 6 this table tracks
+ * both offline and verified Mojang accounts.
+ */
 internal object JdbcOfflineAddressHistory {
     private const val MAX_ADDRESSES = 16
     private const val MAX_RESULTS = 20
@@ -26,6 +30,44 @@ internal object JdbcOfflineAddressHistory {
                 FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
             )""".trimIndent())
             it.executeUpdate("CREATE INDEX offline_addresses_ip ON offline_account_addresses(source_ip, last_seen)")
+        }
+    }
+
+    fun backfillAllAccounts(connection: Connection) {
+        val missing = connection.prepareStatement("""SELECT a.id, a.last_login_ip, a.last_login_at, a.updated_at, a.created_at
+            FROM accounts a
+            WHERE a.last_login_ip IS NOT NULL
+              AND NOT EXISTS (
+                  SELECT 1 FROM offline_account_addresses h WHERE h.account_id = a.id
+              )""".trimIndent()).use { statement ->
+            statement.executeQuery().use { rows -> buildList {
+                while (rows.next()) {
+                    val observedAt = sequenceOf(
+                        rows.getString("last_login_at"),
+                        rows.getString("updated_at"),
+                        rows.getString("created_at"),
+                    ).filterNotNull().mapNotNull { value ->
+                        runCatching { Instant.parse(value) }.getOrNull()
+                    }.firstOrNull()
+                        ?: continue
+                    add(BackfillEntry(
+                        accountId = rows.getString("id"),
+                        address = rows.getString("last_login_ip"),
+                        lastSeen = observedAt.toEpochMilli(),
+                    ))
+                }
+            } }
+        }
+        connection.prepareStatement(
+            "INSERT INTO offline_account_addresses(account_id, slot, source_ip, last_seen) VALUES (?, 1, ?, ?)",
+        ).use { statement ->
+            missing.forEach { entry ->
+                statement.setString(1, entry.accountId)
+                statement.setString(2, entry.address)
+                statement.setLong(3, entry.lastSeen)
+                statement.addBatch()
+            }
+            if (missing.isNotEmpty()) statement.executeBatch()
         }
     }
 
@@ -65,7 +107,7 @@ internal object JdbcOfflineAddressHistory {
 
     fun find(connection: Connection, username: AccountUsername, at: Instant): MultiAccountReport? {
         val id = connection.prepareStatement(
-            "SELECT id FROM accounts WHERE canonical_username = ? AND identity_type = 'OFFLINE'",
+            "SELECT id FROM accounts WHERE canonical_username = ?",
         ).use {
             it.queryTimeout = 5
             it.setString(1, username.canonical)
@@ -74,9 +116,9 @@ internal object JdbcOfflineAddressHistory {
         val cutoff = at.minus(window).toEpochMilli()
         val matches = connection.prepareStatement("""SELECT candidate.username, COUNT(*) AS shared_addresses
             FROM offline_account_addresses own
-            JOIN accounts target ON target.id = own.account_id AND target.identity_type = 'OFFLINE'
+            JOIN accounts target ON target.id = own.account_id
             JOIN offline_account_addresses other ON other.source_ip = own.source_ip
-            JOIN accounts candidate ON candidate.id = other.account_id AND candidate.identity_type = 'OFFLINE'
+            JOIN accounts candidate ON candidate.id = other.account_id
             WHERE own.account_id = ? AND other.account_id <> own.account_id
                 AND own.last_seen >= ? AND other.last_seen >= ?
             GROUP BY candidate.id, candidate.username
@@ -95,4 +137,5 @@ internal object JdbcOfflineAddressHistory {
     }
 
     private data class Entry(val slot: Int, val address: String, val lastSeen: Long)
+    private data class BackfillEntry(val accountId: String, val address: String, val lastSeen: Long)
 }

@@ -40,13 +40,36 @@ password:
   success: "<green>Hasło zostało bezpiecznie zmienione.</green>"
   admin_target_kick: "<red>Administrator zmienił hasło tego konta. Zaloguj się ponownie przy użyciu nowego hasła.</red>"
 
+info:
+  title: '<aqua>AuthGatewayX — {username}</aqua>'
+  close: '<gray>Zamknij</gray>'
+  not_found: '<red>Brak konta o podanej nazwie w bazie AuthGatewayX.</red>'
+  unavailable: '<red>Raport konta jest chwilowo niedostępny. Spróbuj ponownie później.</red>'
+  external_identity: '<gold>Status Mojang</gold><newline><gray>Klasyfikacja nicku:</gray> <white>{status}</white><newline><gray>Oficjalny UUID:</gray> <white>{uuid}</white>'
+  identity: '<gold>Tożsamość</gold><newline><gray>Nick:</gray> <white>{username}</white><newline><gray>ID konta AGX:</gray> <white>{account_id}</white><newline><gray>Minecraft UUID:</gray> <white>{minecraft_uuid}</white><newline><gray>Typ AGX:</gray> <white>{identity}</white><newline><gray>Stan:</gray> <white>{state}</white><newline><gray>Status Mojang teraz:</gray> <white>{mojang_status}</white><newline><gray>Oficjalny UUID Mojang:</gray> <white>{official_uuid}</white>'
+  lifecycle: '<gold>Historia konta</gold><newline><gray>Utworzono:</gray> <white>{created_at}</white><newline><gray>Zaktualizowano:</gray> <white>{updated_at}</white><newline><gray>Ostatnie logowanie:</gray> <white>{last_login_at}</white><newline><gray>Ostatnia weryfikacja premium:</gray> <white>{premium_verified_at}</white>'
+  session: '<gold>Sesja</gold><newline><gray>Online:</gray> <white>{online}</white><newline><gray>Metoda uwierzytelnienia:</gray> <white>{method}</white><newline><gray>Uwierzytelniono:</gray> <white>{authenticated_at}</white><newline><gray>Wygaśnięcie sesji:</gray> <white>{expires_at}</white>'
+  ip: '<gold>Adresy IP</gold><newline><gray>Aktualne IP sesji:</gray> <white>{current_ip}</white><newline><gray>Ostatnie zapisane IP:</gray> <white>{last_ip}</white>'
+  ip_history_header: '<yellow>Historia IP ({count})</yellow>'
+  ip_history_entry: '<dark_gray>•</dark_gray> <white>{ip}</white> <gray>— ostatnio {last_seen}</gray>'
+  geo: '<gold>GeoIP</gold><newline><gray>Lokalizacja:</gray> <white>{city}, {region}, {country} ({country_code})</white><newline><gray>Kontynent:</gray> <white>{continent}</white><newline><gray>Strefa:</gray> <white>{timezone}</white>'
+  network: '<gold>Sieć i reputacja</gold><newline><gray>ASN:</gray> <white>{asn}</white><newline><gray>Właściciel/operator:</gray> <white>{owner}</white><newline><gray>Typ sieci:</gray> <white>{network_type}</white><newline><gray>VPN:</gray> <white>{vpn}</white> <dark_gray>•</dark_gray> <gray>Proxy:</gray> <white>{proxy}</white> <dark_gray>•</dark_gray> <gray>TOR:</gray> <white>{tor}</white><newline><gray>Pewność:</gray> <white>{confidence}</white> <dark_gray>•</dark_gray> <gray>Ryzyko:</gray> <white>{risk}</white><newline><gray>Operator anonimizujący:</gray> <white>{operator}</white>'
+  security_header: '<gold>Bezpieczeństwo i audyt</gold>'
+  security_summary: '<gray>Nieudane logowania:</gray> <white>{failed_logins}</white><newline><gray>Blokada do:</gray> <white>{locked_until}</white><newline><gray>Ostatnie zdarzenia audytu:</gray> <white>{event_count}</white>'
+  security_entry: '<dark_gray>•</dark_gray> <gray>{time}</gray> <yellow>{type}</yellow> <white>{reason}</white><dark_gray>{ip}</dark_gray>'
+  alts_header: '<gold>Powiązane konta z ostatnich 30 dni</gold><newline><gray>Wspólne IP jest poszlaką, nie dowodem jednej osoby.</gray>'
+  alts_entry: '<dark_gray>•</dark_gray> <yellow>{username}</yellow><gray> — wspólne adresy: {count}</gray>'
+  no_data: '<gray>Brak danych.</gray>'
+
 alts:
+  title: '<aqua>Powiązania konta — {username}</aqua>'
+  close: '<gray>Zamknij</gray>'
   header: '<gold>Podejrzane powiązania konta {username} (ostatnie 30 dni).</gold><newline><gray>Wspólne IP to poszlaka, nie dowód jednej osoby. NAT i VPN mogą łączyć różnych graczy.</gray>'
   entry: '<yellow>{username}</yellow><gray> — wspólne adresy: {count}</gray>'
   empty: '<gray>Brak powiązań w dostępnej historii. Nie wyklucza to multi-konta ani użycia VPN.</gray>'
   truncated: '<yellow>Pokazano pierwsze 20 wyników; istnieją dalsze powiązania.</yellow>'
   unavailable: '<red>Raport jest chwilowo niedostępny lub trwa inne sprawdzanie. Spróbuj ponownie później.</red>'
-  not_found: '<red>Nie znaleziono konta offline o podanej nazwie.</red>'
+  not_found: '<red>Nie znaleziono konta o podanej nazwie.</red>'
 
 risk_alert:
   header: '<gold>[AuthGatewayX] Podejrzane logowanie: <yellow>{username}</yellow></gold>'

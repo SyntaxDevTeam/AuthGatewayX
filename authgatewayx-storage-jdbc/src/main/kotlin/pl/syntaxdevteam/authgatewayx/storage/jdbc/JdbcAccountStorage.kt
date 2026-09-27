@@ -14,12 +14,17 @@ import pl.syntaxdevteam.authgatewayx.storage.ConnectionAccountLookup
 import pl.syntaxdevteam.authgatewayx.storage.RelatedOfflineAccount
 import pl.syntaxdevteam.authgatewayx.storage.MultiAccountReport
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
+import pl.syntaxdevteam.authgatewayx.storage.AccountAddressObservation
+import pl.syntaxdevteam.authgatewayx.storage.AccountInspection
+import pl.syntaxdevteam.authgatewayx.storage.AccountInspectionLookup
+import pl.syntaxdevteam.authgatewayx.storage.AccountSecurityObservation
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
+import java.net.InetAddress
 import java.sql.Connection
 import java.sql.SQLException
 import java.time.Instant
@@ -56,7 +61,7 @@ class JdbcAccountStorage(
     private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
     username: String? = null,
     password: String? = null,
-) : AccountStorage, SecurityAuditSink, ConnectionAccountLookup {
+) : AccountStorage, SecurityAuditSink, ConnectionAccountLookup, AccountInspectionLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
         this.driverClassName = databaseType.driverClassName
@@ -152,6 +157,10 @@ class JdbcAccountStorage(
                     JdbcOfflineAddressHistory.migrate(connection)
                     recordMigration(connection, 5)
                 }
+                if (!hasMigration(connection, 6)) {
+                    JdbcOfflineAddressHistory.backfillAllAccounts(connection)
+                    recordMigration(connection, 6)
+                }
                 connection.commit()
             } catch (failure: Throwable) {
                 connection.rollback()
@@ -195,6 +204,68 @@ class JdbcAccountStorage(
                 statement.setString(1, username.canonical)
                 statement.executeQuery().use { results -> if (results.next()) mapAccount(results) else null }
             }
+        }
+    }
+
+    override fun inspect(username: AccountUsername): CompletionStage<AccountInspection?> = executor.submit {
+        dataSource.connection.use { connection ->
+            val base = connection.prepareStatement(
+                "SELECT * FROM accounts WHERE canonical_username = ?",
+            ).use { statement ->
+                statement.setString(1, username.canonical)
+                statement.executeQuery().use { results ->
+                    if (!results.next()) null else InspectionBase(
+                        account = mapAccount(results),
+                        lastLoginAt = results.getString("last_login_at")?.let(Instant::parse),
+                        lastLoginAddress = results.getString("last_login_ip")?.let(InetAddress::getByName),
+                        premiumVerifiedAt = results.getString("premium_verified_at")?.let(Instant::parse),
+                        failedLoginCount = results.getInt("failed_login_count"),
+                        lockedUntil = results.getString("locked_until")?.let(Instant::parse),
+                    )
+                }
+            } ?: return@submit null
+
+            val addresses = connection.prepareStatement(
+                "SELECT source_ip, last_seen FROM offline_account_addresses WHERE account_id = ? ORDER BY last_seen DESC, slot ASC",
+            ).use { statement ->
+                statement.setString(1, base.account.id.value.toString())
+                statement.executeQuery().use { rows -> buildList {
+                    while (rows.next()) {
+                        add(AccountAddressObservation(
+                            InetAddress.getByName(rows.getString(1)),
+                            Instant.ofEpochMilli(rows.getLong(2)),
+                        ))
+                    }
+                } }
+            }
+            val events = connection.prepareStatement("""SELECT occurred_at, event_type, reason_code, source_ip
+                FROM security_events
+                WHERE account_id = ? OR LOWER(username) = ?
+                ORDER BY occurred_at DESC
+                LIMIT 20""".trimIndent()).use { statement ->
+                statement.setString(1, base.account.id.value.toString())
+                statement.setString(2, username.canonical)
+                statement.executeQuery().use { rows -> buildList {
+                    while (rows.next()) {
+                        add(AccountSecurityObservation(
+                            Instant.parse(rows.getString(1)),
+                            rows.getString(2),
+                            rows.getString(3),
+                            InetAddress.getByName(rows.getString(4)),
+                        ))
+                    }
+                } }
+            }
+            AccountInspection(
+                base.account,
+                base.lastLoginAt,
+                base.lastLoginAddress,
+                base.premiumVerifiedAt,
+                base.failedLoginCount,
+                base.lockedUntil,
+                addresses,
+                events,
+            )
         }
     }
 
@@ -255,7 +326,7 @@ class JdbcAccountStorage(
         dataSource.connection.use { connection ->
             connection.prepareStatement("""SELECT a.username FROM offline_account_addresses h
                 JOIN accounts a ON a.id = h.account_id
-                WHERE h.source_ip = ? AND h.last_seen >= ? AND a.identity_type = 'OFFLINE'
+                WHERE h.source_ip = ? AND h.last_seen >= ?
                     AND a.canonical_username <> ? ORDER BY a.canonical_username LIMIT 21""".trimIndent()).use {
                 it.queryTimeout = 5
                 it.setString(1, address.hostAddress)
@@ -347,6 +418,15 @@ class JdbcAccountStorage(
         }
     }.thenApply<Void> { null }
 
+    private data class InspectionBase(
+        val account: AuthAccount,
+        val lastLoginAt: Instant?,
+        val lastLoginAddress: InetAddress?,
+        val premiumVerifiedAt: Instant?,
+        val failedLoginCount: Int,
+        val lockedUntil: Instant?,
+    )
+
     private fun bindVerifiedMojangIdentityBlocking(identity: VerifiedMojangIdentity): MojangIdentityBindingResult {
         dataSource.connection.use { connection ->
             for (attempt in 0..1) {
@@ -426,10 +506,7 @@ class JdbcAccountStorage(
             statement.setString(1, account.id.value.toString())
             statement.executeUpdate()
         }
-        connection.prepareStatement("DELETE FROM offline_account_addresses WHERE account_id = ?").use { statement ->
-            statement.setString(1, account.id.value.toString())
-            statement.executeUpdate()
-        }
+        JdbcOfflineAddressHistory.record(connection, account.id, identity.sourceAddress, identity.verifiedAt)
         return account.copy(
             username = identity.username,
             identityType = IdentityType.MOJANG,
@@ -462,6 +539,7 @@ class JdbcAccountStorage(
             statement.setString(9, identity.verifiedAt.toString())
             statement.executeUpdate()
         }
+        JdbcOfflineAddressHistory.record(connection, account.id, identity.sourceAddress, identity.verifiedAt)
         return MojangIdentityBindingResult.Bound(account, false)
     }
 

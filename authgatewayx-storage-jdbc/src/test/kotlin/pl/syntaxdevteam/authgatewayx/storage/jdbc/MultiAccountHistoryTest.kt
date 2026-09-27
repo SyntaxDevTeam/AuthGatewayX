@@ -56,6 +56,29 @@ class MultiAccountHistoryTest {
     }
 
     @Test
+    fun `v6 backfill preserves historical observation time instead of refreshing old addresses`() = withStorage { storage, url, _ ->
+        val old = now.minus(Duration.ofDays(31))
+        storage.register("First", 1, old)
+        storage.register("Second", 1, old)
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use {
+                it.executeUpdate("DELETE FROM offline_account_addresses")
+                it.executeUpdate("DELETE FROM schema_history WHERE version = 6")
+            }
+        }
+        storage.migrate().toCompletableFuture().get()
+        assertTrue(storage.report("First", now)!!.accounts.isEmpty())
+        DriverManager.getConnection(url).use { connection ->
+            connection.prepareStatement("SELECT MAX(last_seen) FROM offline_account_addresses").use { statement ->
+                statement.executeQuery().use {
+                    assertTrue(it.next())
+                    assertEquals(old.toEpochMilli(), it.getLong(1))
+                }
+            }
+        }
+    }
+
+    @Test
     fun `shared history survives changed IP and restart without linking unrelated accounts`() = withStorage { storage, url, executor ->
         val first = storage.register("First", 1)
         storage.register("Second", 1)
@@ -70,18 +93,24 @@ class MultiAccountHistoryTest {
     }
 
     @Test
-    fun `unknown and premium accounts are excluded and migration removes history`() = withStorage { storage, url, _ ->
+    fun `unknown accounts stay null while premium accounts keep shared address history`() = withStorage { storage, url, _ ->
         storage.register("First", 1)
         val second = storage.register("Second", 1)
-        storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, UUID.randomUUID(), ip(1), now))
+        val officialUuid = UUID.randomUUID()
+        storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, officialUuid, ip(1), now))
             .toCompletableFuture().get()
         assertNull(storage.report("Missing"))
-        assertNull(storage.report("Second"))
-        assertTrue(storage.report("First")!!.accounts.isEmpty())
+        assertEquals(listOf("First"), storage.report("Second")!!.accounts.map { it.username.value })
+        assertEquals(listOf("Second"), storage.report("First")!!.accounts.map { it.username.value })
+        val inspection = assertNotNull(storage.inspect(second.username).toCompletableFuture().get())
+        assertEquals(officialUuid, inspection.account.minecraftUuid)
+        assertEquals("MOJANG", inspection.account.identityType.name)
+        assertEquals(ip(1), inspection.lastLoginAddress)
+        assertTrue(inspection.addresses.any { it.address == ip(1) })
         DriverManager.getConnection(url).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT COUNT(*) FROM offline_account_addresses").use {
-                    assertTrue(it.next()); assertEquals(1, it.getInt(1))
+                    assertTrue(it.next()); assertEquals(2, it.getInt(1))
                 }
             }
         }

@@ -23,8 +23,14 @@ permissions:
   authgatewayx.admin.password:
     description: Allows setting the password of an offline account through a secure dialog.
     default: op
+  authgatewayx.admin.info:
+    description: Allows opening the administrative account inspection report.
+    default: op
   authgatewayx.admin.alts:
-    description: Allows reviewing suspected offline account links by shared address history.
+    description: Allows reviewing suspected account links by shared address history.
+    default: op
+  authgatewayx.admin.view-security:
+    description: Reveals lock state, failed-login counters and recent security audit events in account reports.
     default: op
   authgatewayx.admin.alerts:
     description: Receives advisory multi-account and VPN alerts after authentication.
