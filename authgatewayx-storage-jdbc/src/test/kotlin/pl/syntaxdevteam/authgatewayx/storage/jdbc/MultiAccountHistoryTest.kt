@@ -56,6 +56,29 @@ class MultiAccountHistoryTest {
     }
 
     @Test
+    fun `v6 backfill preserves historical observation time instead of refreshing old addresses`() = withStorage { storage, url, _ ->
+        val old = now.minus(Duration.ofDays(31))
+        storage.register("First", 1, old)
+        storage.register("Second", 1, old)
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use {
+                it.executeUpdate("DELETE FROM offline_account_addresses")
+                it.executeUpdate("DELETE FROM schema_history WHERE version = 6")
+            }
+        }
+        storage.migrate().toCompletableFuture().get()
+        assertTrue(storage.report("First", now)!!.accounts.isEmpty())
+        DriverManager.getConnection(url).use { connection ->
+            connection.prepareStatement("SELECT MAX(last_seen) FROM offline_account_addresses").use { statement ->
+                statement.executeQuery().use {
+                    assertTrue(it.next())
+                    assertEquals(old.toEpochMilli(), it.getLong(1))
+                }
+            }
+        }
+    }
+
+    @Test
     fun `shared history survives changed IP and restart without linking unrelated accounts`() = withStorage { storage, url, executor ->
         val first = storage.register("First", 1)
         storage.register("Second", 1)
