@@ -23,8 +23,9 @@ class MultiAccountCommandControllerTest {
         var pending = CompletableFuture<MultiAccountReport?>()
         val replies = mutableListOf<Component>()
         val dispatched = mutableListOf<Runnable>()
-        val text = MultiAccountCommandText(Component.text("header"), Component.text("entry"),
-            Component.text("empty"), Component.text("truncated"), Component.text("unavailable"), Component.text("notFound"))
+        val text = MultiAccountCommandText(Component.text("title"), Component.text("close"),
+            Component.text("header"), Component.text("entry"), Component.text("empty"),
+            Component.text("truncated"), Component.text("unavailable"), Component.text("notFound"))
         val controller = MultiAccountCommandController(object : MultiAccountLookup {
             override fun findRelatedOfflineAccounts(username: AccountUsername, observedAt: Instant): CompletableFuture<MultiAccountReport?> {
                 calls++
