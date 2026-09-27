@@ -3081,6 +3081,13 @@ Weryfikacja starego hasła nie ma osobnego, uproszczonego mechanizmu: korzysta z
 `LoginService`, więc zachowuje Argon2id, rate limiting, lockout, audit i zerowanie tablicy hasła.
 
 Nie implementuje się automatycznego search/replace UUID w dowolnych plikach lub bazach pluginów.
-Finalizacja pozostaje zablokowana logicznie do momentu wykonania kontrolowanych migratorów.
-Ten etap dostarcza gate, autoryzację, trwały ticket, historię i atomową operację finalizującą;
-migratory konkretnych magazynów danych są kolejnym etapem blokera 1.0.0.
+Wbudowany `VanillaPlayerDataMigrationProvider` wykonuje backup oraz migrację playerdata,
+statystyk i advancementów po rozłączeniu gracza. `PremiumMigrationCoordinator` najpierw
+wykonuje inspekcję wszystkich providerów, następnie migracje sekwencyjne, a przy błędzie
+rollback w odwrotnej kolejności. Finalizacja rekordu AGX następuje dopiero po ich sukcesie.
+
+Publiczny `IdentityMigrationProvider` w module API pozwala innym pluginom zadeklarować własny
+bezpieczny adapter oraz `managedDataOwners`. Dodatkowy lokalny skaner sprawdza katalogi
+pluginów nieprzejęte przez provider i blokuje finalizację po znalezieniu starego UUID albo
+przekroczeniu limitu skanowania. Mechanizm nie może zobaczyć danych w obcej zdalnej bazie
+MySQL/PostgreSQL, dlatego takie pluginy wymagają jawnego providera.

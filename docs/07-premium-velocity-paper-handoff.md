@@ -161,11 +161,19 @@ rejestracyjny. Konflikt docelowego UUID lub zmiana stanu konta kończy się fail
 Migracja v7 dodaje również `account_identities`, aby przyszłe zmiany tożsamości nie
 nadpisywały jedynego śladu poprzedniego UUID.
 
-**Ważne:** obecny etap implementuje bezpieczny gate, autoryzację starego konta,
-trwały ticket i atomową finalizację. Nie wykonuje ogólnego search/replace UUID w
-katalogach lub bazach innych pluginów. Taki mechanizm byłby podatny na uszkodzenie
-danych i naruszenie kluczy obcych. Poszczególne magazyny danych wymagają kontrolowanych
-providerów/migratorów; do czasu ich wykonania ticket pozostaje `PREPARED`.
+Po potwierdzeniu hasła gracz jest rozłączany, a migracja wykonuje się poza aktywną sesją.
+Wbudowany provider vanilla robi backup i przenosi `playerdata`, statystyki i advancementy.
+Pozostałe pluginy mogą rejestrować `IdentityMigrationProvider` przez ServicesManager.
+
+AuthGatewayX nie wykonuje ogólnego search/replace UUID. Lokalny skaner niezarządzanych
+katalogów pluginów wyszukuje stare UUID (także w postaci surowych 16 bajtów) i blokuje
+finalizację, jeżeli znajdzie dane bez providera. Limit plików i bajtów jest ograniczony
+konfiguracją; przekroczenie limitu również kończy się fail-closed. Zdalnych baz innych
+pluginów skaner nie może poznać — takie integracje wymagają jawnego providera.
+
+Providery są idempotentne i mają rollback. Jeżeli którykolwiek krok lub końcowy CAS
+AuthGatewayX zawiedzie, wykonane providery są wycofywane w odwrotnej kolejności, a konto
+pozostaje OFFLINE.
 ## 7. Konflikty
 
 Fail closed obowiązuje między innymi gdy:

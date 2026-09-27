@@ -15,7 +15,10 @@ import pl.syntaxdevteam.authgatewayx.paper.alert.RiskAlertText
 import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
 import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationCoordinator
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationRunResult
 import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationService
+import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
 import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
@@ -57,6 +60,9 @@ import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMod
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
 import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
+import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
+import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
+import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorGate
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorPolicy
@@ -148,8 +154,10 @@ class AuthGatewayXPaper : JavaPlugin() {
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
         val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
+        val migrationExecutor = BoundedTaskExecutor(positive("executors.migration-threads"), positive("executors.migration-queue"), "authgatewayx-migration")
         val components = RuntimeComponents(
-            sessions, storageExecutor, passwordExecutor, mojangExecutor, floodGate, usernameBurstGate, behaviorGate,
+            sessions, storageExecutor, passwordExecutor, mojangExecutor, migrationExecutor,
+            floodGate, usernameBurstGate, behaviorGate,
         )
         runtime = components
         val hasher = Argon2PasswordHasher(Argon2Parameters(
@@ -292,6 +300,61 @@ class AuthGatewayXPaper : JavaPlugin() {
             storage,
         )
         val premiumMigration = PremiumMigrationService(login, storage, storage)
+        val migrationCoordinator = PremiumMigrationCoordinator(storage, storage, providers = {
+            val external = server.servicesManager
+                .getRegistrations(IdentityMigrationProvider::class.java)
+                .map { it.provider }
+            val managedOwners = external.flatMap { it.managedDataOwners }.toSet()
+            val providers = mutableListOf<IdentityMigrationProvider>(
+                VanillaPlayerDataMigrationProvider(
+                    server.worlds.map { it.worldFolder.toPath() },
+                    dataFolder.toPath().resolve("migration-backups"),
+                    migrationExecutor,
+                ),
+            )
+            if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
+                providers += UnmanagedPluginUuidReferenceScanner(
+                    dataFolder.parentFile.toPath(),
+                    dataFolder.toPath(),
+                    { managedOwners },
+                    migrationExecutor,
+                    positive("migration.unmanaged-plugin-scan.maximum-files"),
+                    positiveLong("migration.unmanaged-plugin-scan.maximum-file-bytes"),
+                    positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
+                )
+            }
+            providers += external
+            providers
+        })
+        val migrationDisconnect = PremiumMigrationDisconnectCoordinator(
+            migrationCoordinator,
+            scheduler,
+            messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+            messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+        ) { ticket, result, failure ->
+            when {
+                failure != null -> logger.log(
+                    java.util.logging.Level.SEVERE,
+                    "Premium migration pipeline failed for ${ticket.username.value}",
+                    failure,
+                )
+                result is PremiumMigrationRunResult.Completed -> logger.info(
+                    "Premium migration completed for ${ticket.username.value}: " +
+                        "${ticket.sourceMinecraftUuid} -> ${ticket.targetMinecraftUuid}",
+                )
+                result is PremiumMigrationRunResult.Blocked -> logger.warning(
+                    "Premium migration blocked for ${ticket.username.value} by ${result.providerId}: ${result.reasonCode}",
+                )
+                result is PremiumMigrationRunResult.Failed -> logger.warning(
+                    "Premium migration failed for ${ticket.username.value}" +
+                        (result.providerId?.let { " at $it" } ?: "") +
+                        ": ${result.reasonCode}",
+                )
+                result is PremiumMigrationRunResult.AlreadyRunning -> logger.info(
+                    "Premium migration is already running for ${ticket.username.value}",
+                )
+            }
+        }
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)
@@ -337,8 +400,8 @@ class AuthGatewayXPaper : JavaPlugin() {
                 messages.stringMessageToComponentNoPrefix("migration", "cancelled"),
                 messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
             ),
-        ) { player, _ ->
-            if (player.isOnline) player.kick(messages.stringMessageToComponentNoPrefix("migration", "prepared"))
+        ) { player, ticket ->
+            if (player.isOnline) migrationDisconnect.begin(player, ticket)
         }
         val premiumLookup = MojangProfileLookup(
             mojangExecutor,
@@ -409,6 +472,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
         server.pluginManager.registerEvents(dialogs, this)
         server.pluginManager.registerEvents(premiumMigrationDialogs, this)
+        server.pluginManager.registerEvents(migrationDisconnect, this)
         val passwordDialogs = PasswordChangeDialogController(passwordChange, scheduler, sessions, PasswordChangeDialogText(
             messages.stringMessageToComponentNoPrefix("password", "own_title"),
             messages.stringMessageToComponentNoPrefix("password", "admin_title"),
@@ -506,6 +570,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     }
 
     private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
+    private fun positiveLong(path: String): Long = config.getLong(path).also { require(it > 0L) { "$path must be positive" } }
     private fun fail(message: String, failure: Throwable) { readiness.force(RuntimeState.FAILED); logger.log(java.util.logging.Level.SEVERE, "$message; authentication remains closed", failure) }
 
     override fun onDisable() {
@@ -524,6 +589,7 @@ private class RuntimeComponents(
     val storageExecutor: BoundedTaskExecutor,
     val passwordExecutor: BoundedTaskExecutor,
     val mojangExecutor: BoundedTaskExecutor,
+    val migrationExecutor: BoundedTaskExecutor,
     val floodGate: ConnectionFloodGate,
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
@@ -545,6 +611,7 @@ private class RuntimeComponents(
         storageExecutor.close()
         passwordExecutor.close()
         mojangExecutor.close()
+        migrationExecutor.close()
         floodGate.clear()
         usernameBurstGate.clear()
         behaviorGate.clear()

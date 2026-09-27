@@ -44,3 +44,25 @@ integrations:
 ```
 
 Po restarcie niedostępność wymaganej integracji PunisherX zatrzyma logowanie. Sprawdź działanie na koncie testowym z karą i bez niej. Jeśli wybierzesz `REQUIRED` razem z `FAIL_OPEN`, awaria lub brak usługi nie zatrzyma wejścia.
+
+## Integracja z migracją UUID OFFLINE -> PREMIUM
+
+Plugin przechowujący dane gracza pod UUID może zarejestrować w Bukkit/Paper ServicesManager
+implementację `pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider`.
+
+Provider otrzymuje wyłącznie kontekst migracji: stabilne `accountId`, nick, stare UUID,
+nowe UUID oraz ID migracji. Nie otrzymuje hasła gracza ani adresu IP.
+
+Kontrakt ma trzy fazy:
+
+1. `inspect(context)` — zgłasza `READY`, `NO_DATA` albo `BLOCKED`,
+2. `migrate(context)` — wykonuje idempotentne przeniesienie z własnym backupem,
+3. `rollback(context)` — odtwarza stan sprzed migracji.
+
+Provider powinien również zadeklarować `managedDataOwners`, np. `setOf("PlotsX")`. Wtedy
+wbudowany skaner AuthGatewayX nie potraktuje katalogu `plugins/PlotsX` jako niezarządzanego,
+bo za jego migrację odpowiada jawny adapter.
+
+AuthGatewayX uruchamia providery sekwencyjnie. Błąd późniejszego providera powoduje rollback
+już wykonanych providerów w odwrotnej kolejności. Dopiero po ich sukcesie storage może
+wykonać `completePremiumMigration(...)` i podmienić UUID w rekordzie konta.

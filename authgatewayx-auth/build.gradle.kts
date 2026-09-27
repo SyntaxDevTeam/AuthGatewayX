@@ -5,6 +5,7 @@ plugins {
 repositories { mavenCentral() }
 
 dependencies {
+    implementation(project(":authgatewayx-api"))
     implementation(project(":authgatewayx-domain"))
     implementation(project(":authgatewayx-integrations"))
     implementation(project(":authgatewayx-security"))

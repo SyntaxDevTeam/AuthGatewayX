@@ -209,6 +209,32 @@ executors:
   mojang-threads: 4
   mojang-queue: 128
 
+  # Rare OFFLINE -> PREMIUM migration file scans/copies. Keep this separate from storage
+  # so large player/plugin files cannot occupy JDBC workers.
+  migration-threads: 1
+  migration-queue: 16
+
+# /********************************************/
+#    OFFLINE -> PREMIUM identity migration
+# /********************************************/
+
+migration:
+  unmanaged-plugin-scan:
+    # Before AuthGatewayX finalizes a UUID change, inspect local plugin data directories
+    # not claimed by a registered IdentityMigrationProvider. Finding the old UUID blocks
+    # migration instead of attempting an unsafe generic search/replace.
+    enabled: true
+
+    # Hard bounds keep a one-time migration scan from consuming unbounded disk I/O.
+    maximum-files: 50000
+
+    # A single unmanaged file larger than this limit blocks migration and requires a
+    # dedicated provider or an intentional configuration change.
+    maximum-file-bytes: 134217728
+
+    # Maximum total bytes inspected across unmanaged plugin directories.
+    maximum-total-bytes: 1073741824
+
 # /********************************************/
 #    Optional integrations
 # /********************************************/

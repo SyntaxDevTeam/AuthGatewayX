@@ -47,3 +47,24 @@ po zakończeniu takich migracji.
 
 Jeżeli migracja nie została jeszcze zakończona, skontaktuj się z administracją. Nie próbuj
 usuwać plików `playerdata` ani ręcznie edytować baz danych bez kopii zapasowej.
+
+## Co AuthGatewayX przenosi automatycznie?
+
+Wbudowany provider przenosi dane vanilla zależne od UUID po wcześniejszym rozłączeniu gracza:
+
+- `playerdata/<uuid>.dat` i `.dat_old`,
+- `stats/<uuid>.json`,
+- `advancements/<uuid>.json`.
+
+Przed zmianą pliku wykonywana jest kopia w `plugins/AuthGatewayX/migration-backups/<migration-id>/`.
+Jeżeli późniejszy provider zawiedzie albo finalizacja konta nie przejdzie compare-and-set,
+wcześniej wykonane providery są wycofywane w odwrotnej kolejności.
+
+AuthGatewayX **nie wykonuje globalnego search/replace UUID**. Przed finalizacją skanuje lokalne
+katalogi danych pluginów, które nie zostały przejęte przez zarejestrowany
+`IdentityMigrationProvider`. Jeśli znajdzie stare UUID, migracja zostaje zatrzymana i konto
+pozostaje OFFLINE. Administrator musi wtedy zainstalować/dodać provider dla danego pluginu
+albo przenieść te dane świadomie.
+
+Skan lokalny nie daje wiedzy o zdalnej bazie MySQL/PostgreSQL innego pluginu. Pluginy trzymające
+dane gracza poza lokalnym katalogiem powinny zawsze dostarczyć własny provider.
