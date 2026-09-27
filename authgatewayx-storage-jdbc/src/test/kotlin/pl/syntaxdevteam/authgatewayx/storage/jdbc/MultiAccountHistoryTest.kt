@@ -70,18 +70,24 @@ class MultiAccountHistoryTest {
     }
 
     @Test
-    fun `unknown and premium accounts are excluded and migration removes history`() = withStorage { storage, url, _ ->
+    fun `unknown accounts stay null while premium accounts keep shared address history`() = withStorage { storage, url, _ ->
         storage.register("First", 1)
         val second = storage.register("Second", 1)
-        storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, UUID.randomUUID(), ip(1), now))
+        val officialUuid = UUID.randomUUID()
+        storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, officialUuid, ip(1), now))
             .toCompletableFuture().get()
         assertNull(storage.report("Missing"))
-        assertNull(storage.report("Second"))
-        assertTrue(storage.report("First")!!.accounts.isEmpty())
+        assertEquals(listOf("First"), storage.report("Second")!!.accounts.map { it.username.value })
+        assertEquals(listOf("Second"), storage.report("First")!!.accounts.map { it.username.value })
+        val inspection = assertNotNull(storage.inspect(second.username).toCompletableFuture().get())
+        assertEquals(officialUuid, inspection.account.minecraftUuid)
+        assertEquals("MOJANG", inspection.account.identityType.name)
+        assertEquals(ip(1), inspection.lastLoginAddress)
+        assertTrue(inspection.addresses.any { it.address == ip(1) })
         DriverManager.getConnection(url).use { connection ->
             connection.createStatement().use { statement ->
                 statement.executeQuery("SELECT COUNT(*) FROM offline_account_addresses").use {
-                    assertTrue(it.next()); assertEquals(1, it.getInt(1))
+                    assertTrue(it.next()); assertEquals(2, it.getInt(1))
                 }
             }
         }
