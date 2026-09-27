@@ -33,16 +33,39 @@ internal object JdbcOfflineAddressHistory {
         }
     }
 
-    fun backfillAllAccounts(connection: Connection, observedAt: Instant) {
-        connection.prepareStatement("""INSERT INTO offline_account_addresses(account_id, slot, source_ip, last_seen)
-            SELECT a.id, 1, a.last_login_ip, ?
+    fun backfillAllAccounts(connection: Connection) {
+        val missing = connection.prepareStatement("""SELECT a.id, a.last_login_ip, a.last_login_at, a.updated_at, a.created_at
             FROM accounts a
             WHERE a.last_login_ip IS NOT NULL
               AND NOT EXISTS (
                   SELECT 1 FROM offline_account_addresses h WHERE h.account_id = a.id
-              )""".trimIndent()).use {
-            it.setLong(1, observedAt.toEpochMilli())
-            it.executeUpdate()
+              )""".trimIndent()).use { statement ->
+            statement.executeQuery().use { rows -> buildList {
+                while (rows.next()) {
+                    val observedAt = sequenceOf(
+                        rows.getString("last_login_at"),
+                        rows.getString("updated_at"),
+                        rows.getString("created_at"),
+                    ).filterNotNull().mapNotNull { runCatching(Instant::parse).getOrNull() }.firstOrNull()
+                        ?: continue
+                    add(BackfillEntry(
+                        accountId = rows.getString("id"),
+                        address = rows.getString("last_login_ip"),
+                        lastSeen = observedAt.toEpochMilli(),
+                    ))
+                }
+            } }
+        }
+        connection.prepareStatement(
+            "INSERT INTO offline_account_addresses(account_id, slot, source_ip, last_seen) VALUES (?, 1, ?, ?)",
+        ).use { statement ->
+            missing.forEach { entry ->
+                statement.setString(1, entry.accountId)
+                statement.setString(2, entry.address)
+                statement.setLong(3, entry.lastSeen)
+                statement.addBatch()
+            }
+            if (missing.isNotEmpty()) statement.executeBatch()
         }
     }
 
@@ -112,4 +135,5 @@ internal object JdbcOfflineAddressHistory {
     }
 
     private data class Entry(val slot: Int, val address: String, val lastSeen: Long)
+    private data class BackfillEntry(val accountId: String, val address: String, val lastSeen: Long)
 }
