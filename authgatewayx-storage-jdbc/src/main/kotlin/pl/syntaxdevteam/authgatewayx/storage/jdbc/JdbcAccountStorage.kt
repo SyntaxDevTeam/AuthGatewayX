@@ -158,7 +158,7 @@ class JdbcAccountStorage(
                     recordMigration(connection, 5)
                 }
                 if (!hasMigration(connection, 6)) {
-                    JdbcOfflineAddressHistory.backfillAllAccounts(connection, Instant.now())
+                    JdbcOfflineAddressHistory.backfillAllAccounts(connection)
                     recordMigration(connection, 6)
                 }
                 connection.commit()
