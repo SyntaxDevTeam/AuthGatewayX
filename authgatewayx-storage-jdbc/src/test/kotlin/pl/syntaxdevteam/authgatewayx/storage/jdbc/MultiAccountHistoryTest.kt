@@ -4,7 +4,10 @@ import pl.syntaxdevteam.authgatewayx.domain.account.AccountId
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.OfflineIdentity
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationPreparationResult
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
 import java.net.InetAddress
@@ -97,8 +100,19 @@ class MultiAccountHistoryTest {
         storage.register("First", 1)
         val second = storage.register("Second", 1)
         val officialUuid = UUID.randomUUID()
-        storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, officialUuid, ip(1), now))
-            .toCompletableFuture().get()
+        assertIs<MojangIdentityBindingResult.MigrationRequired>(
+            storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, officialUuid, ip(1), now))
+                .toCompletableFuture().get(),
+        )
+        val prepared = assertIs<PremiumMigrationPreparationResult.Prepared>(
+            storage.preparePremiumMigration(
+                second.accountId, second.username, second.minecraftUuid, officialUuid, ip(1), now,
+            ).toCompletableFuture().get(),
+        )
+        assertTrue(storage.markPremiumMigrationStarted(prepared.ticket.id, now).toCompletableFuture().get())
+        assertIs<PremiumMigrationCompletionResult.Completed>(
+            storage.completePremiumMigration(prepared.ticket.id, now).toCompletableFuture().get(),
+        )
         assertNull(storage.report("Missing"))
         assertEquals(listOf("First"), storage.report("Second")!!.accounts.map { it.username.value })
         assertEquals(listOf("Second"), storage.report("First")!!.accounts.map { it.username.value })
