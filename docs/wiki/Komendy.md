@@ -15,7 +15,13 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 | `/authgatewayx migrate retry <nick>` | Administrator lub konsola | Ponawia istniejący `FAILED/PREPARED/MIGRATING` ticket przy użyciu tych samych backupów |
 | `/authgatewayx migrate recover <nick> [stare-uuid]` | Administrator lub konsola | Tworzy recovery dla konta już przełączonego przez starszą wersję AGX, wyłącznie po znalezieniu śladów starego UUID |
 
+Komenda administracyjna `/authgatewayx` ma alias `/agx`; podkomendy, argumenty i
+uprawnienia są identyczne, np. `/agx migrate status Alex`.
+
 `<nick>` zastąp nazwą gracza, bez nawiasów. Przykład: `/authgatewayx setpassword Alex`.
+
+Raport `/authgatewayx info <nick>` pokazuje najwyżej 10 najnowszych zdarzeń audytu konta;
+pełna historia pozostaje w bazie danych.
 
 ## Ustawienie hasła przez administratora
 
