@@ -154,21 +154,24 @@ class MigrationAdminCommandController(
                 replyAsync(sender, parsed.value) { listOf(renderTicket(ticket), text.completed) }
                 return@whenComplete
             }
-            if (isTargetOnline(ticket.targetMinecraftUuid)) {
-                replyAsync(sender, parsed.value) { listOf(text.onlineBlocked) }
-                return@whenComplete
-            }
-            safe { storage.retryPremiumMigration(ticket.id, clock.instant()) }.whenComplete { retried, retryFailure ->
-                if (retryFailure != null || retried == null) {
-                    replyAsync(sender, parsed.value) { listOf(text.unavailable) }
-                    return@whenComplete
+            dispatch(sender, Runnable {
+                if (!allowed(sender, EXECUTE_PERMISSION)) return@Runnable
+                if (isTargetOnline(ticket.targetMinecraftUuid)) {
+                    present(sender, parsed.value, listOf(text.onlineBlocked))
+                    return@Runnable
                 }
-                dispatch(sender, Runnable {
-                    if (!allowed(sender, EXECUTE_PERMISSION)) return@Runnable
-                    present(sender, parsed.value, listOf(text.retryStarted, renderTicket(retried)))
-                    runMigration(sender, parsed.value, retried)
-                })
-            }
+                safe { storage.retryPremiumMigration(ticket.id, clock.instant()) }.whenComplete { retried, retryFailure ->
+                    if (retryFailure != null || retried == null) {
+                        replyAsync(sender, parsed.value) { listOf(text.unavailable) }
+                        return@whenComplete
+                    }
+                    dispatch(sender, Runnable {
+                        if (!allowed(sender, EXECUTE_PERMISSION)) return@Runnable
+                        present(sender, parsed.value, listOf(text.retryStarted, renderTicket(retried)))
+                        runMigration(sender, parsed.value, retried)
+                    })
+                }
+            })
         }
     }
 
@@ -184,13 +187,13 @@ class MigrationAdminCommandController(
                 }
                 return@whenComplete
             }
-            if (isTargetOnline(account.minecraftUuid)) {
-                replyAsync(sender, parsed.value) { listOf(text.onlineBlocked) }
-                return@whenComplete
-            }
-            val address = (sender as? Player)?.address?.address ?: InetAddress.getLoopbackAddress()
             dispatch(sender, Runnable {
                 if (!allowed(sender, RECOVER_PERMISSION)) return@Runnable
+                if (isTargetOnline(account.minecraftUuid)) {
+                    present(sender, parsed.value, listOf(text.onlineBlocked))
+                    return@Runnable
+                }
+                val address = (sender as? Player)?.address?.address ?: InetAddress.getLoopbackAddress()
                 recovery.prepare(parsed, address, explicit).whenComplete { result, prepareFailure ->
                     if (prepareFailure != null || result == null) {
                         replyAsync(sender, parsed.value) { listOf(text.unavailable) }
