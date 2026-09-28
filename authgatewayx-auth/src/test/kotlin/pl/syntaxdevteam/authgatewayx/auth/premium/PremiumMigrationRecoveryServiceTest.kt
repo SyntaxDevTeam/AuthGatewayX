@@ -77,7 +77,7 @@ class PremiumMigrationRecoveryServiceTest {
         val coordinator = PremiumMigrationCoordinator(
             storage,
             audit,
-            { listOf(FakeProvider(IdentityMigrationInspectionStatus.READY, "LEGACY_DATA_FOUND")) },
+            { listOf(FakeProvider(IdentityMigrationInspectionStatus.READY, "LEGACY_DATA_FOUND", legacyEvidence = true)) },
             clock,
         )
         val service = PremiumMigrationRecoveryService(storage, coordinator, audit, { it.run() }, clock)
@@ -96,10 +96,11 @@ class PremiumMigrationRecoveryServiceTest {
     private class FakeProvider(
         private val status: IdentityMigrationInspectionStatus,
         private val reason: String,
+        private val legacyEvidence: Boolean = false,
     ) : IdentityMigrationProvider {
         override val id = "test:recovery"
         override fun inspect(context: IdentityMigrationContext) =
-            CompletableFuture.completedFuture(IdentityMigrationInspection(status, reason))
+            CompletableFuture.completedFuture(IdentityMigrationInspection(status, reason, legacyEvidence))
         override fun migrate(context: IdentityMigrationContext) =
             CompletableFuture.completedFuture<IdentityMigrationOperationResult>(IdentityMigrationOperationResult.NoData)
         override fun rollback(context: IdentityMigrationContext) =
