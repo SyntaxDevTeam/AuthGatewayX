@@ -50,6 +50,11 @@ enum class PremiumMigrationStatus {
     FAILED,
 }
 
+enum class PremiumMigrationKind {
+    UPGRADE,
+    RECOVERY,
+}
+
 data class PremiumMigrationTicket(
     val id: UUID,
     val accountId: AccountId,
@@ -61,11 +66,18 @@ data class PremiumMigrationTicket(
     val createdAt: Instant,
     val updatedAt: Instant,
     val failureReason: String?,
+    val kind: PremiumMigrationKind = PremiumMigrationKind.UPGRADE,
 )
 
 sealed interface PremiumMigrationPreparationResult {
     data class Prepared(val ticket: PremiumMigrationTicket) : PremiumMigrationPreparationResult
     data object IdentityConflict : PremiumMigrationPreparationResult
+}
+
+sealed interface PremiumRecoveryPreparationResult {
+    data class Prepared(val ticket: PremiumMigrationTicket) : PremiumRecoveryPreparationResult
+    data object AccountNotPremium : PremiumRecoveryPreparationResult
+    data object IdentityConflict : PremiumRecoveryPreparationResult
 }
 
 sealed interface PremiumMigrationCompletionResult {
@@ -99,6 +111,28 @@ interface AccountStorage : AutoCloseable {
         preparedAt: Instant,
     ): CompletionStage<PremiumMigrationPreparationResult> =
         CompletableFuture.completedFuture(PremiumMigrationPreparationResult.IdentityConflict)
+
+    fun preparePremiumRecovery(
+        accountId: AccountId,
+        username: AccountUsername,
+        sourceMinecraftUuid: UUID,
+        targetMinecraftUuid: UUID,
+        sourceAddress: InetAddress,
+        preparedAt: Instant,
+    ): CompletionStage<PremiumRecoveryPreparationResult> =
+        CompletableFuture.completedFuture(PremiumRecoveryPreparationResult.IdentityConflict)
+
+    fun findPremiumMigration(migrationId: UUID): CompletionStage<PremiumMigrationTicket?> =
+        CompletableFuture.completedFuture(null)
+
+    fun findLatestPremiumMigration(username: AccountUsername): CompletionStage<PremiumMigrationTicket?> =
+        CompletableFuture.completedFuture(null)
+
+    fun findIncompletePremiumMigrations(limit: Int): CompletionStage<List<PremiumMigrationTicket>> =
+        CompletableFuture.completedFuture(emptyList())
+
+    fun retryPremiumMigration(migrationId: UUID, retriedAt: Instant): CompletionStage<PremiumMigrationTicket?> =
+        CompletableFuture.completedFuture(null)
 
     fun markPremiumMigrationStarted(migrationId: UUID, startedAt: Instant): CompletionStage<Boolean> =
         CompletableFuture.completedFuture(false)
