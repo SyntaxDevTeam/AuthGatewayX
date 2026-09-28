@@ -82,9 +82,42 @@ nazwy katalogów danych, za które provider bierze odpowiedzialność, np. `Plot
 
 ## Recovery starszych automatycznych migracji
 
-Ten pipeline chroni nowe migracje. Gracz, którego starsza wersja AuthGatewayX zdążyła
-automatycznie przełączyć do MOJANG i nadpisać source UUID w głównym rekordzie, wymaga
-osobnego trybu recovery. Historia sprzed migracji v7 może nie istnieć, dlatego recovery
-powinno rekonstruować standardowy offline UUID z historycznego nicku i potwierdzać go
-dowodami w playerdata/pluginach przed jakąkolwiek zmianą. Ten przypadek pozostaje osobnym
-zadaniem roadmapy i nie może używać automatycznej finalizacji opisanej powyżej.
+Starsza wersja AuthGatewayX mogła już przełączyć konto na `MOJANG`, zanim istniał
+koordynator danych. Dla takiego przypadku istnieje osobny typ ticketu `RECOVERY`.
+
+`RECOVERY` różni się od `UPGRADE`:
+
+- konto pozostaje `MOJANG` przez cały proces,
+- target UUID to aktualny oficjalny UUID konta,
+- source UUID jest rekonstruowany standardowo z bieżącej nazwy lub podawany jawnie przez administratora,
+- samo wyliczenie UUID nie wystarcza — co najmniej jeden provider/skaner musi potwierdzić realny ślad danych,
+- po sukcesie stare UUID jest dopisywane do `account_identities` jako nieaktywna tożsamość OFFLINE,
+- bieżący rekord `accounts` nie jest cofany ani przepisywany.
+
+Komendy:
+
+```text
+/authgatewayx migrate status <nick>
+/authgatewayx migrate inspect <nick> [source-uuid]
+/authgatewayx migrate retry <nick>
+/authgatewayx migrate recover <nick> [source-uuid]
+```
+
+`inspect` nie modyfikuje danych. `recover` wymaga, aby docelowy gracz był offline.
+Jeżeli historyczna wielkość liter nicku różniła się od aktualnej nazwy Mojang, administrator
+może podać jawnie stare UUID, ale nadal wymagany jest dowód danych po tym UUID.
+
+## Restart i przerwana migracja
+
+`PREPARED` i `MIGRATING` są trwałe. Po uruchomieniu serwera
+`PremiumMigrationStartupRecovery` pobiera ograniczoną liczbę niedokończonych ticketów
+i ponawia ten sam idempotentny pipeline. Limit jest ustawiany przez
+`migration.recovery.startup-batch-limit`.
+
+Dla recovery aktywnego konta premium storage blokuje Mojang activation, gdy ticket ma
+stan `PREPARED` lub `MIGRATING`. Blokada pozostaje również dla `FAILED`, jeżeli
+failure reason wskazuje nieudany rollback. Dzięki temu gracz nie może wejść na profil,
+który mógł zostać częściowo zmieniony przed crashem.
+
+Zwykły `FAILED` po poprawnym rollbacku nie blokuje logowania. Administrator może usunąć
+przyczynę i użyć `migrate retry`; ponawiany jest ten sam ticket i te same backupy.
