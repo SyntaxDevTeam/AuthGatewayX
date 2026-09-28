@@ -51,6 +51,7 @@ sealed interface PremiumRecoveryStartResult {
 class PremiumMigrationRecoveryService(
     private val storage: AccountStorage,
     private val coordinator: PremiumMigrationCoordinator,
+    private val dispatchInspection: (Runnable) -> Unit = { it.run() },
     private val clock: Clock = Clock.systemUTC(),
 ) {
     fun inspectCandidate(
@@ -75,13 +76,21 @@ class PremiumMigrationRecoveryService(
                             sourceUuid,
                             account.minecraftUuid,
                         )
-                        coordinator.inspect(context).thenApply { inspections ->
-                            if (hasLegacyEvidence(inspections)) {
-                                PremiumRecoveryCandidateResult.Ready(account, sourceUuid, inspections)
-                            } else {
-                                PremiumRecoveryCandidateResult.NoEvidence(account, sourceUuid, inspections)
+                        val result = CompletableFuture<PremiumRecoveryCandidateResult>()
+                        dispatchInspection(Runnable {
+                            coordinator.inspect(context).whenComplete { inspections, failure ->
+                                if (failure != null) {
+                                    result.completeExceptionally(failure)
+                                } else if (inspections == null) {
+                                    result.completeExceptionally(IllegalStateException("Migration inspection returned null"))
+                                } else if (hasLegacyEvidence(inspections)) {
+                                    result.complete(PremiumRecoveryCandidateResult.Ready(account, sourceUuid, inspections))
+                                } else {
+                                    result.complete(PremiumRecoveryCandidateResult.NoEvidence(account, sourceUuid, inspections))
+                                }
                             }
-                        }
+                        })
+                        result
                     }
                 }
             }
