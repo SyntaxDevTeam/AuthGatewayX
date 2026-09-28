@@ -105,6 +105,7 @@ class UnmanagedPluginUuidReferenceScanner(
                                     return@submit IdentityMigrationInspection(
                                         IdentityMigrationInspectionStatus.BLOCKED,
                                         "UNMANAGED_UUID_REFERENCES_${matches.sorted().joinToString(",")}",
+                                        legacyEvidence = true,
                                     )
                                 }
                             }
@@ -122,6 +123,7 @@ class UnmanagedPluginUuidReferenceScanner(
                 IdentityMigrationInspection(
                     IdentityMigrationInspectionStatus.BLOCKED,
                     "UNMANAGED_UUID_REFERENCES_${matches.sorted().joinToString(",")}",
+                    legacyEvidence = true,
                 )
             }
         }
