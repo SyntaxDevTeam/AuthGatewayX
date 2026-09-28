@@ -221,6 +221,51 @@ class SqliteAccountStorageTest {
     }
 
     @Test
+    fun `premium login is blocked while recovery is incomplete and released after safe failure`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val identity = verifiedIdentity("RecoveryGate", "55555555-6666-7777-8888-999999999999")
+        val premium = assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        ).account
+        val legacyUuid = OfflineIdentity.minecraftUuid(premium.username)
+        val preparedAt = Instant.parse("2026-09-28T03:30:00Z")
+        val prepared = assertIs<PremiumRecoveryPreparationResult.Prepared>(
+            storage.preparePremiumRecovery(
+                premium.id,
+                premium.username,
+                legacyUuid,
+                premium.minecraftUuid,
+                InetAddress.getLoopbackAddress(),
+                preparedAt,
+            ).toCompletableFuture().get(),
+        )
+
+        assertIs<MojangIdentityBindingResult.MigrationInProgress>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+
+        storage.failPremiumMigration(prepared.ticket.id, preparedAt.plusSeconds(1), "PROVIDER_BLOCKED")
+            .toCompletableFuture().get()
+        assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+
+        val retried = assertNotNull(
+            storage.retryPremiumMigration(prepared.ticket.id, preparedAt.plusSeconds(2)).toCompletableFuture().get(),
+        )
+        assertTrue(storage.markPremiumMigrationStarted(retried.id, preparedAt.plusSeconds(3)).toCompletableFuture().get())
+        storage.failPremiumMigration(
+            retried.id,
+            preparedAt.plusSeconds(4),
+            "WRITE_FAILED_ROLLBACK_VANILLA_FAILED",
+        ).toCompletableFuture().get()
+
+        assertIs<MojangIdentityBindingResult.MigrationInProgress>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+    }
+
+    @Test
     fun `failed migration can be retried with the same durable ticket`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         val registration = registration("RetryUpgrade")
