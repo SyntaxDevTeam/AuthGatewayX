@@ -29,6 +29,15 @@ permissions:
   authgatewayx.admin.alts:
     description: Allows reviewing suspected account links by shared address history.
     default: op
+  authgatewayx.admin.migration.view:
+    description: Allows inspecting premium migration tickets and provider diagnostics.
+    default: op
+  authgatewayx.admin.migration.execute:
+    description: Allows retrying an existing premium migration ticket.
+    default: op
+  authgatewayx.admin.migration.recover:
+    description: Allows creating evidence-gated recovery migrations for accounts affected by older AuthGatewayX versions.
+    default: op
   authgatewayx.admin.view-security:
     description: Reveals lock state, failed-login counters and recent security audit events in account reports.
     default: op
