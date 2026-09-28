@@ -3091,3 +3091,27 @@ bezpieczny adapter oraz `managedDataOwners`. Dodatkowy lokalny skaner sprawdza k
 pluginów nieprzejęte przez provider i blokuje finalizację po znalezieniu starego UUID albo
 przekroczeniu limitu skanowania. Mechanizm nie może zobaczyć danych w obcej zdalnej bazie
 MySQL/PostgreSQL, dlatego takie pluginy wymagają jawnego providera.
+
+
+## Aktualizacja 2026-09-28 — recovery i trwałe wznowienie migracji
+
+System migracji rozróżnia dwa rodzaje trwałych ticketów:
+
+- `UPGRADE` — nowe przejście istniejącego konta OFFLINE do zweryfikowanego MOJANG,
+- `RECOVERY` — odzyskanie danych starego UUID dla konta, które starsza wersja AGX zdążyła
+  już przełączyć na MOJANG.
+
+RECOVERY nie cofa rekordu `accounts` do OFFLINE. Administrator może użyć
+`/authgatewayx migrate inspect|status|retry|recover`; recovery jest tworzone tylko po
+potwierdzeniu rzeczywistych danych starego UUID przez provider lub niezarządzany skaner.
+Opcjonalne jawne source UUID pozwala obsłużyć historyczną różnicę wielkości liter nicku.
+
+PREPARED/MIGRATING są wznawiane po restarcie przez bounded startup recovery. Bieżąca
+tożsamość MOJANG jest fail-closed dla logowania, dopóki RECOVERY pozostaje PREPARED/MIGRATING
+lub FAILED po nieskutecznym rollbacku. Zwykłe FAILED po poprawnym rollbacku nie blokuje
+logowania i może zostać ponowione tym samym ticketem.
+
+Migracja schematu v8 dodaje `migration_kind`. CI uruchamia rzeczywiste usługi MySQL 8.4,
+MariaDB 11.4 oraz PostgreSQL 17 i sprawdza na każdym backendzie idempotentną migrację schematu,
+UPGRADE, RECOVERY oraz dwie równoległe próby finalizacji tego samego ticketu. Te testy
+uzupełniają istniejące pokrycie SQLite.
