@@ -9,20 +9,37 @@ import java.util.UUID
 import java.util.logging.Level
 import java.util.logging.Logger
 
-class PremiumMigrationStartupRecovery(
+class PremiumMigrationStartupRecovery internal constructor(
     private val storage: AccountStorage,
     private val coordinator: PremiumMigrationCoordinator,
-    private val scheduler: PaperPlatformScheduler,
+    private val scheduleDelayed: (Long, Runnable) -> Unit,
+    private val dispatchGlobal: (Runnable) -> Unit,
     private val isTargetOnline: (UUID) -> Boolean,
     private val logger: Logger,
     private val batchLimit: Int = 100,
 ) {
+    constructor(
+        storage: AccountStorage,
+        coordinator: PremiumMigrationCoordinator,
+        scheduler: PaperPlatformScheduler,
+        isTargetOnline: (UUID) -> Boolean,
+        logger: Logger,
+        batchLimit: Int = 100,
+    ) : this(
+        storage,
+        coordinator,
+        { ticks, task -> scheduler.delayedGlobal(ticks, task) },
+        { task -> scheduler.global(task) },
+        isTargetOnline,
+        logger,
+        batchLimit,
+    )
     init {
         require(batchLimit in 1..1000)
     }
 
     fun schedule() {
-        scheduler.delayedGlobal(20L, Runnable { scan() })
+        scheduleDelayed(20L, Runnable { scan() })
     }
 
     private fun scan() {
@@ -31,7 +48,7 @@ class PremiumMigrationStartupRecovery(
                 logger.log(Level.SEVERE, "Cannot inspect unfinished premium migrations during startup", failure)
                 return@whenComplete
             }
-            scheduler.global(Runnable {
+            dispatchGlobal(Runnable {
                 tickets.orEmpty().forEach { ticket ->
                     if (isTargetOnline(ticket.targetMinecraftUuid)) {
                         logger.warning(
