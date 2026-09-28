@@ -23,6 +23,7 @@ data class PremiumMigrationProviderInspection(
     val providerId: String,
     val status: IdentityMigrationInspectionStatus,
     val reasonCode: String,
+    val legacyEvidence: Boolean,
 )
 
 sealed interface PremiumMigrationRunResult {
@@ -70,7 +71,12 @@ class PremiumMigrationCoordinator(
         }
         return inspectSequentially(unique.values.toList(), context).thenApply { inspections ->
             inspections.map { (provider, inspection) ->
-                PremiumMigrationProviderInspection(provider.id, inspection.status, inspection.reasonCode)
+                PremiumMigrationProviderInspection(
+                    provider.id,
+                    inspection.status,
+                    inspection.reasonCode,
+                    inspection.legacyEvidence,
+                )
             }
         }
     }
