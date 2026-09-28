@@ -40,6 +40,10 @@ sealed interface MojangIdentityBindingResult {
         val account: AuthAccount,
         val targetMinecraftUuid: UUID,
     ) : MojangIdentityBindingResult
+    data class MigrationInProgress(
+        val account: AuthAccount,
+        val migrationId: UUID,
+    ) : MojangIdentityBindingResult
     data object IdentityConflict : MojangIdentityBindingResult
 }
 
