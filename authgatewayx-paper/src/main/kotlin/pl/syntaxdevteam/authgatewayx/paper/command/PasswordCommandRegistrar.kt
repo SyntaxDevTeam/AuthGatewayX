@@ -36,6 +36,7 @@ class PasswordCommandRegistrar(
     private val logoutGateway: LogoutCommandGateway,
     private val multiAccountGateway: MultiAccountCommandGateway,
     private val accountInfoGateway: AccountInfoCommandGateway,
+    private val migrationGateway: MigrationAdminCommandGateway,
 ) {
     fun register() {
         plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
@@ -77,6 +78,57 @@ class PasswordCommandRegistrar(
                             }
                             1
                         }))
+                    .then(Commands.literal("migrate")
+                        .then(Commands.literal("status")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.VIEW_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                                migrationGateway.status(context.source.sender, StringArgumentType.getString(context, "username"))
+                                1
+                            }))
+                        .then(Commands.literal("inspect")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.VIEW_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word())
+                                .executes { context ->
+                                    migrationGateway.inspect(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        null,
+                                    )
+                                    1
+                                }
+                                .then(Commands.argument("source_uuid", StringArgumentType.word()).executes { context ->
+                                    migrationGateway.inspect(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        StringArgumentType.getString(context, "source_uuid"),
+                                    )
+                                    1
+                                })))
+                        .then(Commands.literal("retry")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.EXECUTE_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                                migrationGateway.retry(context.source.sender, StringArgumentType.getString(context, "username"))
+                                1
+                            }))
+                        .then(Commands.literal("recover")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.RECOVER_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word())
+                                .executes { context ->
+                                    migrationGateway.recover(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        null,
+                                    )
+                                    1
+                                }
+                                .then(Commands.argument("source_uuid", StringArgumentType.word()).executes { context ->
+                                    migrationGateway.recover(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        StringArgumentType.getString(context, "source_uuid"),
+                                    )
+                                    1
+                                }))))
                     .build(),
             )
         }
