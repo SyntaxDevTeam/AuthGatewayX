@@ -135,3 +135,21 @@ własny transakcyjny bridge migracji UUID:
 Każdy z tych pluginów pozostaje właścicielem swojej transakcji i rollbacku. AuthGatewayX
 nie modyfikuje ich tabel bezpośrednio; odkrywa bridge przez Bukkit ServicesManager.
 Jeżeli plugin jest zainstalowany, ale bridge jest niedostępny, migracja kończy się fail-closed.
+
+## Popularne integracje zewnętrzne
+
+EssentialsX ma kontrolowany migrator pliku YAML `userdata/<uuid>.yml` z trwałym backupem
+targetu, zapisem przez plik tymczasowy i rollbackiem. Source pozostaje zachowany, a różne
+istniejące dane targetu blokują migrację.
+
+LuckPerms jest obsługiwany przez jego publiczne API 5.5, bez bezpośrednich zapytań do tabel.
+Provider kopiuje trwałe węzły source (w tym dziedziczenie grup/rang i bezpośrednie
+uprawnienia wraz z kontekstami oraz expiry) do pustego targetu, zapisuje mapowanie gracza i zachowuje
+source. Różny, niepusty target jest konfliktem. Ponowienie jest idempotentne, gdy target
+jest dokładną kopią source. Rollback czyści target wyłącznie przy nadal identycznym zbiorze
+węzłów; zmiana targetu po migracji kończy się fail-closed.
+
+Vault nie przechowuje sald i nie jest providerem danych — jest wyłącznie warstwą API.
+Migracja ekonomii musi należeć do konkretnego pluginu ekonomii i jego transakcyjnego
+`IdentityMigrationProvider`; samo wykrycie Vault nie dowodzi ani obecności, ani braku salda.
+Do czasu dostarczenia takiego providera migrację należy traktować jako nieobsługiwaną.

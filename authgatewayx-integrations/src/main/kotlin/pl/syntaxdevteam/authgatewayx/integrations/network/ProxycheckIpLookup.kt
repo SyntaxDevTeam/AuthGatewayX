@@ -133,7 +133,14 @@ class ProxycheckIpLookup internal constructor(
             fun JsonObject.code(key: String, pattern: Regex): String? = this[key]
                 ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString?.takeIf(pattern::matches)
             fun JsonObject.text(maximumLength: Int, vararg keys: String): String? = keys.firstNotNullOfOrNull { key ->
-                this[key]?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+                val element = this[key]
+                val value = when {
+                    element?.isJsonPrimitive == true && element.asJsonPrimitive.isString -> element.asString
+                    element?.isJsonObject == true -> element.asJsonObject["name"]
+                        ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }?.asString
+                    else -> null
+                }
+                value
                     ?.trim()?.takeIf { value -> value.isNotEmpty() && value.length <= maximumLength && value.none(Char::isISOControl) }
             }
             fun JsonObject.percent(vararg keys: String): Int? = keys.firstNotNullOfOrNull { key ->
@@ -148,10 +155,10 @@ class ProxycheckIpLookup internal constructor(
                 tor = flag("tor"),
                 countryCode = location?.code("country_code", Regex("[A-Z]{2}")),
                 asn = network?.code("asn", Regex("AS[0-9]{1,10}")),
-                continent = location?.text(64, "continent"),
+                continent = location?.text(64, "continent", "continent_name"),
                 country = location?.text(64, "country", "country_name"),
                 region = location?.text(96, "region", "region_name"),
-                city = location?.text(96, "city"),
+                city = location?.text(96, "city", "city_name"),
                 timezone = location?.text(64, "timezone"),
                 provider = network?.text(160, "provider"),
                 organisation = network?.text(160, "organisation", "organization"),

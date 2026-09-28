@@ -130,6 +130,8 @@ class PasswordCommandRegistrar(
                                     1
                                 }))))
                     .build(),
+                "AuthGatewayX administration",
+                listOf("agx"),
             )
         }
     }

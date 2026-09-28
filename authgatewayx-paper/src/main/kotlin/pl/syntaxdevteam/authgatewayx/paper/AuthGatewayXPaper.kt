@@ -60,17 +60,20 @@ import pl.syntaxdevteam.authgatewayx.paper.isolation.SessionPreAuthAccess
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeReadiness
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeState
 import pl.syntaxdevteam.authgatewayx.paper.listener.AuthenticationReadinessListener
+import pl.syntaxdevteam.authgatewayx.paper.migration.ExternalIdentityDataGuardProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.EssentialsXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.HorseManagerXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.LuckPermsIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
+import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
+import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
+import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMode
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
 import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
-import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
-import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProvider
-import pl.syntaxdevteam.authgatewayx.paper.migration.HorseManagerXIdentityMigrationProvider
-import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
-import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
-import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
-import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorGate
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorPolicy
@@ -323,18 +326,40 @@ class AuthGatewayXPaper : JavaPlugin() {
         val plotsXMigrationProvider = PlotsXIdentityMigrationProvider(server, migrationExecutor)
         val horseManagerXMigrationProvider = HorseManagerXIdentityMigrationProvider(server, migrationExecutor)
         val punisherXMigrationProvider = PunisherXIdentityMigrationProvider(server, migrationExecutor)
+        val luckPermsMigrationProvider = server.pluginManager.getPlugin("LuckPerms")
+            ?.takeIf { it.isEnabled }
+            ?.let {
+                LuckPermsIdentityMigrationProvider(
+                    server,
+                    dataFolder.toPath().resolve("migration-backups").resolve("luckperms"),
+                    migrationExecutor,
+                )
+            }
+        val essentialsXMigrationProvider = EssentialsXIdentityMigrationProvider(
+            dataFolder.parentFile.toPath().resolve("Essentials").resolve("userdata"),
+            dataFolder.toPath().resolve("migration-backups").resolve("essentialsx"),
+            migrationExecutor,
+        )
         val migrationCoordinator = PremiumMigrationCoordinator(storage, storage, providers = {
             val external = server.servicesManager
                 .getRegistrations(IdentityMigrationProvider::class.java)
                 .map { it.provider }
-            val builtIn = listOf<IdentityMigrationProvider>(
+            val builtIn = listOfNotNull<IdentityMigrationProvider>(
                 vanillaMigrationProvider,
                 plotsXMigrationProvider,
                 horseManagerXMigrationProvider,
                 punisherXMigrationProvider,
+                luckPermsMigrationProvider,
+                essentialsXMigrationProvider,
             )
             val managedOwners = (builtIn + external).flatMap { it.managedDataOwners }.toSet()
             val providers = builtIn.toMutableList()
+            providers += ExternalIdentityDataGuardProvider(
+                enabledPluginNames = {
+                    server.pluginManager.plugins.filter { it.isEnabled }.mapTo(mutableSetOf()) { it.name }
+                },
+                managedDataOwnersSupplier = { managedOwners },
+            )
             if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
                 providers += UnmanagedPluginUuidReferenceScanner(
                     dataFolder.parentFile.toPath(),

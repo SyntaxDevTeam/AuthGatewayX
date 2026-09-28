@@ -664,7 +664,7 @@ class JdbcAccountStorage(
                 FROM security_events
                 WHERE account_id = ? OR LOWER(username) = ?
                 ORDER BY occurred_at DESC
-                LIMIT 20""".trimIndent()).use { statement ->
+                LIMIT 10""".trimIndent()).use { statement ->
                 statement.setString(1, base.account.id.value.toString())
                 statement.setString(2, username.canonical)
                 statement.executeQuery().use { rows -> buildList {
