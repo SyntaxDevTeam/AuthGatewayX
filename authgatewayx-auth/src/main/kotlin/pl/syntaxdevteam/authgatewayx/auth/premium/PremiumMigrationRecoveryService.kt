@@ -6,6 +6,9 @@ import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.AuthAccount
 import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.domain.account.OfflineIdentity
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityAuditSink
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
+import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
 import pl.syntaxdevteam.authgatewayx.storage.PremiumRecoveryPreparationResult
 import java.net.InetAddress
@@ -51,6 +54,7 @@ sealed interface PremiumRecoveryStartResult {
 class PremiumMigrationRecoveryService(
     private val storage: AccountStorage,
     private val coordinator: PremiumMigrationCoordinator,
+    private val auditSink: SecurityAuditSink,
     private val dispatchInspection: (Runnable) -> Unit = { it.run() },
     private val clock: Clock = Clock.systemUTC(),
 ) {
@@ -113,8 +117,22 @@ class PremiumMigrationRecoveryService(
                         clock.instant(),
                     ).thenApply { prepared ->
                         when (prepared) {
-                            is PremiumRecoveryPreparationResult.Prepared ->
+                            is PremiumRecoveryPreparationResult.Prepared -> {
+                                runCatching {
+                                    auditSink.record(
+                                        SecurityEvent(
+                                            clock.instant(),
+                                            prepared.ticket.accountId.value,
+                                            prepared.ticket.targetMinecraftUuid,
+                                            prepared.ticket.username.value,
+                                            sourceAddress,
+                                            SecurityEventType.PREMIUM_RECOVERY_PREPARED,
+                                            "LEGACY_UUID_EVIDENCE_CONFIRMED",
+                                        ),
+                                    )
+                                }
                                 PremiumRecoveryStartResult.Prepared(prepared.ticket, candidate.inspections)
+                            }
                             PremiumRecoveryPreparationResult.AccountNotPremium ->
                                 PremiumRecoveryStartResult.AccountNotPremium
                             PremiumRecoveryPreparationResult.IdentityConflict ->
