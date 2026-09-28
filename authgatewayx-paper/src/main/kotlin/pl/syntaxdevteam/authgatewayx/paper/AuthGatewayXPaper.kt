@@ -480,6 +480,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             premiumAuthenticationRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
             lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
             identityConflictMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+            migrationInProgressMessage = messages.stringMessageToComponentNoPrefix("migration", "in_progress"),
             internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
             onMojangActivated = { player ->
                 admission.release(player.uniqueId)
