@@ -156,8 +156,5 @@ class PremiumMigrationRecoveryService(
         }
 
     private fun hasLegacyEvidence(inspections: List<PremiumMigrationProviderInspection>): Boolean =
-        inspections.any { inspection ->
-            inspection.status == IdentityMigrationInspectionStatus.READY ||
-                inspection.reasonCode.startsWith("UNMANAGED_UUID_REFERENCES_")
-        }
+        inspections.any { it.legacyEvidence }
 }
