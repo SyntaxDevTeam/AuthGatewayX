@@ -2987,7 +2987,10 @@ operacji.
 `/authgatewayx info <nick>` jest głównym narzędziem diagnostycznym administratora.
 Konsola otrzymuje pełny raport tekstowy. Uwierzytelniony administrator w grze otrzymuje
 natywny Minecraft Dialog, którego sekcje są budowane wyłącznie z danych, do których ma
-uprawnienia. Podstawowy raport wymaga `authgatewayx.admin.info` i pokazuje nick, ID
+uprawnienia. Dialog używa kolumny 480 px, przenosi długie UUID do osobnych wierszy i
+prezentuje czas z dokładnością do sekund w UTC zamiast surowych nanosekund ISO, dzięki
+czemu raport pozostaje czytelny przy typowej skali GUI. Podstawowy raport wymaga
+`authgatewayx.admin.info` i pokazuje nick, ID
 konta AGX, Minecraft UUID, typ tożsamości PREMIUM/NON-PREMIUM, stan konta, daty życia
 rekordu, status aktywnej sesji i metodę uwierzytelnienia. Dodatkowo wykonywana jest
 bieżąca klasyfikacja nicku przez istniejący lookup Mojang; dzięki temu również nick bez

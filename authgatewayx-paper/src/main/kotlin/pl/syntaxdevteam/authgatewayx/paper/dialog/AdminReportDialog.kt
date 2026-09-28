@@ -17,7 +17,7 @@ internal fun showAdminReportDialog(
     closeLabel: Component,
 ) {
     val body = sections.ifEmpty { listOf(Component.empty()) }
-        .map { DialogBody.plainMessage(it, 560) }
+        .map { DialogBody.plainMessage(it, ADMIN_REPORT_BODY_WIDTH) }
     player.showDialog(Dialog.create { builder ->
         builder.empty()
             .base(DialogBase.builder(title)
@@ -28,3 +28,5 @@ internal fun showAdminReportDialog(
             .type(DialogType.notice(ActionButton.builder(closeLabel).build()))
     })
 }
+
+internal const val ADMIN_REPORT_BODY_WIDTH = 480

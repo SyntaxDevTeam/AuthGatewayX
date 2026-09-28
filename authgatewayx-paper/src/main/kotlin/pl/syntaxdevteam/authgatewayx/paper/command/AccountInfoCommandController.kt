@@ -13,6 +13,7 @@ import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileIdentityLo
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookupResult
 import pl.syntaxdevteam.authgatewayx.integrations.network.IpIntelligence
 import pl.syntaxdevteam.authgatewayx.integrations.network.IpIntelligenceLookup
+import pl.syntaxdevteam.authgatewayx.paper.dialog.displayInAdminReport
 import pl.syntaxdevteam.authgatewayx.paper.dialog.showAdminReportDialog
 import pl.syntaxdevteam.authgatewayx.storage.AccountInspection
 import pl.syntaxdevteam.authgatewayx.storage.AccountInspectionLookup
@@ -141,16 +142,16 @@ class AccountInfoCommandController(
             .withText("{official_uuid}", mojangUuid(loaded.mojang))
 
         sections += text.lifecycle
-            .withText("{created_at}", snapshot.account.createdAt.display())
-            .withText("{updated_at}", snapshot.account.updatedAt.display())
-            .withText("{last_login_at}", snapshot.lastLoginAt.display())
-            .withText("{premium_verified_at}", snapshot.premiumVerifiedAt.display())
+            .withText("{created_at}", snapshot.account.createdAt.displayInAdminReport())
+            .withText("{updated_at}", snapshot.account.updatedAt.displayInAdminReport())
+            .withText("{last_login_at}", snapshot.lastLoginAt.displayInAdminReport())
+            .withText("{premium_verified_at}", snapshot.premiumVerifiedAt.displayInAdminReport())
 
         sections += text.session
             .withText("{online}", if (loaded.session != null) "TAK" else "NIE")
             .withText("{method}", loaded.session?.authenticationMethod?.name ?: "brak aktywnej sesji")
-            .withText("{authenticated_at}", loaded.session?.authenticatedAt.display())
-            .withText("{expires_at}", loaded.session?.expiresAt.display())
+            .withText("{authenticated_at}", loaded.session?.authenticatedAt.displayInAdminReport())
+            .withText("{expires_at}", loaded.session?.expiresAt.displayInAdminReport())
 
         val viewIp = can(sender, VIEW_IP_PERMISSION)
         val viewGeo = can(sender, VIEW_GEO_PERMISSION)
@@ -168,7 +169,7 @@ class AccountInfoCommandController(
                 snapshot.addresses.forEach { observation ->
                     sections += text.ipHistoryEntry
                         .withText("{ip}", observation.address.hostAddress)
-                        .withText("{last_seen}", observation.lastSeen.display())
+                        .withText("{last_seen}", observation.lastSeen.displayInAdminReport())
                 }
             }
         }
@@ -220,14 +221,14 @@ class AccountInfoCommandController(
             sections += text.securityHeader
             sections += text.securitySummary
                 .withText("{failed_logins}", snapshot.failedLoginCount.toString())
-                .withText("{locked_until}", snapshot.lockedUntil.display())
+                .withText("{locked_until}", snapshot.lockedUntil.displayInAdminReport())
                 .withText("{event_count}", snapshot.securityEvents.size.toString())
             if (snapshot.securityEvents.isEmpty()) {
                 sections += text.noData
             } else {
                 snapshot.securityEvents.forEach { event ->
                     sections += text.securityEntry
-                        .withText("{time}", event.timestamp.display())
+                        .withText("{time}", event.timestamp.displayInAdminReport())
                         .withText("{type}", event.eventType)
                         .withText("{reason}", event.reasonCode)
                         .withText("{ip}", if (viewIp) " • IP ${event.sourceAddress.hostAddress}" else "")
@@ -309,7 +310,6 @@ class AccountInfoCommandController(
     private fun mojangUuid(result: MojangProfileLookupResult): String =
         (result as? MojangProfileLookupResult.Premium)?.minecraftUuid?.toString() ?: "brak danych"
 
-    private fun Instant?.display(): String = this?.toString() ?: "brak danych"
     private fun String?.display(fallback: String = "brak danych"): String = this ?: fallback
     private fun Boolean?.display(): String = when (this) {
         true -> "TAK"

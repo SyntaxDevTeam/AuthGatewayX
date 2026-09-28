@@ -23,6 +23,10 @@ uprawnienia są identyczne, np. `/agx migrate status Alex`.
 Raport `/authgatewayx info <nick>` pokazuje najwyżej 10 najnowszych zdarzeń audytu konta;
 pełna historia pozostaje w bazie danych.
 
+Dialog rozdziela długie identyfikatory do osobnych wierszy, używa węższej kolumny oraz
+skraca znaczniki czasu do sekund w UTC, aby dane nie wychodziły poza ekran przy typowej
+skali interfejsu Minecrafta. Konsola nadal otrzymuje ten sam raport tekstowy.
+
 ## Ustawienie hasła przez administratora
 
 Najpierw upewnij się, że pomagasz właścicielowi konta. Zaloguj się na serwerze, wpisz komendę z nickiem, a nowe hasło podaj w otwartym oknie. Operacja zostaje zapisana w historii zdarzeń. Jeśli wskazany gracz jest online, zostanie rozłączony i będzie musiał zalogować się nowym hasłem.
