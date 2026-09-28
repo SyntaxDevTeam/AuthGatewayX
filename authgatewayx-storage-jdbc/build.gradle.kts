@@ -10,6 +10,9 @@ dependencies {
     compileOnly(libs.postgresql.jdbc)
     testRuntimeOnly(libs.hikari)
     testRuntimeOnly(libs.sqlite.jdbc)
+    testRuntimeOnly(libs.mysql.jdbc)
+    testRuntimeOnly(libs.mariadb.jdbc)
+    testRuntimeOnly(libs.postgresql.jdbc)
     testImplementation(libs.sqlite.jdbc)
     testImplementation(kotlin("test"))
 }
