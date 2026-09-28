@@ -94,20 +94,6 @@ jobs:
           test -n "${jar}"
           unzip -p "${jar}" paper-plugin.yml > paper-plugin-check.yml
           grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
-      - name: Verify Velocity distributable JAR
-        run: |
-          jar="$(find authgatewayx-velocity/build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n 1)"
-          test -n "${jar}"
-          unzip -p "${jar}" velocity-plugin.json > velocity-plugin-check.json
-          grep -q '"id": "authgatewayx"' velocity-plugin-check.json
-          grep -q 'pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity' velocity-plugin-check.json
-          unzip -Z1 "${jar}" > velocity-jar-entries.txt
-          grep -Fxq 'com/zaxxer/hikari/HikariDataSource.class' velocity-jar-entries.txt
-          grep -Fxq 'org/sqlite/JDBC.class' velocity-jar-entries.txt
-          grep -Fxq 'com/mysql/cj/jdbc/Driver.class' velocity-jar-entries.txt
-          grep -Fxq 'org/mariadb/jdbc/Driver.class' velocity-jar-entries.txt
-          grep -Fxq 'org/postgresql/Driver.class' velocity-jar-entries.txt
-
   publish:
     name: Publish ${{ matrix.name }}
     runs-on: ubuntu-latest
@@ -289,13 +275,15 @@ jobs:
         run: |
           jar="$(find authgatewayx-velocity/build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n 1)"
           test -n "${jar}"
-          unzip -p "${jar}" velocity-plugin.json | grep -q '"id": "authgatewayx"'
-          unzip -p "${jar}" velocity-plugin.json | grep -q 'pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity'
-          unzip -l "${jar}" | grep -q 'com/zaxxer/hikari/HikariDataSource.class'
-          unzip -l "${jar}" | grep -q 'org/sqlite/JDBC.class'
-          unzip -l "${jar}" | grep -q 'com/mysql/cj/jdbc/Driver.class'
-          unzip -l "${jar}" | grep -q 'org/mariadb/jdbc/Driver.class'
-          unzip -l "${jar}" | grep -q 'org/postgresql/Driver.class'
+          unzip -p "${jar}" velocity-plugin.json > velocity-plugin-check.json
+          grep -q '"id": "authgatewayx"' velocity-plugin-check.json
+          grep -q 'pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity' velocity-plugin-check.json
+          unzip -Z1 "${jar}" > velocity-jar-entries.txt
+          grep -Fxq 'com/zaxxer/hikari/HikariDataSource.class' velocity-jar-entries.txt
+          grep -Fxq 'org/sqlite/JDBC.class' velocity-jar-entries.txt
+          grep -Fxq 'com/mysql/cj/jdbc/Driver.class' velocity-jar-entries.txt
+          grep -Fxq 'org/mariadb/jdbc/Driver.class' velocity-jar-entries.txt
+          grep -Fxq 'org/postgresql/Driver.class' velocity-jar-entries.txt
 
   publish:
     name: Publish ${{ matrix.name }}
