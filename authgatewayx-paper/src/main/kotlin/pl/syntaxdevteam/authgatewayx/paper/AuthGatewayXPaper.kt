@@ -340,6 +340,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         val premiumRecovery = PremiumMigrationRecoveryService(
             storage,
             migrationCoordinator,
+            storage,
             dispatchInspection = { task -> scheduler.global(task) },
         )
         val migrationDisconnect = PremiumMigrationDisconnectCoordinator(
