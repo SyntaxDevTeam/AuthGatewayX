@@ -20,6 +20,7 @@ enum class IdentityMigrationInspectionStatus {
 data class IdentityMigrationInspection(
     val status: IdentityMigrationInspectionStatus,
     val reasonCode: String,
+    val legacyEvidence: Boolean = false,
 )
 
 sealed interface IdentityMigrationOperationResult {
