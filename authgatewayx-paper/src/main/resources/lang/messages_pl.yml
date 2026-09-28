@@ -34,6 +34,26 @@ migration:
   prepared: "<yellow>Potwierdzono własność starego i nowego konta. Zostaniesz rozłączony, aby AuthGatewayX mógł bezpiecznie przenieść dane poza aktywną sesją. Po zakończeniu migracji połącz się ponownie. Jeśli wykryte zostaną dane pluginu bez bezpiecznego migratora, zmiana UUID zostanie zatrzymana.</yellow>"
   cancelled: "<yellow>Migracja konta premium została anulowana. Konto non-premium i jego dane pozostały bez zmian.</yellow>"
 
+migration_admin:
+  title: '<aqua>AuthGatewayX — migracja {username}</aqua>'
+  close: '<gray>Zamknij</gray>'
+  not_found: '<red>Nie znaleziono konta o podanej nazwie.</red>'
+  unavailable: '<red>System migracji jest chwilowo niedostępny. Sprawdź logi i spróbuj ponownie.</red>'
+  invalid_uuid: '<red>Podane źródłowe UUID ma nieprawidłowy format.</red>'
+  online_blocked: '<red>Docelowe konto jest teraz online. Migrację można uruchomić dopiero po jego pełnym rozłączeniu.</red>'
+  no_evidence: '<yellow>Nie znaleziono wiarygodnego śladu danych dla starego UUID {source_uuid}. Recovery nie zostanie utworzone tylko na podstawie nicku.</yellow>'
+  not_premium: '<red>Recovery dotyczy kont już przełączonych do MOJANG. Wskazane konto nie jest obecnie kontem premium.</red>'
+  identity_conflict: '<red>Stan tożsamości jest sprzeczny z bezpiecznym recovery. Niczego nie zmieniono.</red>'
+  status: '<gold>Ticket</gold><newline><gray>Typ:</gray> <white>{kind}</white><newline><gray>Stan:</gray> <white>{status}</white><newline><gray>Źródło:</gray> <white>{source_uuid}</white><newline><gray>Cel:</gray> <white>{target_uuid}</white><newline><gray>Ostatni błąd:</gray> <white>{failure}</white>'
+  provider: '<dark_gray>•</dark_gray> <yellow>{provider}</yellow><gray> — {status}: {reason}</gray>'
+  no_ticket: '<gray>Brak zapisanego ticketu migracji dla tego konta.</gray>'
+  retry_started: '<yellow>Ponowiono istniejący ticket migracji. AuthGatewayX użyje tych samych backupów i idempotentnych providerów.</yellow>'
+  completed: '<green>Migracja zakończyła się pomyślnie.</green>'
+  failed: '<red>Migracja nie powiodła się w providerze {provider}: {reason}</red>'
+  blocked: '<yellow>Migracja została bezpiecznie zatrzymana przez provider {provider}: {reason}</yellow>'
+  already_running: '<yellow>Ta migracja jest już wykonywana.</yellow>'
+  recovery_prepared: '<yellow>Utworzono recovery po potwierdzeniu śladów starego UUID. Bieżąca tożsamość premium nie zostanie cofnięta do OFFLINE.</yellow>'
+
 password:
   own_title: "<aqua>Zmiana hasła</aqua>"
   admin_title: "<red>Administracyjne ustawienie hasła</red>"
