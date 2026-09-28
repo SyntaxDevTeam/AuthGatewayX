@@ -129,7 +129,8 @@ AuthGatewayX dostarcza kontrolowane adaptery dla pluginów SyntaxDevTeam, które
 własny transakcyjny bridge migracji UUID:
 
 - PlotsX — właściciele działek, członkowie i własny journal/rollback,
-- HorseManagerX — właściciele koni, relacje trust, sprzedawcy ofert i actor logs.
+- HorseManagerX — właściciele koni, relacje trust, sprzedawcy ofert i actor logs,
+- PunisherX — aktywne kary, historia, raporty, bridge queue, zaszyfrowany player cache i jail cache.
 
 Każdy z tych pluginów pozostaje właścicielem swojej transakcji i rollbacku. AuthGatewayX
 nie modyfikuje ich tabel bezpośrednio; odkrywa bridge przez Bukkit ServicesManager.

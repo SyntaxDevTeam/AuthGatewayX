@@ -67,6 +67,7 @@ import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
 import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.HorseManagerXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
 import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
 import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
@@ -321,6 +322,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         )
         val plotsXMigrationProvider = PlotsXIdentityMigrationProvider(server, migrationExecutor)
         val horseManagerXMigrationProvider = HorseManagerXIdentityMigrationProvider(server, migrationExecutor)
+        val punisherXMigrationProvider = PunisherXIdentityMigrationProvider(server, migrationExecutor)
         val migrationCoordinator = PremiumMigrationCoordinator(storage, storage, providers = {
             val external = server.servicesManager
                 .getRegistrations(IdentityMigrationProvider::class.java)
@@ -329,6 +331,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                 vanillaMigrationProvider,
                 plotsXMigrationProvider,
                 horseManagerXMigrationProvider,
+                punisherXMigrationProvider,
             )
             val managedOwners = (builtIn + external).flatMap { it.managedDataOwners }.toSet()
             val providers = builtIn.toMutableList()

@@ -76,3 +76,13 @@ prowadzi własny journal i rollback oraz czyści cache po zmianie UUID.
 
 Jeżeli HorseManagerX jest zainstalowany, ale jego bridge migracyjny nie jest dostępny,
 AuthGatewayX blokuje finalizację zamiast pomijać dane.
+
+
+### PunisherX — migracja UUID
+
+Przy migracji konta non-premium do premium AuthGatewayX korzysta z transakcyjnego bridge
+PunisherX. Obejmuje on aktywne kary, historię kar, raporty, wpisy bridge queue, zaszyfrowany
+player cache oraz jail cache. PunisherX utrzymuje własny journal i backupy dla rollbacku.
+
+Jeżeli PunisherX jest aktywny, ale jego bridge migracyjny jest niedostępny, AuthGatewayX
+blokuje finalizację UUID zamiast pozostawić część danych pod poprzednią tożsamością.
