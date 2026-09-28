@@ -99,7 +99,17 @@ jobs:
 
       - name: Verify Velocity distributable JAR
         run: |
-          jar="$(find authgatewayx-velocity/build/libs -maxdepth 1 -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' | head -n 1)"
+          jar="$(python3 - <<'PY'
+          from pathlib import Path
+          candidates = [
+              path for path in Path("authgatewayx-velocity/build/libs").glob("*.jar")
+              if not path.name.endswith(("-plain.jar", "-sources.jar", "-javadoc.jar", "-original.jar"))
+          ]
+          if not candidates:
+              raise SystemExit(1)
+          print(max(candidates, key=lambda path: path.stat().st_size))
+          PY
+          )"
           test -n "${jar}"
           unzip -p "${jar}" velocity-plugin.json > velocity-plugin-check.json
           grep -q '"id": "authgatewayx"' velocity-plugin-check.json
