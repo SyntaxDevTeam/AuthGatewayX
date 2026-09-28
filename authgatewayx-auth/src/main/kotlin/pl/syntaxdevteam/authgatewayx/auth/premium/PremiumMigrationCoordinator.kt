@@ -11,6 +11,7 @@ import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
 import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationKind
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationTicket
 import java.time.Clock
 import java.util.UUID
@@ -175,7 +176,12 @@ class PremiumMigrationCoordinator(
             return storage.completePremiumMigration(ticket.id, clock.instant()).thenCompose { completion ->
                 when (completion) {
                     is PremiumMigrationCompletionResult.Completed -> {
-                        audit(ticket, SecurityEventType.OFFLINE_TO_PREMIUM_MIGRATION, "CONTROLLED_MIGRATION_COMPLETED")
+                        val eventType = if (ticket.kind == PremiumMigrationKind.RECOVERY) {
+                            SecurityEventType.PREMIUM_RECOVERY_COMPLETED
+                        } else {
+                            SecurityEventType.OFFLINE_TO_PREMIUM_MIGRATION
+                        }
+                        audit(ticket, eventType, "CONTROLLED_MIGRATION_COMPLETED")
                         CompletableFuture.completedFuture(PremiumMigrationRunResult.Completed(completion.account))
                     }
                     PremiumMigrationCompletionResult.NotFound ->
