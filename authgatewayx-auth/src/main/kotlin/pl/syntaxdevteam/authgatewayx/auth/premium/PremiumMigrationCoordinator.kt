@@ -18,6 +18,12 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.ConcurrentHashMap
 
+data class PremiumMigrationProviderInspection(
+    val providerId: String,
+    val status: IdentityMigrationInspectionStatus,
+    val reasonCode: String,
+)
+
 sealed interface PremiumMigrationRunResult {
     data class Completed(val account: AuthAccount) : PremiumMigrationRunResult
     data class Blocked(val providerId: String, val reasonCode: String) : PremiumMigrationRunResult
@@ -32,6 +38,41 @@ class PremiumMigrationCoordinator(
     private val clock: Clock = Clock.systemUTC(),
 ) {
     private val running = ConcurrentHashMap.newKeySet<UUID>()
+
+    fun inspect(ticket: PremiumMigrationTicket): CompletionStage<List<PremiumMigrationProviderInspection>> =
+        inspect(
+            IdentityMigrationContext(
+                ticket.id,
+                ticket.accountId.value,
+                ticket.username.value,
+                ticket.sourceMinecraftUuid,
+                ticket.targetMinecraftUuid,
+            ),
+        )
+
+    fun inspect(context: IdentityMigrationContext): CompletionStage<List<PremiumMigrationProviderInspection>> {
+        val providerList = try {
+            providers().toList()
+        } catch (failure: Throwable) {
+            return CompletableFuture.failedFuture(failure)
+        }
+        val unique = LinkedHashMap<String, IdentityMigrationProvider>()
+        for (provider in providerList) {
+            if (!PROVIDER_ID.matches(provider.id) || unique.putIfAbsent(provider.id, provider) != null) {
+                return CompletableFuture.failedFuture(
+                    IllegalStateException("Invalid or duplicate migration provider id: ${provider.id}"),
+                )
+            }
+        }
+        if (unique.isEmpty()) {
+            return CompletableFuture.failedFuture(IllegalStateException("No migration providers"))
+        }
+        return inspectSequentially(unique.values.toList(), context).thenApply { inspections ->
+            inspections.map { (provider, inspection) ->
+                PremiumMigrationProviderInspection(provider.id, inspection.status, inspection.reasonCode)
+            }
+        }
+    }
 
     fun migrate(ticket: PremiumMigrationTicket): CompletionStage<PremiumMigrationRunResult> {
         if (!running.add(ticket.id)) {
