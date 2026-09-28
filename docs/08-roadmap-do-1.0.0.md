@@ -32,10 +32,11 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
   profil oraz brak fallbacku offline na każdej ścieżce błędu.
 - [ ] Dokończyć i przetestować migrację konta `OFFLINE -> MOJANG`, w tym konflikt nazwy,
   konflikt UUID, równoległe logowania oraz audit migracji.
-  - Gate migracyjny, weryfikacja starego hasła, trwały ticket v7, historia UUID, koordynator
-    providerów, rollback, provider danych vanilla i lokalny skaner niezarządzanych UUID są
-    wdrożone. Checkbox pozostaje otwarty dla recovery graczy zmigrowanych starszą wersją,
-    adapterów zdalnych magazynów/pluginów oraz pełnych testów równoległości i zdalnych DB.
+  - Gate migracyjny, weryfikacja starego hasła, trwałe tickety UPGRADE/RECOVERY, historia UUID,
+    koordynator providerów, rollback, provider danych vanilla, skaner niezarządzanych UUID,
+    komendy status/inspect/retry/recover i automatyczne wznowienie PREPARED/MIGRATING po restarcie
+    są wdrożone. Checkbox pozostaje otwarty dla adapterów konkretnych zdalnych magazynów/pluginów
+    oraz pełnych testów równoległości i MySQL/MariaDB/PostgreSQL.
 - [ ] Dodać bezpieczną politykę concurrent login/kick lub deny i test dwóch jednoczesnych
   logowań tego samego konta.
 - [ ] Zweryfikować disconnect podczas Argon2/JDBC/HTTP oraz późne callbacki po shutdownie.
