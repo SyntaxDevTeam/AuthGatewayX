@@ -16,6 +16,7 @@ import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
 import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
 import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
 import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationCoordinator
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationRecoveryService
 import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationRunResult
 import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationService
 import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider
@@ -47,6 +48,9 @@ import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableAccountInfoCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableMigrationAdminCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -61,6 +65,7 @@ import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMod
 import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
+import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
 import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
 import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
@@ -90,12 +95,18 @@ class AuthGatewayXPaper : JavaPlugin() {
     private val logoutCommandGateway = MutableLogoutCommandGateway()
     private val multiAccountCommandGateway = MutableMultiAccountCommandGateway()
     private val accountInfoCommandGateway = MutableAccountInfoCommandGateway()
+    private val migrationAdminCommandGateway = MutableMigrationAdminCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
         saveDefaultConfig()
         PasswordCommandRegistrar(
-            this, passwordCommandGateway, logoutCommandGateway, multiAccountCommandGateway, accountInfoCommandGateway,
+            this,
+            passwordCommandGateway,
+            logoutCommandGateway,
+            multiAccountCommandGateway,
+            accountInfoCommandGateway,
+            migrationAdminCommandGateway,
         ).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
@@ -301,18 +312,17 @@ class AuthGatewayXPaper : JavaPlugin() {
             storage,
         )
         val premiumMigration = PremiumMigrationService(login, storage, storage)
+        val vanillaMigrationProvider = VanillaPlayerDataMigrationProvider(
+            server.worlds.map { it.worldFolder.toPath() },
+            dataFolder.toPath().resolve("migration-backups"),
+            migrationExecutor,
+        )
         val migrationCoordinator = PremiumMigrationCoordinator(storage, storage, providers = {
             val external = server.servicesManager
                 .getRegistrations(IdentityMigrationProvider::class.java)
                 .map { it.provider }
             val managedOwners = external.flatMap { it.managedDataOwners }.toSet()
-            val providers = mutableListOf<IdentityMigrationProvider>(
-                VanillaPlayerDataMigrationProvider(
-                    server.worlds.map { it.worldFolder.toPath() },
-                    dataFolder.toPath().resolve("migration-backups"),
-                    migrationExecutor,
-                ),
-            )
+            val providers = mutableListOf<IdentityMigrationProvider>(vanillaMigrationProvider)
             if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
                 providers += UnmanagedPluginUuidReferenceScanner(
                     dataFolder.parentFile.toPath(),
@@ -327,6 +337,11 @@ class AuthGatewayXPaper : JavaPlugin() {
             providers += external
             providers
         })
+        val premiumRecovery = PremiumMigrationRecoveryService(
+            storage,
+            migrationCoordinator,
+            dispatchInspection = { task -> scheduler.global(task) },
+        )
         val migrationDisconnect = PremiumMigrationDisconnectCoordinator(
             migrationCoordinator,
             scheduler,
@@ -500,6 +515,45 @@ class AuthGatewayXPaper : JavaPlugin() {
             })
         }
         passwordCommandGateway.delegate = passwordDialogs
+        migrationAdminCommandGateway.delegate = MigrationAdminCommandController(
+            storage = storage,
+            coordinator = migrationCoordinator,
+            recovery = premiumRecovery,
+            dispatch = { sender, task ->
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            },
+            text = MigrationAdminCommandText(
+                messages.stringMessageToComponentNoPrefix("migration_admin", "title"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "close"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "not_found"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "unavailable"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "invalid_uuid"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "online_blocked"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "no_evidence"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "not_premium"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "identity_conflict"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "status"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "provider"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "no_ticket"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "retry_started"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "completed"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "failed"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "blocked"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "already_running"),
+                messages.stringMessageToComponentNoPrefix("migration_admin", "recovery_prepared"),
+            ),
+            isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
+            isReady = { readiness.acceptsAuthentication() },
+            isTargetOnline = { uuid -> server.getPlayer(uuid)?.isOnline == true },
+        )
+        PremiumMigrationStartupRecovery(
+            storage,
+            migrationCoordinator,
+            scheduler,
+            isTargetOnline = { uuid -> server.getPlayer(uuid)?.isOnline == true },
+            logger = logger,
+            batchLimit = positive("migration.recovery.startup-batch-limit"),
+        ).schedule()
         accountInfoCommandGateway.delegate = AccountInfoCommandController(
             inspection = storage,
             alts = storage,
@@ -580,6 +634,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         logoutCommandGateway.delegate = null
         multiAccountCommandGateway.delegate = null
         accountInfoCommandGateway.delegate = null
+        migrationAdminCommandGateway.delegate = null
         runtime?.close()
         runtime = null
     }
