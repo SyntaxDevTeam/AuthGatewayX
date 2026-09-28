@@ -31,6 +31,7 @@ migration:
   prompt: "<yellow>Wykryto istniejące konto non-premium o tym samym nicku.</yellow><newline><gray>Stare UUID:</gray> <white>{old_uuid}</white><newline><gray>Nowe UUID premium:</gray> <white>{new_uuid}</white><newline><newline><gray>Aby potwierdzić, że oba profile należą do Ciebie, wpisz hasło używane dotychczas do konta non-premium. AuthGatewayX nie zmieni UUID konta, dopóki migracja danych nie zostanie bezpiecznie zakończona.</gray>"
   password_label: "Hasło starego konta non-premium"
   identity_conflict: "<red>Stan konta zmienił się lub docelowe UUID jest już używane. Migracja została zatrzymana.</red>"
+  in_progress: "<yellow>Migracja danych tego konta premium nie została jeszcze bezpiecznie zakończona. Poczekaj na automatyczne wznowienie albo poproś administratora o sprawdzenie /authgatewayx migrate status.</yellow>"
   prepared: "<yellow>Potwierdzono własność starego i nowego konta. Zostaniesz rozłączony, aby AuthGatewayX mógł bezpiecznie przenieść dane poza aktywną sesją. Po zakończeniu migracji połącz się ponownie. Jeśli wykryte zostaną dane pluginu bez bezpiecznego migratora, zmiana UUID zostanie zatrzymana.</yellow>"
   cancelled: "<yellow>Migracja konta premium została anulowana. Konto non-premium i jego dane pozostały bez zmian.</yellow>"
 
