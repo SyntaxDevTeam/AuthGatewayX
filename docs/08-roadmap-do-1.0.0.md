@@ -35,8 +35,9 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
   - Gate migracyjny, weryfikacja starego hasła, trwałe tickety UPGRADE/RECOVERY, historia UUID,
     koordynator providerów, rollback, provider danych vanilla, skaner niezarządzanych UUID,
     komendy status/inspect/retry/recover i automatyczne wznowienie PREPARED/MIGRATING po restarcie
-    są wdrożone. Checkbox pozostaje otwarty dla adapterów konkretnych zdalnych magazynów/pluginów
-    oraz pełnych testów równoległości i MySQL/MariaDB/PostgreSQL.
+    są wdrożone. CI weryfikuje migrację v8, UPGRADE/RECOVERY i równoległą idempotentną finalizację
+    na SQLite, MySQL 8.4, MariaDB 11.4 i PostgreSQL 17. Checkbox pozostaje otwarty dla adapterów
+    konkretnych pluginów/magazynów danych i testu całego flow na rzeczywistym serwerze.
 - [ ] Dodać bezpieczną politykę concurrent login/kick lub deny i test dwóch jednoczesnych
   logowań tego samego konta.
 - [ ] Zweryfikować disconnect podczas Argon2/JDBC/HTTP oraz późne callbacki po shutdownie.
@@ -74,11 +75,12 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 
 ### Storage i integralność danych
 
-- [ ] Wykonać testy integracyjne MySQL, MariaDB i PostgreSQL w kontenerach/CI dla
-  wdrożonych dialektów oraz migracji; kod runtime i sterowniki są już gotowe.
-- [ ] Zapewnić równoważną atomowość rejestracji, limitów IP, lockoutu, migracji tożsamości
-  i compare-and-set hasła na każdym backendzie.
-- [ ] Dodać test recovery po błędzie migracji, timeoutach puli i utracie połączenia DB.
+- [x] Wykonać testy integracyjne MySQL, MariaDB i PostgreSQL w kontenerach/CI dla
+  migracji tożsamości: v8, UPGRADE, RECOVERY i równoległa idempotentna finalizacja.
+- [ ] Zapewnić i zweryfikować pełną równoważność atomowości rejestracji, limitów IP, lockoutu
+  i compare-and-set hasła na każdym backendzie; migracja tożsamości ma już osobne testy multi-DB.
+- [ ] Dodać test awarii połączenia/puli w trakcie migracji; recovery po przerwaniu procesu,
+  trwały retry oraz blokada logowania przy niedokończonym rollbacku są już pokryte.
 
 ### Integracje i publiczne API
 
