@@ -44,6 +44,10 @@ sealed interface VerifiedMojangAuthenticationResult {
         val account: AuthAccount,
         val targetMinecraftUuid: UUID,
     ) : VerifiedMojangAuthenticationResult
+    data class MigrationInProgress(
+        val account: AuthAccount,
+        val migrationId: UUID,
+    ) : VerifiedMojangAuthenticationResult
     data object IdentityConflict : VerifiedMojangAuthenticationResult
 }
 
@@ -91,6 +95,18 @@ class VerifiedMojangAuthenticationService(
                     VerifiedMojangAuthenticationResult.MigrationRequired(
                         binding.account,
                         binding.targetMinecraftUuid,
+                    )
+                }
+                is MojangIdentityBindingResult.MigrationInProgress -> {
+                    audit(
+                        context,
+                        binding.account,
+                        SecurityEventType.PREMIUM_AUTH_FAILURE,
+                        "IDENTITY_MIGRATION_IN_PROGRESS",
+                    )
+                    VerifiedMojangAuthenticationResult.MigrationInProgress(
+                        binding.account,
+                        binding.migrationId,
                     )
                 }
                 MojangIdentityBindingResult.IdentityConflict -> {
