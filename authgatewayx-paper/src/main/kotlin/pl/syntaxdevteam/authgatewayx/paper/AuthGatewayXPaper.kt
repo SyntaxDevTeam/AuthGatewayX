@@ -65,6 +65,7 @@ import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMod
 import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
+import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
 import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
 import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
@@ -317,12 +318,14 @@ class AuthGatewayXPaper : JavaPlugin() {
             dataFolder.toPath().resolve("migration-backups"),
             migrationExecutor,
         )
+        val plotsXMigrationProvider = PlotsXIdentityMigrationProvider(server, migrationExecutor)
         val migrationCoordinator = PremiumMigrationCoordinator(storage, storage, providers = {
             val external = server.servicesManager
                 .getRegistrations(IdentityMigrationProvider::class.java)
                 .map { it.provider }
-            val managedOwners = external.flatMap { it.managedDataOwners }.toSet()
-            val providers = mutableListOf<IdentityMigrationProvider>(vanillaMigrationProvider)
+            val builtIn = listOf<IdentityMigrationProvider>(vanillaMigrationProvider, plotsXMigrationProvider)
+            val managedOwners = (builtIn + external).flatMap { it.managedDataOwners }.toSet()
+            val providers = builtIn.toMutableList()
             if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
                 providers += UnmanagedPluginUuidReferenceScanner(
                     dataFolder.parentFile.toPath(),
