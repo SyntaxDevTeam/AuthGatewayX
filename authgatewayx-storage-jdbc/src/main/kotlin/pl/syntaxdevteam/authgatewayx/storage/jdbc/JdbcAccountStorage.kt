@@ -893,6 +893,9 @@ class JdbcAccountStorage(
         if (account.minecraftUuid != identity.minecraftUuid) {
             return MojangIdentityBindingResult.IdentityConflict
         }
+        findBlockingRecoveryTicket(connection, account.id, identity.minecraftUuid)?.let { ticket ->
+            return MojangIdentityBindingResult.MigrationInProgress(account, ticket.id)
+        }
         val updated = updateMojangAccount(connection, account, identity)
         return MojangIdentityBindingResult.Bound(updated, false)
     }
@@ -903,6 +906,9 @@ class JdbcAccountStorage(
         identity: VerifiedMojangIdentity,
     ): MojangIdentityBindingResult {
         if (account.identityType != IdentityType.MOJANG) return MojangIdentityBindingResult.IdentityConflict
+        findBlockingRecoveryTicket(connection, account.id, identity.minecraftUuid)?.let { ticket ->
+            return MojangIdentityBindingResult.MigrationInProgress(account, ticket.id)
+        }
         return MojangIdentityBindingResult.Bound(updateMojangAccount(connection, account, identity), false)
     }
 
@@ -1009,6 +1015,24 @@ class JdbcAccountStorage(
         connection.prepareStatement("SELECT * FROM accounts WHERE id = ?").use { statement ->
             statement.setString(1, accountId.value.toString())
             statement.executeQuery().use { results -> return if (results.next()) mapAccount(results) else null }
+        }
+    }
+
+    private fun findBlockingRecoveryTicket(
+        connection: Connection,
+        accountId: AccountId,
+        targetMinecraftUuid: UUID,
+    ): PremiumMigrationTicket? {
+        connection.prepareStatement("""SELECT * FROM identity_migrations
+            WHERE account_id = ? AND target_uuid = ? AND migration_kind = 'RECOVERY'
+              AND (
+                status IN ('PREPARED', 'MIGRATING')
+                OR (status = 'FAILED' AND failure_reason LIKE '%_ROLLBACK_%')
+              )
+            ORDER BY created_at DESC LIMIT 1""".trimIndent()).use { statement ->
+            statement.setString(1, accountId.value.toString())
+            statement.setString(2, targetMinecraftUuid.toString())
+            statement.executeQuery().use { rows -> return if (rows.next()) mapMigrationTicket(rows) else null }
         }
     }
 
