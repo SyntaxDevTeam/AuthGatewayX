@@ -31,6 +31,7 @@ class AuthenticationDialogRouter(
     private val premiumAuthenticationRequiredMessage: net.kyori.adventure.text.Component,
     private val lookupUnavailableMessage: net.kyori.adventure.text.Component,
     private val identityConflictMessage: net.kyori.adventure.text.Component,
+    private val migrationInProgressMessage: net.kyori.adventure.text.Component,
     private val internalFailureMessage: net.kyori.adventure.text.Component,
     private val onMojangActivated: (Player) -> Unit,
     private val onFailure: (Throwable) -> Unit,
@@ -112,6 +113,8 @@ class AuthenticationDialogRouter(
                             authenticationResult.targetMinecraftUuid,
                         )
                     }
+                    is VerifiedMojangAuthenticationResult.MigrationInProgress ->
+                        player.kick(migrationInProgressMessage)
                     VerifiedMojangAuthenticationResult.IdentityConflict -> player.kick(identityConflictMessage)
                 }
             })
