@@ -66,3 +66,13 @@ bo za jego migrację odpowiada jawny adapter.
 AuthGatewayX uruchamia providery sekwencyjnie. Błąd późniejszego providera powoduje rollback
 już wykonanych providerów w odwrotnej kolejności. Dopiero po ich sukcesie storage może
 wykonać `completePremiumMigration(...)` i podmienić UUID w rekordzie konta.
+
+
+### HorseManagerX
+
+AuthGatewayX ma wbudowany adapter do usługi migracyjnej HorseManagerX. Migracja obejmuje
+własność koni, relacje zaufania, aktywne oferty rynku i wpisy aktora w logach. HorseManagerX
+prowadzi własny journal i rollback oraz czyści cache po zmianie UUID.
+
+Jeżeli HorseManagerX jest zainstalowany, ale jego bridge migracyjny nie jest dostępny,
+AuthGatewayX blokuje finalizację zamiast pomijać dane.

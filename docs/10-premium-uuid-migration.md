@@ -121,3 +121,16 @@ który mógł zostać częściowo zmieniony przed crashem.
 
 Zwykły `FAILED` po poprawnym rollbacku nie blokuje logowania. Administrator może usunąć
 przyczynę i użyć `migrate retry`; ponawiany jest ten sam ticket i te same backupy.
+
+
+## Wbudowane integracje pluginów
+
+AuthGatewayX dostarcza kontrolowane adaptery dla pluginów SyntaxDevTeam, które wystawiają
+własny transakcyjny bridge migracji UUID:
+
+- PlotsX — właściciele działek, członkowie i własny journal/rollback,
+- HorseManagerX — właściciele koni, relacje trust, sprzedawcy ofert i actor logs.
+
+Każdy z tych pluginów pozostaje właścicielem swojej transakcji i rollbacku. AuthGatewayX
+nie modyfikuje ich tabel bezpośrednio; odkrywa bridge przez Bukkit ServicesManager.
+Jeżeli plugin jest zainstalowany, ale bridge jest niedostępny, migracja kończy się fail-closed.
