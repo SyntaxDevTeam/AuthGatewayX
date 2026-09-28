@@ -13,6 +13,9 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | `authgatewayx.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
 | `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont offline | Operatorzy serwera |
 | `authgatewayx.admin.password` | Ustawianie hasła cudzego konta offline | Operatorzy serwera |
+| `authgatewayx.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
+| `authgatewayx.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
+| `authgatewayx.admin.migration.recover` | Tworzenie recovery dla kont zmigrowanych przez starsze wersje AGX | Operatorzy serwera |
 
 Uprawnienia możesz przypisać w używanym na serwerze pluginie do zarządzania rangami. Zachowaj dokładną pisownię z tabeli.
 
@@ -43,3 +46,14 @@ Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekret
 Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
 [instrukcja kontroli proxy](../09-proxy-risk-admission.md). Opcje alertów opisane
 powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+
+## Uprawnienia migracji
+
+Rozdzielenie `view`, `execute` i `recover` jest celowe. Osoba mająca wyłącznie
+`authgatewayx.admin.migration.view` może diagnozować stan, ale nie uruchomi operacji
+zmieniającej dane. `recover` jest najbardziej wrażliwą operacją i warto pozostawić ją
+wyłącznie administratorom odpowiedzialnym za dane graczy.
+
+Konsola serwera może wykonywać wszystkie podkomendy migracji. Administrator w grze musi
+mieć aktywną, uwierzytelnioną sesję AuthGatewayX; sama permisja nie omija logowania.
