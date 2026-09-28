@@ -39,6 +39,7 @@ class VanillaPlayerDataMigrationProvider(
                 else -> IdentityMigrationInspection(
                     IdentityMigrationInspectionStatus.READY,
                     "VANILLA_FILES_${source.size}",
+                    legacyEvidence = true,
                 )
             }
         }
