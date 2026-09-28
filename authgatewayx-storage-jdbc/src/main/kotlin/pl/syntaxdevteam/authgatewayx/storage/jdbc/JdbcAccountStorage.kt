@@ -580,7 +580,22 @@ class JdbcAccountStorage(
                     statement.setString(7, ticket.sourceMinecraftUuid.toString())
                     if (statement.executeUpdate() != 1) {
                         connection.rollback()
-                        return@submit PremiumMigrationCompletionResult.IdentityConflict
+                        // A concurrent finalizer can win the account CAS after this transaction
+                        // read MIGRATING. Re-read after rollback (new DB snapshot) so completion
+                        // stays idempotent on MySQL/MariaDB/PostgreSQL instead of reporting a
+                        // false identity conflict to the losing caller.
+                        val finalizedTicket = findMigrationTicket(connection, migrationId)
+                        val finalizedAccount = finalizedTicket?.let { findAccountById(connection, it.accountId) }
+                        return@submit if (
+                            finalizedTicket?.status == PremiumMigrationStatus.COMPLETED &&
+                            finalizedAccount?.minecraftUuid == finalizedTicket.targetMinecraftUuid
+                        ) {
+                            connection.rollback()
+                            PremiumMigrationCompletionResult.Completed(finalizedAccount)
+                        } else {
+                            connection.rollback()
+                            PremiumMigrationCompletionResult.IdentityConflict
+                        }
                     }
                 }
                 connection.prepareStatement("DELETE FROM registration_ip_slots WHERE account_id = ?").use { statement ->

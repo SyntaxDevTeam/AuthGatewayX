@@ -41,6 +41,9 @@ Mojang verified
 - providery mają obowiązek idempotencji,
 - błąd powoduje rollback także providera, który mógł zatrzymać się w połowie,
 - finalizacja konta jest compare-and-set po account_id, source UUID i typie OFFLINE,
+- przegrany równoległy finalizer po nieudanym CAS odświeża ticket i konto w nowej
+  transakcji; zwraca idempotentny sukces tylko wtedy, gdy konkurent zakończył dokładnie
+  ten sam ticket z oczekiwanym target UUID,
 - historia UUID pozostaje w account_identities.
 
 ## Dane vanilla
