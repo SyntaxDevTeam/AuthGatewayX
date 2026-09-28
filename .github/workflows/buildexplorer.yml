@@ -105,11 +105,17 @@ jobs:
           grep -q '"id": "authgatewayx"' velocity-plugin-check.json
           grep -q 'pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity' velocity-plugin-check.json
           unzip -Z1 "${jar}" > velocity-jar-entries.txt
-          grep -Fxq 'com/zaxxer/hikari/HikariDataSource.class' velocity-jar-entries.txt
-          grep -Fxq 'org/sqlite/JDBC.class' velocity-jar-entries.txt
-          grep -Fxq 'com/mysql/cj/jdbc/Driver.class' velocity-jar-entries.txt
-          grep -Fxq 'org/mariadb/jdbc/Driver.class' velocity-jar-entries.txt
-          grep -Fxq 'org/postgresql/Driver.class' velocity-jar-entries.txt
+          check_entry() {
+            if ! grep -Fxq "$1" velocity-jar-entries.txt; then
+              echo "Missing required Velocity JAR entry: $1" >&2
+              return 1
+            fi
+          }
+          check_entry 'com/zaxxer/hikari/HikariDataSource.class'
+          check_entry 'org/sqlite/JDBC.class'
+          check_entry 'com/mysql/cj/jdbc/Driver.class'
+          check_entry 'org/mariadb/jdbc/Driver.class'
+          check_entry 'org/postgresql/Driver.class'
 
   publish:
     name: Publish ${{ matrix.name }}
