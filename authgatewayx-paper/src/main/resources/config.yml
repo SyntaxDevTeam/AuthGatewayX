@@ -235,6 +235,12 @@ migration:
     # Maximum total bytes inspected across unmanaged plugin directories.
     maximum-total-bytes: 1073741824
 
+  recovery:
+    # Maximum number of PREPARED/MIGRATING tickets inspected after one server start.
+    # Recovery is deliberately bounded; remaining tickets can be handled on the next start
+    # or by /authgatewayx migrate retry <nick>.
+    startup-batch-limit: 100
+
 # /********************************************/
 #    Optional integrations
 # /********************************************/
