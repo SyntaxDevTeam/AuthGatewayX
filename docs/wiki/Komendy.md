@@ -10,6 +10,10 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 | `/logout` | Zalogowane konto offline | Kończy sesję i rozłącza gracza |
 | `/authgatewayx alts <nick>` | Zalogowany administrator lub konsola | Pokazuje podejrzane powiązania kont offline przez historię wspólnych adresów |
 | `/authgatewayx setpassword <nick>` | Administrator z odpowiednim uprawnieniem | Otwiera okno ustawienia nowego hasła konta offline |
+| `/authgatewayx migrate status <nick>` | Administrator lub konsola | Pokazuje ostatni trwały ticket migracji UUID |
+| `/authgatewayx migrate inspect <nick> [stare-uuid]` | Administrator lub konsola | Sprawdza providery i potencjalne dane starego UUID bez wykonywania migracji |
+| `/authgatewayx migrate retry <nick>` | Administrator lub konsola | Ponawia istniejący `FAILED/PREPARED/MIGRATING` ticket przy użyciu tych samych backupów |
+| `/authgatewayx migrate recover <nick> [stare-uuid]` | Administrator lub konsola | Tworzy recovery dla konta już przełączonego przez starszą wersję AGX, wyłącznie po znalezieniu śladów starego UUID |
 
 `<nick>` zastąp nazwą gracza, bez nawiasów. Przykład: `/authgatewayx setpassword Alex`.
 
@@ -51,3 +55,23 @@ Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekret
 Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
 [instrukcja kontroli proxy](../09-proxy-risk-admission.md). Opcje alertów opisane
 powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+
+## Migracja OFFLINE → PREMIUM
+
+Dla nowych przypadków migracja uruchamia się automatycznie po poprawnej weryfikacji Mojang
+i podaniu starego hasła konta non-premium. Gracz jest rozłączany przed kopiowaniem danych.
+
+Komendy `migrate` służą przede wszystkim administracji:
+
+- `status` — odczyt trwałego ticketu: typ `UPGRADE/RECOVERY`, stan, source/target UUID i ostatni błąd,
+- `inspect` — diagnostyka providerów bez zapisu; opcjonalne UUID pomaga, gdy historyczna wielkość liter nicku zmieniła standardowe offline UUID,
+- `retry` — ponawia ten sam ticket; nie tworzy nowej migracji i nie usuwa backupów,
+- `recover` — naprawia konto już zmigrowane przez starą wersję AuthGatewayX.
+
+`recover` nie ufa samemu nickowi. AuthGatewayX musi znaleźć rzeczywisty ślad danych pod
+starym UUID w kontrolowanym providerze lub w skanerze niezarządzanych katalogów. Jeżeli
+nie ma dowodu danych, recovery nie zostanie utworzone.
+
+Docelowe konto musi być offline podczas `retry` i `recover`. Niedokończone recovery
+blokuje logowanie premium do czasu bezpiecznego zakończenia albo skutecznego rollbacku.
