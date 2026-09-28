@@ -202,7 +202,10 @@ class MigrationAdminCommandController(
                                 listOf(text.recoveryPrepared, renderTicket(result.ticket)) +
                                     result.inspections.map(::renderProvider)
                             }
-                            runMigration(sender, parsed.value, result.ticket)
+                            dispatch(sender, Runnable {
+                                if (!allowed(sender, RECOVER_PERMISSION)) return@Runnable
+                                runMigration(sender, parsed.value, result.ticket)
+                            })
                         }
                         is PremiumRecoveryStartResult.NoEvidence ->
                             replyAsync(sender, parsed.value) {
