@@ -39,9 +39,11 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
     na SQLite, MySQL 8.4, MariaDB 11.4 i PostgreSQL 17. Wbudowane kontrolowane adaptery
     obejmują obecnie vanilla, PlotsX, HorseManagerX i PunisherX; każdy z pluginów SyntaxDevTeam
     pozostaje właścicielem swojej transakcji/journala i rollbacku. Nieobsługiwane lokalne dane
-    UUID są wykrywane przez skaner i blokują finalizację. Checkbox pozostaje otwarty dla testu
-    całego flow na rzeczywistym serwerze oraz zewnętrznych pluginów, które przechowują UUID
-    poza lokalnym katalogiem i nie udostępniają IdentityMigrationProvider.
+    UUID są wykrywane przez skaner i blokują finalizację. EssentialsX userdata i LuckPerms
+    mają pierwsze rzeczywiste providery z kontrolą konfliktu oraz rollbackiem; ekonomia nadal
+    wymaga providera konkretnego pluginu, ponieważ Vault sam nie przechowuje sald. Checkbox
+    pozostaje otwarty dla testu całego flow na rzeczywistym serwerze oraz zewnętrznych pluginów,
+    które przechowują UUID poza lokalnym katalogiem i nie udostępniają IdentityMigrationProvider.
 - [ ] Dodać bezpieczną politykę concurrent login/kick lub deny i test dwóch jednoczesnych
   logowań tego samego konta.
 - [ ] Zweryfikować disconnect podczas Argon2/JDBC/HTTP oraz późne callbacki po shutdownie.

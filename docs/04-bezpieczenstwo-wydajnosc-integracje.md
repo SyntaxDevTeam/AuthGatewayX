@@ -738,7 +738,8 @@ limit równoległości, minutowy budżet żądań i globalny cooldown po błędz
 Odpowiedź ma limit 64 KiB; HTTP działa na osobnym bounded executorze i ma timeout.
 Nie wykonujemy retry, reverse DNS ani odpytywania adresów lokalnych/prywatnych.
 Shutdown zamyka klienta, executor i czyści cache; restart resetuje stan lokalnych limitów.
-GeoIP pokazuje tylko kraj i ASN w alertach, bez miasta/współrzędnych i bez utrwalania
+GeoIP może pokazać przybliżone miasto, region, kraj, kontynent, strefę i ASN w alertach,
+bez współrzędnych i bez utrwalania
 nowych danych Geo w bazie.
 
 JSON: Gson 2.14.0 (release, Apache-2.0), do parsowania drzewa ograniczonej odpowiedzi,

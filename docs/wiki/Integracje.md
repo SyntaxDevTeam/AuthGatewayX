@@ -67,6 +67,19 @@ AuthGatewayX uruchamia providery sekwencyjnie. Błąd późniejszego providera p
 już wykonanych providerów w odwrotnej kolejności. Dopiero po ich sukcesie storage może
 wykonać `completePremiumMigration(...)` i podmienić UUID w rekordzie konta.
 
+### EssentialsX i LuckPerms
+
+Migrator EssentialsX kopiuje `userdata/<stare-uuid>.yml`, aktualizuje UUID wewnątrz pliku
+i zachowuje trwały backup istniejącego targetu. Plik źródłowy nie jest usuwany. Różne dane
+pod docelowym UUID blokują operację.
+
+Migrator LuckPerms korzysta z publicznego API pluginu, więc nie zależy od rodzaju jego
+storage. Kopiuje komplet trwałych węzłów użytkownika na nowe UUID — bezpośrednie permisje,
+dziedziczenie grup/rang, prefixy, suffixy, meta, konteksty, wartości negowane i terminy
+ważności — zachowując source. Same grupy są globalne i nie wymagają kopiowania. Nie nadpisuje
+niepustego profilu docelowego z innymi węzłami. Rollback czyści target tylko wtedy, gdy
+nadal jest dokładną kopią source; późniejsza zmiana powoduje fail-closed.
+
 
 ### HorseManagerX
 

@@ -33,6 +33,31 @@ import kotlin.test.assertTrue
 
 class SqliteAccountStorageTest {
     @Test
+    fun `account inspection returns only ten newest audit events`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("AuditUser")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        repeat(12) { index ->
+            storage.record(
+                SecurityEvent(
+                    registration.createdAt.plusSeconds(index.toLong()),
+                    registration.accountId.value,
+                    registration.minecraftUuid,
+                    registration.username.value,
+                    registration.sourceAddress,
+                    SecurityEventType.LOGIN_FAILURE,
+                    "EVENT_$index",
+                ),
+            ).toCompletableFuture().get()
+        }
+
+        val inspection = assertNotNull(storage.inspect(registration.username).toCompletableFuture().get())
+        assertEquals(10, inspection.securityEvents.size)
+        assertEquals("EVENT_11", inspection.securityEvents.first().reasonCode)
+        assertEquals("EVENT_2", inspection.securityEvents.last().reasonCode)
+    }
+
+    @Test
     fun `password replacement supports compare and set for self service`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         val registration = registration("PasswordPlayer")

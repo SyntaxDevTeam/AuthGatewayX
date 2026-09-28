@@ -60,6 +60,17 @@ class ProxycheckIpLookupTest {
     }
 
     @Test
+    fun `parser accepts current location aliases and named objects`() {
+        val parsed = ProxycheckIpLookup.parse("""{"status":"ok","8.8.8.8":{
+            "detections":{},"location":{"continent_name":"Europe","country":"Poland",
+            "country_code":"PL","region":"Pomerania","city":{"name":"Gdansk"},"timezone":"Europe/Warsaw"}}}""", "8.8.8.8")!!
+
+        assertEquals("Europe", parsed.continent)
+        assertEquals("Gdansk", parsed.city)
+        assertEquals("Pomerania", parsed.region)
+    }
+
+    @Test
     fun `cache TTL invalidation and capacity limit cause bounded refresh`() {
         val clock = TestClock(); val calls = AtomicInteger()
         lookup(clock, size = 1, request = { calls.incrementAndGet(); result }).use { service ->

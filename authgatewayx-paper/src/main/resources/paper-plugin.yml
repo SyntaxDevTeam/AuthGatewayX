@@ -10,6 +10,13 @@ api-version: '26.2'
 load: STARTUP
 has-open-classloader: false
 
+dependencies:
+  server:
+    LuckPerms:
+      load: BEFORE
+      required: false
+      join-classpath: true
+
 authors: [ SyntaxDevTeam ]
 website: https://syntaxdevteam.pl
 
