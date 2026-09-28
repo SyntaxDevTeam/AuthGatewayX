@@ -18,6 +18,48 @@ jobs:
   verify:
     name: Verify repository
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: authgatewayx_test
+          MYSQL_USER: authgatewayx
+          MYSQL_PASSWORD: authgatewayx
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 33060:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_DATABASE: authgatewayx_test
+          MARIADB_USER: authgatewayx
+          MARIADB_PASSWORD: authgatewayx
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 33061:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: authgatewayx_test
+          POSTGRES_USER: authgatewayx
+          POSTGRES_PASSWORD: authgatewayx
+        ports:
+          - 54320:5432
+        options: >-
+          --health-cmd="pg_isready -U authgatewayx -d authgatewayx_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -32,6 +74,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
 
       - name: Test and build distributable JARs
+        env:
+          AGX_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:33060/authgatewayx_test?useSSL=false&allowPublicKeyRetrieval=true
+          AGX_TEST_MYSQL_USER: authgatewayx
+          AGX_TEST_MYSQL_PASSWORD: authgatewayx
+          AGX_TEST_MARIADB_URL: jdbc:mariadb://127.0.0.1:33061/authgatewayx_test
+          AGX_TEST_MARIADB_USER: authgatewayx
+          AGX_TEST_MARIADB_PASSWORD: authgatewayx
+          AGX_TEST_POSTGRESQL_URL: jdbc:postgresql://127.0.0.1:54320/authgatewayx_test
+          AGX_TEST_POSTGRESQL_USER: authgatewayx
+          AGX_TEST_POSTGRESQL_PASSWORD: authgatewayx
         run: |
           chmod +x ./gradlew
           ./gradlew clean check :authgatewayx-paper:shadowJar :authgatewayx-velocity:shadowJar --console=plain --no-daemon
