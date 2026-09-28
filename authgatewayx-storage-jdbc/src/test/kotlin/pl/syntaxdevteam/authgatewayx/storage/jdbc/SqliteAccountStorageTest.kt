@@ -10,7 +10,10 @@ import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationKind
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationPreparationResult
+import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationStatus
+import pl.syntaxdevteam.authgatewayx.storage.PremiumRecoveryPreparationResult
 import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import pl.syntaxdevteam.authgatewayx.storage.VerifiedMojangIdentity
@@ -178,6 +181,82 @@ class SqliteAccountStorageTest {
         assertEquals(targetUuid, completed.account.minecraftUuid)
         assertNull(storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
         assertNull(storage.findCredentials(registration.username).toCompletableFuture().get())
+    }
+
+    @Test
+    fun `legacy recovery migrates data identity history without changing active Mojang account`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val identity = verifiedIdentity("RecoveredPlayer", "33333333-4444-5555-6666-777777777777")
+        val premium = assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        ).account
+        val legacyUuid = OfflineIdentity.minecraftUuid(premium.username)
+        val preparedAt = Instant.parse("2026-09-28T02:00:00Z")
+
+        val prepared = assertIs<PremiumRecoveryPreparationResult.Prepared>(
+            storage.preparePremiumRecovery(
+                premium.id,
+                premium.username,
+                legacyUuid,
+                premium.minecraftUuid,
+                InetAddress.getLoopbackAddress(),
+                preparedAt,
+            ).toCompletableFuture().get(),
+        )
+
+        assertEquals(PremiumMigrationKind.RECOVERY, prepared.ticket.kind)
+        assertTrue(storage.markPremiumMigrationStarted(prepared.ticket.id, preparedAt.plusSeconds(1)).toCompletableFuture().get())
+        val completed = assertIs<PremiumMigrationCompletionResult.Completed>(
+            storage.completePremiumMigration(prepared.ticket.id, preparedAt.plusSeconds(2)).toCompletableFuture().get(),
+        )
+
+        assertEquals(IdentityType.MOJANG, completed.account.identityType)
+        assertEquals(identity.minecraftUuid, completed.account.minecraftUuid)
+        val current = assertNotNull(storage.findByUsername(premium.username).toCompletableFuture().get())
+        assertEquals(IdentityType.MOJANG, current.identityType)
+        assertEquals(identity.minecraftUuid, current.minecraftUuid)
+        val latest = assertNotNull(storage.findLatestPremiumMigration(premium.username).toCompletableFuture().get())
+        assertEquals(PremiumMigrationStatus.COMPLETED, latest.status)
+        assertEquals(PremiumMigrationKind.RECOVERY, latest.kind)
+    }
+
+    @Test
+    fun `failed migration can be retried with the same durable ticket`() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("RetryUpgrade")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        val targetUuid = UUID.fromString("44444444-5555-6666-7777-888888888888")
+        val preparedAt = Instant.parse("2026-09-28T03:00:00Z")
+        val prepared = assertIs<PremiumMigrationPreparationResult.Prepared>(
+            storage.preparePremiumMigration(
+                registration.accountId,
+                registration.username,
+                registration.minecraftUuid,
+                targetUuid,
+                registration.sourceAddress,
+                preparedAt,
+            ).toCompletableFuture().get(),
+        )
+        assertTrue(storage.markPremiumMigrationStarted(prepared.ticket.id, preparedAt.plusSeconds(1)).toCompletableFuture().get())
+        assertEquals(
+            listOf(prepared.ticket.id),
+            storage.findIncompletePremiumMigrations(10).toCompletableFuture().get().map { it.id },
+        )
+
+        storage.failPremiumMigration(prepared.ticket.id, preparedAt.plusSeconds(2), "TEST_FAILURE")
+            .toCompletableFuture().get()
+        assertTrue(storage.findIncompletePremiumMigrations(10).toCompletableFuture().get().isEmpty())
+
+        val retried = assertNotNull(
+            storage.retryPremiumMigration(prepared.ticket.id, preparedAt.plusSeconds(3)).toCompletableFuture().get(),
+        )
+        assertEquals(prepared.ticket.id, retried.id)
+        assertEquals(PremiumMigrationStatus.PREPARED, retried.status)
+        assertNull(retried.failureReason)
+        assertEquals(
+            listOf(prepared.ticket.id),
+            storage.findIncompletePremiumMigrations(10).toCompletableFuture().get().map { it.id },
+        )
     }
 
     @Test
