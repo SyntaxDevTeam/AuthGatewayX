@@ -18,6 +18,7 @@ Dokumenty należy czytać w kolejności:
 8. `AuthGatewayX-1.0.0-kompletna-dokumentacja.md`
 9. `08-roadmap-do-1.0.0.md` — kanoniczna lista prac pozostałych do wydania
 10. `09-proxy-risk-admission.md` — blokady VPN/multi-kont na proxy i konfiguracja
+11. `10-premium-uuid-migration.md` — bezpieczna migracja UUID OFFLINE → PREMIUM, recovery i providery danych
 
 Dokument kompletnej dokumentacji agreguje decyzje z dokumentów tematycznych, ale jego
 sekcje stanu implementacji muszą być aktualizowane razem z kodem. W razie rozbieżności
