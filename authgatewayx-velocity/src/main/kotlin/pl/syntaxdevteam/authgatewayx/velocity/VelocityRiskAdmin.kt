@@ -41,7 +41,7 @@ class VelocityRiskAdmin(
         if (!ready() || !source.hasPermission("authgatewayx.admin.alts")) return
         val name = invocation.arguments().takeIf { it.size == 2 }?.get(1)
             ?.let { runCatching { AccountUsername.parse(it) }.getOrNull() }
-        if (name == null) { source.sendMessage(text("usage")); return }
+        if (name == null) { source.sendMessage(text("usage").fill("argument", "<nick>")); return }
         if (accounts == null || !busy.compareAndSet(false, true)) { source.sendMessage(text("unavailable")); return }
         authorize(source).whenComplete firstProof@ { authorized, authFailure ->
             if (authorized != true || authFailure != null || !ready()) {
@@ -122,7 +122,8 @@ class VelocityRiskAdmin(
         revealIp: Boolean,
         revealGeo: Boolean,
     ): Component {
-        var message = text(if (denied) "denied_alert" else "connection_alert").fill("username", username)
+        var message = text("announcement_header")
+            .line(text(if (denied) "denied_alert" else "connection_alert").fill("username", username))
         if (revealIp) message = message.line(text("ip_alert").fill("ip", address.hostAddress))
 
         risk.report?.takeIf { it.accounts.isNotEmpty() }?.let { report ->
@@ -161,7 +162,7 @@ class VelocityRiskAdmin(
 
         if (risk.unavailable) message = message.line(text("lookup_unavailable"))
         if (risk.suspicious) message = message.line(text("advisory").fill("username", username))
-        return message
+        return message.line(text("announcement_footer"))
     }
 
     @Synchronized fun clear() { cooldowns.clear() }

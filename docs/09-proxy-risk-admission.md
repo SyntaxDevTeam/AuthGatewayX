@@ -111,9 +111,17 @@ kończy połączenie na proxy; blokady nie są zapisywane jako trwałe bany Puni
 `/authgatewayx alts <nick>` wymaga `authgatewayx.admin.alts` przyznanego na proxy.
 Pozostałe subkomendy, np. `setpassword`, nadal są przekazywane do Paper. Raport wymaga
 włączonego storage. `authgatewayx.admin.alerts` pozwala odbierać alerty z całego proxy.
-Alert pokazuje do 5 nicków, raport do 20. Surowe IP nie są wysyłane administratorom.
-Cooldown jest per nick, limit stanu wynosi 10000; globalnie najwyżej jeden alert/s.
-Komenda ma jedną operację w toku, a alerty mogą być pomijane przy przeciążeniu.
+Alert pokazuje do 5 nicków, raport do 20. Surowe IP widzi wyłącznie konsola lub
+administrator z osobnym `authgatewayx.admin.view-ip`; GeoIP i informacje o sieci
+wymagają `authgatewayx.admin.view-geo`. Cooldown jest per nick, limit stanu wynosi
+10000; globalnie najwyżej jeden alert/s. Komenda ma jedną operację w toku, a alerty
+mogą być pomijane przy przeciążeniu.
+
+Alert proxy ma formę wydzielonego „Oficjalnego komunikatu” z jednoznacznym statusem,
+uporządkowanymi polami i osobną sekcją dalszego działania. Jest to wyłącznie forma
+prezentacji prywatnego alertu administracyjnego: nie zmienia odbiorców, uprawnień,
+staff-proof ani znaczenia sygnałów. Argument składni komendy jest wstawiany jako zwykły
+tekst po parsowaniu MiniMessage, dlatego klient wyświetla `<nick>`, a nie `&lt;nick&gt;`.
 
 Konsola oraz uwierzytelniony gracz Mojang mogą korzystać z tych uprawnień bez dodatkowej
 konfiguracji backendu. Administrator offline potrzebuje niezależnego losowego sekretu

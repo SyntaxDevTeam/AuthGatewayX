@@ -45,6 +45,12 @@ Komunikat o błędzie powinien nadal mówić prawdę. Przy nieudanym logowaniu p
 
 Velocity ma osobny plik `lang/messages_pl.yml` w swoim folderze danych. Zmiana tekstów Paper nie zmienia automatycznie komunikatów proxy.
 
+Alerty ryzyka Velocity są domyślnie renderowane jako wydzielony „Oficjalny komunikat”:
+mają nagłówek, jednoznaczny status, krótkie pola i sekcję dalszego działania. To styl
+prywatnej wiadomości administracyjnej, a nie ogłoszenie dla wszystkich graczy. Przy
+własnej wersji zachowaj placeholdery oraz rozróżnienie między odrzuconym połączeniem
+i połączeniem wymagającym weryfikacji.
+
 ## Dane w alertach administracyjnych
 
 Alerty ryzyka korzystają z osobnych placeholderów dla UUID, typu konta, metody uwierzytelnienia, powiązanych kont, reputacji IP, GeoIP i operatora sieci. Dane wrażliwe są renderowane osobno dla każdego odbiorcy: `authgatewayx.admin.view-ip` ujawnia wyłącznie źródłowy adres IP, a `authgatewayx.admin.view-geo` ujawnia GeoIP, ASN, provider/organizację sieci oraz operatora VPN/proxy. Permisje są niezależne; samo `authgatewayx.admin.alerts` pokazuje alert i sygnały bezpieczeństwa bez tych danych. Konsola otrzymuje pełny wariant. GeoIP opisuje przybliżone przypisanie adresu wyjściowego, dlatego plugin celowo nie prezentuje współrzędnych jako lokalizacji gracza.
