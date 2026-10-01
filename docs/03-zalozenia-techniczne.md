@@ -796,3 +796,13 @@ Zarejestrowano `AuthenticationStatusProvider` w ServicesManager dla taniego odcz
 READY + ACTIVE + UUID + expiry bez dostępu do storage. Szczegóły i ograniczenia:
 [API stanu uwierzytelnienia](11-authentication-status-api.md). Pełny `AuthGatewayApi`
 i publiczne eventy nie są przez tę zmianę oznaczane jako ukończone.
+
+
+## Natywne potwierdzenie logowania dla klienta
+
+Paper/Folia i Velocity obsługują kanały `authgatewayx:auth` oraz `craftconnect:auth`.
+Osobny bridge nie jest wymagany. Potwierdzenie wymaga READY oraz poprawnej sesji ACTIVE
+na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracza.
+To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
+Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
+Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).

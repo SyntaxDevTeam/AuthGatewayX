@@ -15,14 +15,16 @@ Decyzja: dodano wąski kontrakt odczytu zamiast ogłaszać cały istniejący
 Provider nie ujawnia haseł, IP ani danych konta. Nie dodano eventu Bukkit; tani odczyt
 stanu pozwala uniknąć zgubienia zdarzenia przy późnej subskrypcji klienta.
 
-CraftConnectBridge odczytuje usługę, a następnie wysyła potwierdzenie wyłącznie na
-połączenie danego gracza. Klient zaczyna komendy ukrycia dopiero po tym potwierdzeniu.
-Stan ACTIVE dotyczy zarówno poprawnego logowania hasłem/dialogiem, jak i weryfikacji
-Mojang lub przywróconej zaufanej sesji. Wysyłanie komend nie oznacza ochrony ekwipunku.
+AuthGatewayX natywnie odczytuje usługę i wysyła potwierdzenie wyłącznie na połączenie
+danego gracza. Osobny CraftConnectBridge nie jest wymagany. Klient zaczyna komendy
+ukrycia dopiero po tym potwierdzeniu. ACTIVE obejmuje poprawne logowanie,
+weryfikację Mojang i przywróconą zaufaną sesję. Komendy wymagają uprawnień serwera.
 
-Velocity nie rejestruje Bukkit ServicesManager. Bridge instalowany jest na backendzie
-Paper z AuthGatewayX; nie dodano niezależnego API proxy ani obejścia premium handoff.
+Velocity przekazuje subskrypcję i odpowiedź bieżącego backendu Paper; nie rejestruje
+Bukkit ServicesManager i nie uznaje samego połączenia premium za sesję ACTIVE.
+Protokół, ograniczenia i walidację opisuje [kanał klienta](12-client-authentication-channel.md).
 
-Testy sprawdzają stan runtime, CONNECTING, PRE_AUTH, ACTIVE, inny UUID, wygaśnięcie,
-disconnect i brak sesji. Walidacja na rzeczywistych serwerach Paper/Folia z bridge'em
-pozostaje wymagana; nie zamyka to checklisty całego API ani publicznych eventów.
+Testy providera obejmują runtime, CONNECTING, PRE_AUTH, ACTIVE, UUID, wygaśnięcie
+i disconnect. Testy kanału obejmują błędne pakiety, podszywanie się, powtórzenia,
+rozłączenie i zmianę backendu. Walidacja na rzeczywistych Paper/Folia/Velocity
+pozostaje wymagana.

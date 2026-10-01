@@ -49,3 +49,13 @@ Automatyczne alerty lokalne oraz opcjonalne VPN/proxy/Tor i GeoIP są konfigurow
 zewnętrzne sprawdzenia są domyślnie wyłączone. Zobacz WIKI konfiguracji i ochrony serwera.
 
 API integracji: [stan uwierzytelnienia i CraftConnect](11-authentication-status-api.md).
+
+
+## Natywne potwierdzenie logowania dla klienta
+
+Paper/Folia i Velocity obsługują kanały `authgatewayx:auth` oraz `craftconnect:auth`.
+Osobny bridge nie jest wymagany. Potwierdzenie wymaga READY oraz poprawnej sesji ACTIVE
+na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracza.
+To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
+Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
+Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).

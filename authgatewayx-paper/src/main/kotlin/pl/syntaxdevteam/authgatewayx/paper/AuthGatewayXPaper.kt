@@ -2,6 +2,7 @@ package pl.syntaxdevteam.authgatewayx.paper
 
 import io.papermc.paper.configuration.GlobalConfiguration
 import net.kyori.adventure.text.Component
+import pl.syntaxdevteam.authgatewayx.paper.client.PaperClientAuthenticationChannel
 import org.bukkit.plugin.ServicePriority
 import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
 import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
@@ -234,12 +235,16 @@ class AuthGatewayXPaper : JavaPlugin() {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
+        val authenticationStatus = PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, sessions::getActive)
         server.servicesManager.register(
             AuthenticationStatusProvider::class.java,
-            PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, sessions::getActive),
+            authenticationStatus,
             this,
             ServicePriority.Normal,
         )
+        val clientChannel = PaperClientAuthenticationChannel(this, authenticationStatus)
+        runtime?.clientChannel = clientChannel
+        clientChannel.register()
         val access = SessionPreAuthAccess(sessions)
         val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
         val registrationAttemptGate = RegistrationAttemptGate(
@@ -699,6 +704,7 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
+    @Volatile var clientChannel: PaperClientAuthenticationChannel? = null
     @Volatile var staffProof: PaperStaffProof? = null
     @Volatile var riskAlerts: OfflineRiskAlerts? = null
     @Volatile var networkLookup: ProxycheckIpLookup? = null
@@ -707,6 +713,7 @@ private class RuntimeComponents(
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
 
     override fun close() {
+        clientChannel?.close()
         staffProof?.close()
         riskAlerts?.close()
         networkLookup?.close()

@@ -38,6 +38,7 @@ class AuthGatewayXVelocity @Inject constructor(
     private var storageExecutor: BoundedTaskExecutor? = null
     private var storage: JdbcAccountStorage? = null
     private var network: ProxycheckIpLookup? = null
+    private var clientChannel: VelocityClientAuthenticationChannel? = null
     private var staffProof: VelocityStaffProof? = null
     private var admin: VelocityRiskAdmin? = null
     private var executor: BoundedTaskExecutor? = null
@@ -83,6 +84,9 @@ class AuthGatewayXVelocity @Inject constructor(
             phase(VelocityReadinessGuard.Phase.STAFF_PROOF)
             val proof = VelocityStaffProof(proxy, this, risk.proofSecret).also { staffProof = it }
             proxy.eventManager.register(this, proof)
+            val clientNotifications = VelocityClientAuthenticationChannel(proxy, this, ready::get)
+                .also { clientChannel = it }
+            proxy.eventManager.register(this, clientNotifications)
             phase(VelocityReadinessGuard.Phase.IP_LOOKUP)
             val ip = if (risk.networkEnabled && risk.networkAction != RiskAction.DISABLED) ProxycheckIpLookup.create(
                 risk.apiKey, Duration.ofMillis(risk.networkTimeoutMillis), Duration.ofSeconds(risk.cacheTtlSeconds),
@@ -152,6 +156,7 @@ class AuthGatewayXVelocity @Inject constructor(
     }
 
     private fun closeResources() {
+        clientChannel?.close()
         staffProof?.close()
         admin?.clear()
         network?.close()

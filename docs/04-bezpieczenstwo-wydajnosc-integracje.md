@@ -784,3 +784,13 @@ unieważniają potwierdzenie. Klient nie może zadeklarować sobie stanu ACTIVE.
 Potwierdzenie administracyjne jest jednorazowe (5 sekund), bez cache sesji.
 Raport wymaga świeżego potwierdzenia przed zapytaniem i przed odpowiedzią.
 Konfigurację, ograniczenia i wdrożenie opisuje [instrukcja proxy](09-proxy-risk-admission.md).
+
+
+## Natywne potwierdzenie logowania dla klienta
+
+Paper/Folia i Velocity obsługują kanały `authgatewayx:auth` oraz `craftconnect:auth`.
+Osobny bridge nie jest wymagany. Potwierdzenie wymaga READY oraz poprawnej sesji ACTIVE
+na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracza.
+To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
+Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
+Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
