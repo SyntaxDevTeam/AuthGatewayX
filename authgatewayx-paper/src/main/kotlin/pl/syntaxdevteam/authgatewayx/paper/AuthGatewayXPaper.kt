@@ -2,6 +2,9 @@ package pl.syntaxdevteam.authgatewayx.paper
 
 import io.papermc.paper.configuration.GlobalConfiguration
 import net.kyori.adventure.text.Component
+import org.bukkit.plugin.ServicePriority
+import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
+import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
@@ -231,6 +234,12 @@ class AuthGatewayXPaper : JavaPlugin() {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
+        server.servicesManager.register(
+            AuthenticationStatusProvider::class.java,
+            PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, sessions::getActive),
+            this,
+            ServicePriority.Normal,
+        )
         val access = SessionPreAuthAccess(sessions)
         val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
         val registrationAttemptGate = RegistrationAttemptGate(
@@ -669,6 +678,7 @@ class AuthGatewayXPaper : JavaPlugin() {
 
     override fun onDisable() {
         readiness.force(RuntimeState.STOPPING)
+        server.servicesManager.unregisterAll(this)
         passwordCommandGateway.delegate = null
         logoutCommandGateway.delegate = null
         multiAccountCommandGateway.delegate = null

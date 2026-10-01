@@ -47,3 +47,5 @@ VPN; szczegóły znajdują się w sekcji 26 dokumentu bezpieczeństwa i WIKI och
 
 Automatyczne alerty lokalne oraz opcjonalne VPN/proxy/Tor i GeoIP są konfigurowalne;
 zewnętrzne sprawdzenia są domyślnie wyłączone. Zobacz WIKI konfiguracji i ochrony serwera.
+
+API integracji: [stan uwierzytelnienia i CraftConnect](11-authentication-status-api.md).

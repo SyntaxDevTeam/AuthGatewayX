@@ -789,3 +789,10 @@ historia tożsamości, a nie tracone przez zwykły UPDATE rekordu głównego.
 Nie wolno implementować uniwersalnego search/replace UUID w danych pluginów. Integracje
 muszą przenosić dane przez jawne, kontrolowane migratory z możliwością wykrycia konfliktu
 i błędu przed finalizacją AuthGatewayX.
+
+## Publiczny odczyt stanu sesji na Paper
+
+Zarejestrowano `AuthenticationStatusProvider` w ServicesManager dla taniego odczytu
+READY + ACTIVE + UUID + expiry bez dostępu do storage. Szczegóły i ograniczenia:
+[API stanu uwierzytelnienia](11-authentication-status-api.md). Pełny `AuthGatewayApi`
+i publiczne eventy nie są przez tę zmianę oznaczane jako ukończone.

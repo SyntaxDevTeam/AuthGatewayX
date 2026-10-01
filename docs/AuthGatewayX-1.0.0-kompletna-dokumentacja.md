@@ -3118,3 +3118,12 @@ Migracja schematu v8 dodaje `migration_kind`. CI uruchamia rzeczywiste usługi M
 MariaDB 11.4 oraz PostgreSQL 17 i sprawdza na każdym backendzie idempotentną migrację schematu,
 UPGRADE, RECOVERY oraz dwie równoległe próby finalizacji tego samego ticketu. Te testy
 uzupełniają istniejące pokrycie SQLite.
+
+## Aktualizacja 2026-10-01 — API odczytu uwierzytelnienia
+
+Paper rejestruje `AuthenticationStatusProvider` przez ServicesManager po instalacji
+runtime i usuwa usługę przy shutdownie. Provider jest nieblokujący i niezależny od
+entity ownership: czyta wyłącznie immutable snapshot sesji. `true` wymaga READY,
+ACTIVE, zgodnego UUID i niewygasłej sesji. Brak, PRE_AUTH, logout, disconnect i błąd
+readiness dają `false`. Integracja nie aktywuje sesji i nie osłabia izolacji.
+[Szczegóły API i CraftConnect](11-authentication-status-api.md).
