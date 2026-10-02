@@ -1,6 +1,7 @@
 [AuthGatewayX — Home](Home.md)
 
 - [Pobieranie i instalacja](Instalacja.md)
+- [Możliwości pluginu](Mozliwosci.md)
 - [Poradnik gracza](Poradnik-gracza.md)
 - [Komendy](Komendy.md)
 - [Uprawnienia](Uprawnienia.md)

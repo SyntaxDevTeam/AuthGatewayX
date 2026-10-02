@@ -8,10 +8,12 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | --- | --- | --- |
 | `authgatewayx.command.changepassword` | Zmiana własnego hasła | Wszyscy gracze |
 | `authgatewayx.command.logout` | Wylogowanie | Wszyscy gracze |
+| `authgatewayx.admin.info` | Podstawowy raport `/authgatewayx info <nick>` | Operatorzy serwera |
 | `authgatewayx.admin.alerts` | Odbiór automatycznych alertów po zalogowaniu | Operatorzy serwera |
 | `authgatewayx.admin.view-ip` | Pokazywanie źródłowego adresu IP w alertach administracyjnych | Operatorzy serwera |
 | `authgatewayx.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
-| `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont offline | Operatorzy serwera |
+| `authgatewayx.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
+| `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
 | `authgatewayx.admin.password` | Ustawianie hasła cudzego konta offline | Operatorzy serwera |
 | `authgatewayx.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
 | `authgatewayx.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
@@ -21,7 +23,7 @@ Uprawnienia możesz przypisać w używanym na serwerze pluginie do zarządzania 
 
 ## Jak rozdzielić dostęp?
 
-Graczom wystarczą dwa domyślne uprawnienia. Dostęp do `authgatewayx.admin.password` daj tylko osobom, którym powierzasz odzyskiwanie kont. Nie musi go mieć każdy moderator czatu. Jeśli moderator ma otrzymywać alerty, ale nie powinien widzieć danych sieciowych, nadaj mu samo `authgatewayx.admin.alerts`. `authgatewayx.admin.view-ip` i `authgatewayx.admin.view-geo` są niezależne: pierwsze ujawnia źródłowy adres IP, drugie GeoIP oraz metadane sieciowe (ASN, provider/organizacja i operator VPN/proxy). Konsola serwera otrzymuje pełny wariant diagnostyczny.
+Graczom wystarczą dwa domyślne uprawnienia. Dostęp do `authgatewayx.admin.password` daj tylko osobom, którym powierzasz odzyskiwanie kont. Nie musi go mieć każdy moderator czatu. Jeśli moderator ma otrzymywać alerty, ale nie powinien widzieć danych sieciowych, nadaj mu samo `authgatewayx.admin.alerts`. `authgatewayx.admin.info` otwiera raport podstawowy, natomiast `view-ip`, `view-geo`, `view-security` i `alts` niezależnie dodają sekcje wrażliwe. Konsola serwera otrzymuje pełny wariant diagnostyczny.
 
 Samo nadanie uprawnienia nie omija logowania i nie zamienia konta premium w offline. Zmiana hasła oraz wylogowanie dotyczą aktywnych kont offline. Administrator także musi najpierw się zalogować.
 
