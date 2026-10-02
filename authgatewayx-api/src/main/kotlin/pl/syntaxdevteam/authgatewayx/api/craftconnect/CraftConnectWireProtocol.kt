@@ -36,6 +36,7 @@ sealed interface CraftConnectMessage {
 
     data class PairingChallenge(
         val challengeId: UUID,
+        val serverId: String,
         val nonce: ByteArray,
         val expiresAt: Instant,
     ) : CraftConnectMessage
@@ -109,6 +110,7 @@ object CraftConnectWireProtocol {
                 }
                 is CraftConnectMessage.PairingChallenge -> {
                     output.writeUuid(message.challengeId)
+                    output.writeString(message.serverId)
                     output.writeBytes(message.nonce)
                     output.writeLong(message.expiresAt.toEpochMilli())
                 }
@@ -154,6 +156,7 @@ object CraftConnectWireProtocol {
                     PAIRING_BEGIN -> CraftConnectMessage.PairingBegin(input.readString(), input.readBytes())
                     PAIRING_CHALLENGE -> CraftConnectMessage.PairingChallenge(
                         input.readUuid(),
+                        input.readString(),
                         input.readBytes(),
                         Instant.ofEpochMilli(input.readLong()),
                     )
@@ -193,12 +196,14 @@ object CraftConnectWireProtocol {
     private fun DataInputStream.readString(): String {
         val size = readInt()
         if (size !in 0..MAX_STRING_BYTES) throw CraftConnectProtocolException("Invalid CraftConnect string size")
-        return String(ByteArray(size).also(::readFully), Charsets.UTF_8)
+        val bytes = ByteArray(size)
+        readFully(bytes)
+        return String(bytes, Charsets.UTF_8)
     }
 
     private fun DataOutputStream.writeNullableString(value: String?) {
         writeBoolean(value != null)
-        value?.let(::writeString)
+        if (value != null) writeString(value)
     }
 
     private fun DataInputStream.readNullableString(): String? = if (readBoolean()) readString() else null
@@ -212,7 +217,9 @@ object CraftConnectWireProtocol {
     private fun DataInputStream.readBytes(): ByteArray {
         val size = readInt()
         if (size !in 0..MAX_BINARY_BYTES) throw CraftConnectProtocolException("Invalid CraftConnect binary size")
-        return ByteArray(size).also(::readFully)
+        val bytes = ByteArray(size)
+        readFully(bytes)
+        return bytes
     }
 
     private fun DataOutputStream.writeUuid(value: UUID) {
@@ -233,7 +240,8 @@ object CraftConnectWireProtocol {
         if (count !in 0..MAX_CAPABILITIES) throw CraftConnectProtocolException("Invalid CraftConnect capability count")
         return buildSet {
             repeat(count) {
-                CraftConnectCapability.fromWireId(readString())?.let(::add)
+                val capability = CraftConnectCapability.fromWireId(readString())
+                if (capability != null) add(capability)
             }
         }
     }
