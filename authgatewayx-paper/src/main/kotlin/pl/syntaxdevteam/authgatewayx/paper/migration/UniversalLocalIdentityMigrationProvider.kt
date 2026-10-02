@@ -130,8 +130,14 @@ class UniversalLocalIdentityMigrationProvider(
                     when {
                         Files.isRegularFile(backup, LinkOption.NOFOLLOW_LINKS) ->
                             writeAtomically(target, Files.readAllBytes(backup))
-                        Files.isRegularFile(absent, LinkOption.NOFOLLOW_LINKS) ->
+                        Files.isRegularFile(absent, LinkOption.NOFOLLOW_LINKS) -> {
+                            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS) &&
+                                !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+                            ) {
+                                throw LocalMigrationFailure("UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE")
+                            }
                             Files.deleteIfExists(target)
+                        }
                         else ->
                             throw LocalMigrationFailure("UNIVERSAL_LOCAL_ROLLBACK_BACKUP_MISSING")
                     }
@@ -198,6 +204,8 @@ class UniversalLocalIdentityMigrationProvider(
                     }
                 }
 
+                val recipeTargets = recipeSources.values.mapTo(mutableSetOf()) { it.target }
+
                 Files.walk(directory).use { paths ->
                     val iterator = paths.iterator()
                     while (iterator.hasNext()) {
@@ -247,8 +255,9 @@ class UniversalLocalIdentityMigrationProvider(
                                     legacyEvidence = true,
                                 )
                             }
-                            val containsSource = containsPattern(path, patterns.bytes)
-                            if (recipe.rule.requireSourceUuidAbsentInContent && containsSource) {
+                            if (recipe.rule.requireSourceUuidAbsentInContent &&
+                                containsPattern(path, patterns.bytes)
+                            ) {
                                 unresolvedFound = true
                                 unresolvedOwners += owner
                                 reportPath(unresolvedPaths, path)
@@ -336,7 +345,9 @@ class UniversalLocalIdentityMigrationProvider(
                 legacyEvidence = true,
             )
         }
-        return LocalPlan(operations = operationsByTarget.values.toList())
+        return LocalPlan(
+            operations = operationsByTarget.values.sortedBy { pluginsRelative(it.target).toString() },
+        )
     }
 
     private fun addOperation(
@@ -361,17 +372,43 @@ class UniversalLocalIdentityMigrationProvider(
     }
 
     private fun genericTarget(path: Path, context: IdentityMigrationContext): Path? {
+        val match = genericUuidFile(path.fileName.toString(), context.sourceMinecraftUuid) ?: return null
+        val targetName = if (match.compact) {
+            context.targetMinecraftUuid.toString().replace("-", "") + match.suffix
+        } else {
+            context.targetMinecraftUuid.toString() + match.suffix
+        }
+        return path.resolveSibling(targetName).toAbsolutePath().normalize()
+    }
+
+    private fun genericSourceForTarget(path: Path, context: IdentityMigrationContext): Path? {
+        val match = genericUuidFile(path.fileName.toString(), context.targetMinecraftUuid) ?: return null
+        val sourceName = if (match.compact) {
+            context.sourceMinecraftUuid.toString().replace("-", "") + match.suffix
+        } else {
+            context.sourceMinecraftUuid.toString() + match.suffix
+        }
+        return path.resolveSibling(sourceName).toAbsolutePath().normalize()
+    }
+
+    private fun genericUuidFile(fileName: String, uuid: UUID): GenericFileMatch? {
         if (!genericUuidFilesEnabled || genericExtensions.isEmpty()) return null
-        val fileName = path.fileName.toString()
-        val canonical = context.sourceMinecraftUuid.toString()
-        if (fileName.length <= canonical.length || !fileName.regionMatches(0, canonical, 0, canonical.length, true)) {
+        val canonical = uuid.toString()
+        val compact = canonical.replace("-", "")
+        val prefix = when {
+            fileName.length > canonical.length &&
+                fileName.regionMatches(0, canonical, 0, canonical.length, true) -> canonical
+            fileName.length > compact.length &&
+                fileName.regionMatches(0, compact, 0, compact.length, true) -> compact
+            else -> return null
+        }
+        val suffix = fileName.substring(prefix.length)
+        if (!suffix.startsWith(".") ||
+            suffix.removePrefix(".").lowercase(Locale.ROOT) !in genericExtensions
+        ) {
             return null
         }
-        val suffix = fileName.substring(canonical.length)
-        if (!suffix.startsWith(".") || suffix.removePrefix(".").lowercase(Locale.ROOT) !in genericExtensions) {
-            return null
-        }
-        return path.resolveSibling(context.targetMinecraftUuid.toString() + suffix).toAbsolutePath().normalize()
+        return GenericFileMatch(suffix, compact = prefix.length == compact.length)
     }
 
     private fun validateTarget(pluginDirectory: Path, target: Path): String? {
@@ -646,6 +683,11 @@ class UniversalLocalIdentityMigrationProvider(
     private data class Patterns(
         val bytes: List<ByteArray>,
         val textNames: List<String>,
+    )
+
+    private data class GenericFileMatch(
+        val suffix: String,
+        val compact: Boolean,
     )
 
     private data class RecipeCandidate(
