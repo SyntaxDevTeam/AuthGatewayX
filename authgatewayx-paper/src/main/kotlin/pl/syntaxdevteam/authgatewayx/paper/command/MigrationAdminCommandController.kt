@@ -387,6 +387,33 @@ class MigrationAdminCommandController(
                     direct
                         .withText("{owners}", parts.getOrNull(1) ?: "?")
                         .withText("{paths}", parts.getOrNull(2) ?: "?")
+                "UNIVERSAL_LOCAL_READY" ->
+                    direct
+                        .withText("{total}", parts.getOrNull(1) ?: "?")
+                        .withText("{recipe}", parts.getOrNull(2) ?: "?")
+                        .withText("{generic}", parts.getOrNull(3) ?: "?")
+                        .withText("{paths}", parts.getOrNull(4) ?: "?")
+                "UNIVERSAL_LOCAL_REVIEW_REQUIRED" ->
+                    direct
+                        .withText("{safe}", parts.getOrNull(1) ?: "?")
+                        .withText("{owners}", parts.getOrNull(2) ?: "?")
+                        .withText("{paths}", parts.getOrNull(3) ?: "?")
+                "UNIVERSAL_LOCAL_RECIPE_INVALID" ->
+                    direct
+                        .withText("{file}", parts.getOrNull(1) ?: "?")
+                        .withText("{detail}", parts.getOrNull(2) ?: "?")
+                "UNIVERSAL_LOCAL_UNSAFE_PATH" ->
+                    direct
+                        .withText("{recipe}", parts.getOrNull(1) ?: "?")
+                        .withText("{path}", parts.getOrNull(2) ?: parts.getOrNull(1) ?: "?")
+                "UNIVERSAL_LOCAL_RECIPE_NOT_UTF8" ->
+                    direct
+                        .withText("{recipe}", parts.getOrNull(1) ?: "?")
+                        .withText("{path}", parts.getOrNull(2) ?: "?")
+                "UNIVERSAL_LOCAL_SYMLINK",
+                "UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE",
+                "UNIVERSAL_LOCAL_TARGET_COLLISION" ->
+                    direct.withText("{path}", parts.getOrNull(1) ?: "?")
                 else -> direct
             }
         }

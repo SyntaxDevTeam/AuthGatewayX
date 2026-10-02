@@ -76,7 +76,8 @@ import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProv
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
 import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
-import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
+import pl.syntaxdevteam.authgatewayx.paper.migration.MigrationRecipeRegistry
+import pl.syntaxdevteam.authgatewayx.paper.migration.UniversalLocalIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMode
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
@@ -406,13 +407,27 @@ class AuthGatewayXPaper : JavaPlugin() {
                 managedDataOwnersSupplier = { managedOwners },
             )
             if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
-                providers += UnmanagedPluginUuidReferenceScanner(
-                    dataFolder.parentFile.toPath(),
-                    dataFolder.toPath(),
-                    { managedOwners },
-                    migrationExecutor,
-                    positive("migration.unmanaged-plugin-scan.maximum-files"),
-                    positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
+                val configuredExtensions = config
+                    .getStringList("migration.unmanaged-plugin-scan.generic-uuid-files.extensions")
+                    .map { it.trim().lowercase(java.util.Locale.ROOT).removePrefix(".") }
+                    .filter(String::isNotBlank)
+                    .toSet()
+                providers += UniversalLocalIdentityMigrationProvider(
+                    pluginsRoot = dataFolder.parentFile.toPath(),
+                    authGatewayDataDirectory = dataFolder.toPath(),
+                    backupRoot = dataFolder.toPath().resolve("migration-backups").resolve("universal-local"),
+                    managedDataOwnersSupplier = { managedOwners },
+                    recipeRegistry = MigrationRecipeRegistry(dataFolder.toPath().resolve("migration-recipes")),
+                    executor = migrationExecutor,
+                    maximumFiles = positive("migration.unmanaged-plugin-scan.maximum-files"),
+                    maximumTotalBytes = positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
+                    genericUuidFilesEnabled = config.getBoolean(
+                        "migration.unmanaged-plugin-scan.generic-uuid-files.enabled",
+                        true,
+                    ),
+                    genericExtensions = configuredExtensions.ifEmpty {
+                        setOf("yml", "yaml", "json", "toml", "properties")
+                    },
                 )
             }
             providers += external
@@ -647,6 +662,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                     "authgatewayx:essentialsx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_essentialsx"),
                     "authgatewayx:external-identity-data-guard" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_external_guard"),
                     "authgatewayx:unmanaged-plugin-scan" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_unmanaged_scan"),
+                    "authgatewayx:universal-local" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_universal_local"),
                 ),
                 reasonTemplates = mapOf(
                     "NO_VANILLA_UUID_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_VANILLA_UUID_DATA"),
@@ -681,6 +697,21 @@ class AuthGatewayXPaper : JavaPlugin() {
                     "UNMANAGED_UUID_REFERENCES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_UUID_REFERENCES"),
                     "UNMANAGED_SCAN_LARGE_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_LARGE_FILE"),
                     "PLUGIN_ROOT_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLUGIN_ROOT_UNAVAILABLE"),
+                    "NO_UNIVERSAL_LOCAL_UUID_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_UNIVERSAL_LOCAL_UUID_DATA"),
+                    "UNIVERSAL_LOCAL_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_READY"),
+                    "UNIVERSAL_LOCAL_REVIEW_REQUIRED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_REVIEW_REQUIRED"),
+                    "UNIVERSAL_LOCAL_RECIPE_INVALID" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_RECIPE_INVALID"),
+                    "UNIVERSAL_LOCAL_UNSAFE_PATH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_UNSAFE_PATH"),
+                    "UNIVERSAL_LOCAL_RECIPE_NOT_UTF8" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_RECIPE_NOT_UTF8"),
+                    "UNIVERSAL_LOCAL_SYMLINK" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_SYMLINK"),
+                    "UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE"),
+                    "UNIVERSAL_LOCAL_TARGET_COLLISION" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_TARGET_COLLISION"),
+                    "UNIVERSAL_LOCAL_SOURCE_CHANGED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_SOURCE_CHANGED"),
+                    "UNIVERSAL_LOCAL_JOURNAL_MISMATCH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_JOURNAL_MISMATCH"),
+                    "UNIVERSAL_LOCAL_BACKUP_CONFLICT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_BACKUP_CONFLICT"),
+                    "UNIVERSAL_LOCAL_ROLLBACK_SYMLINK" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_ROLLBACK_SYMLINK"),
+                    "UNIVERSAL_LOCAL_ROLLBACK_BACKUP_MISSING" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_ROLLBACK_BACKUP_MISSING"),
+                    "UNIVERSAL_LOCAL_UNSAFE_BACKUP_PATH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_UNSAFE_BACKUP_PATH"),
                 ),
             ),
             isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
