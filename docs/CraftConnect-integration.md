@@ -65,7 +65,7 @@ AuthGatewayX
     └── zapis rekordu pairingu
 ```
 
-Rekord sparowania powinien docelowo zawierać co najmniej:
+Rekord sparowania:
 
 ```text
 serverId
@@ -107,10 +107,43 @@ expiresAt
 - utrzymuje najwyżej jeden aktywny challenge per gracz,
 - generuje 32-bajtowy losowy nonce,
 - sprawdza klucz P-256,
+- wymaga, aby `deviceId` był deterministycznym fingerprintem przesłanego klucza publicznego,
 - usuwa challenge PRZED weryfikacją podpisu, więc każdy challenge jest jednorazowy również przy błędnym podpisie,
 - wiąże podpis z serwerem, graczem, urządzeniem i czasem wygaśnięcia.
 
-Poprawny podpis NIE tworzy jeszcze pairingu. Warstwa Paper odpowiada obecnie `player_approval_required`. Jest to zamierzone: następny etap musi dostarczyć jawny Minecraft Dialog/akcję zatwierdzenia, trwały storage, revoke i audit.
+Poprawny podpis NIE tworzy automatycznie nowego pairingu.
+
+`CraftConnectPairingCoordinator` rozdziela dwa przypadki:
+
+1. aktywny zapis istnieje i public key jest identyczny — nowy challenge potwierdza possession, aktualizowany jest `lastUsedAt` i sesja może odzyskać Enhanced Mode bez ponownej zgody człowieka,
+2. aktywnego zapisu brak — wynik to `ApprovalRequired`, a zapis może powstać dopiero po jawnej zgodzie gracza.
+
+Jeżeli zapis istnieje dla tego samego `deviceId`, ale public key jest inny, wynik to `StoredKeyMismatch`.
+
+### Jawna zgoda gracza
+
+Powstał `CraftConnectPairingDialogController` oparty o Paper Dialog API. Controller:
+
+- pokazuje identyfikator urządzenia,
+- posiada osobne akcje APPROVE/REJECT,
+- nie pozwala ESC zastąpić decyzji,
+- posiada timeout,
+- czyści oczekiwanie po wyjściu gracza,
+- sam NIE zapisuje pairingu — dopiero callback APPROVE może uruchomić trwały zapis.
+
+Controller nie jest jeszcze podpięty do produkcyjnego `PaperCraftConnectChannel`, ponieważ trwała implementacja JDBC musi powstać wcześniej. Dzięki temu nie istnieje przejściowa ścieżka „zaakceptowano, ale tylko w RAM”.
+
+### Persistent storage
+
+W `authgatewayx-storage-api` istnieje `CraftConnectPairingStorage` obejmujący:
+
+- `findActiveCraftConnectPairing`,
+- `saveApprovedCraftConnectPairing`,
+- `touchCraftConnectPairing`,
+- `revokeCraftConnectPairing`,
+- `listCraftConnectPairings`.
+
+Kontrakt używa `CompletionStage`, tak jak pozostała asynchroniczna warstwa storage AGX. Produkcyjna implementacja JDBC i migracja schematu są jeszcze wymagane. Nie należy tworzyć dla CraftConnect osobnego ad-hoc pliku ani drugiej niezależnej bazy.
 
 ### Wymagania bezpieczeństwa
 
@@ -118,7 +151,8 @@ Poprawny podpis NIE tworzy jeszcze pairingu. Warstwa Paper odpowiada obecnie `pl
 - dla kont wymagających `/login` lub `/register` pairing nie może omijać PRE_AUTH,
 - challenge musi być jednorazowy, mieć TTL i być odporny na replay,
 - liczba aktywnych challenge musi być ograniczona,
-- proof-of-possession nie może samodzielnie oznaczać urządzenia jako zaakceptowane,
+- proof-of-possession nie może samodzielnie oznaczać nowego urządzenia jako zaakceptowane,
+- `deviceId` musi być związany z public key,
 - pairing/revoke wymagają audytu,
 - token/sesja urządzenia nie może zawierać trwałego snapshotu permissions,
 - odebranie permission powinno skutkować utratą capability bez ponownego pairingu,
@@ -190,7 +224,7 @@ Typy pierwszego etapu:
 
 Pola tekstowe i binarne są length-prefixed i ograniczone rozmiarem. Nieznane capability są ignorowane przy dekodowaniu, aby umożliwić kompatybilne rozszerzanie protokołu. Nieznany typ wiadomości lub niezgodna wersja powodują odrzucenie ramki.
 
-Oba repozytoria posiadają ten sam wektor kompatybilności `ClientHello`, dzięki czemu przypadkowa zmiana framingu, endianowości albo type ID powinna zostać wykryta przez testy.
+Oba repozytoria posiadają ten sam wektor kompatybilności `ClientHello`, dzięki czemu przypadkowa zmiana framingu, endianowości albo type ID jest wykrywana przez testy.
 
 Logiczny handshake:
 
@@ -251,56 +285,19 @@ Należy rozważyć maskowanie komend zawierających sekrety przed zapisem audytu
 
 ## Metrics / status
 
-AGX może udostępniać dane, które są dostępne lokalnie bez kosztownego lub blokującego I/O, m.in.:
-
-- uptime,
-- liczba graczy,
-- TPS / MSPT, jeżeli platforma/API udostępnia wiarygodne dane,
-- użycie pamięci JVM,
-- wersja platformy,
-- wersja Minecraft,
-- podstawowy health serwera.
-
-CPU/RAM hosta, filesystem i podobne dane systemowe powinny mieć jawnie zdefiniowane providery i nie mogą blokować game thread.
+AGX może udostępniać dane, które są dostępne lokalnie bez kosztownego lub blokującego I/O, m.in. uptime, liczbę graczy, TPS/MSPT, pamięć JVM, wersję platformy/Minecraft oraz health serwera. Dane hosta i filesystemu muszą mieć jawne providery i nie mogą blokować game thread.
 
 ## Branding
 
-Capability `BRANDING` może udostępniać m.in.:
-
-- display name serwera,
-- krótki opis,
-- logo/ikonę,
-- opcjonalne metadane wizualne.
-
-Branding nie jest mechanizmem autoryzacji.
+Capability `BRANDING` może udostępniać display name serwera, opis, logo/ikonę i opcjonalne metadane wizualne. Branding nie jest mechanizmem autoryzacji.
 
 ## Relacja do RCON
 
-RCON jest implementowany po stronie CraftConnect i nie wymaga AuthGatewayX.
-
-AuthGatewayX:
-
-- nie przechowuje hasła RCON aplikacji,
-- nie przekazuje haseł RCON,
-- nie proxy'uje RCON jako domyślnej ścieżki,
-- może oferować własne `CONSOLE_EXECUTE`, które ma pierwszeństwo w aplikacji, gdy capability jest przyznana.
+RCON jest implementowany po stronie CraftConnect i nie wymaga AuthGatewayX. AuthGatewayX nie przechowuje ani nie proxy'uje hasła RCON. Własne `CONSOLE_EXECUTE` AGX ma pierwszeństwo w aplikacji, gdy capability jest przyznana.
 
 ## Platformy
 
-### Paper / Purpur / Folia
-
-Docelowo pełny provider funkcji administracyjnych.
-
-Wymagane:
-
-- prawidłowe schedulery Folia,
-- brak blokującego I/O na threadach gry,
-- limitowany bufor konsoli,
-- ograniczenia rate-limit dla custom payload / requestów.
-
-### Velocity
-
-Może dostarczać capabilities dotyczące proxy, tożsamości, sesji i routingu. Nie należy deklarować danych backendu, których Velocity sam nie posiada, chyba że istnieje jawny i bezpieczny kanał backend ↔ proxy.
+Paper/Purpur/Folia docelowo dostarczają pełny provider funkcji administracyjnych z poprawnymi schedulerami, bounded I/O, rate limitingiem i backpressure. Velocity może dostarczać wyłącznie dane proxy/tożsamości/routingu, które faktycznie posiada, chyba że istnieje jawny bezpieczny kanał backend ↔ proxy.
 
 ## Zasada awarii izolowanej
 
@@ -312,25 +309,29 @@ Awaria integracji CraftConnect:
 - nie może powodować nieograniczonej kolejki logów/metryk,
 - powinna degradować wyłącznie rozszerzone capabilities.
 
+## Walidacja 2026-10-02
+
+GitHub Actions `Verify repository` dla commita `93515b80dcf0ff8eeda2e4a28d3ad32734f250ef` zakończył się sukcesem: testy oraz build i weryfikacja dystrybucyjnych JAR-ów Paper/Velocity przeszły. Joby publikacyjne Paper/Velocity później nie powiodły się na kroku `Publish ... artifact to BuildExplorer v2`; sam build pluginów w tych jobach zakończył się sukcesem.
+
 ## Etapy implementacji
 
-Checkbox `[x]` oznacza element wdrożony i zweryfikowany. Element istniejący w kodzie, ale oczekujący na końcową walidację CI/end-to-end, pozostaje niezaznaczony z opisem stanu.
+Checkbox `[x]` oznacza element wdrożony i zweryfikowany w zakresie wskazanym przez dokumentację. End-to-end/live nadal ma osobne pozycje.
 
 ### Etap 0 — kontrakt
 
 - [x] udokumentowany model integracji,
 - [x] podstawowe typy capability i permission w publicznym API,
-- [ ] format transportowy v1 — zaimplementowany i zamrożony, oczekuje na końcową walidację CI,
-- [ ] testy kontraktu capability/protocol — zaimplementowane, oczekują na zielony CI.
+- [x] format transportowy v1 zaimplementowany, zamrożony i zweryfikowany buildem/testami,
+- [x] testy kontraktu capability/protocol.
 
 ### Etap 1 — discovery + pairing
 
-- [ ] rejestracja kanału `authgatewayx:craftconnect` — Paper zaimplementowany, walidacja CI w toku,
-- [ ] HELLO v1 — Paper zaimplementowany, brak pełnego end-to-end z aplikacją,
-- [ ] jednorazowy challenge — zaimplementowany + testy replay/expiry,
-- [ ] device public key / proof-of-possession — zaimplementowane,
-- [ ] jawne zatwierdzenie gracza przez Minecraft Dialog,
-- [ ] zapis/revoke/list sparowanych urządzeń,
+- [x] rejestracja kanału `authgatewayx:craftconnect` w adapterze Paper — build zweryfikowany,
+- [ ] HELLO v1 — obie strony zaimplementowane, brak testu live CraftConnect ↔ Paper,
+- [x] jednorazowy challenge + testy replay/expiry,
+- [x] device public key / proof-of-possession + binding `deviceId` ↔ public key,
+- [ ] jawne zatwierdzenie gracza — controller Dialog istnieje, wymaga podpięcia po implementacji JDBC,
+- [ ] zapis/revoke/list — kontrakt i coordinator istnieją, brak JDBC/migracji,
 - [ ] permission-based capabilities — provider Paper zaimplementowany, pełny paired flow jeszcze nie istnieje,
 - [ ] rate-limit/audit całego endpointu,
 - [ ] test end-to-end CraftConnect ↔ Paper/Folia.
