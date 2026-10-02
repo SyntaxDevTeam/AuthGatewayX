@@ -226,6 +226,12 @@ migration:
     # remains fail-closed and is shown in /agx migrate inspect for manual review.
     enabled: true
 
+    # Exact plugin data-directory names whose old identity records are deliberately not
+    # migrated. These directories are scanned only to confirm recovery evidence; their files
+    # are never copied or modified. Keep this empty unless losing access to those records
+    # under the new UUID is an accepted decision. Matching is case-insensitive.
+    ignored-plugin-directories: []
+
     # Hard bounds keep one migration inspection from consuming unbounded disk I/O.
     maximum-files: 50000
 

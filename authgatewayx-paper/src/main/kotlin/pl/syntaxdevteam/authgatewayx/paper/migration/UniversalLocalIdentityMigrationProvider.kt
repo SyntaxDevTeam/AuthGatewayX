@@ -41,6 +41,7 @@ class UniversalLocalIdentityMigrationProvider(
     private val maximumTotalBytes: Long,
     private val genericUuidFilesEnabled: Boolean,
     genericExtensions: Set<String>,
+    ignoredPluginDirectories: Set<String> = emptySet(),
 ) : IdentityMigrationProvider {
     override val id: String = "authgatewayx:universal-local"
 
@@ -48,10 +49,16 @@ class UniversalLocalIdentityMigrationProvider(
         .map { it.trim().lowercase(Locale.ROOT).removePrefix(".") }
         .filter { it.matches(EXTENSION) }
         .toSet()
+    private val ignoredPluginDirectories = ignoredPluginDirectories.associateBy {
+        it.lowercase(Locale.ROOT)
+    }
 
     init {
         require(maximumFiles > 0)
         require(maximumTotalBytes > 0)
+        require(this.ignoredPluginDirectories.values.all(::validPluginDirectory)) {
+            "Ignored plugin directories must be simple directory names"
+        }
     }
 
     override fun inspect(context: IdentityMigrationContext): CompletionStage<IdentityMigrationInspection> =
@@ -67,7 +74,25 @@ class UniversalLocalIdentityMigrationProvider(
                 plan.operations.isEmpty() ->
                     IdentityMigrationInspection(
                         IdentityMigrationInspectionStatus.NO_DATA,
-                        "NO_UNIVERSAL_LOCAL_UUID_DATA",
+                        if (plan.ignoredOwners.isEmpty()) {
+                            "NO_UNIVERSAL_LOCAL_UUID_DATA"
+                        } else {
+                            diagnostic("UNIVERSAL_LOCAL_IGNORED", plan.ignoredOwners.joinToString(","))
+                        },
+                        legacyEvidence = plan.ignoredOwners.isNotEmpty(),
+                    )
+                plan.ignoredOwners.isNotEmpty() ->
+                    IdentityMigrationInspection(
+                        IdentityMigrationInspectionStatus.READY,
+                        diagnostic(
+                            "UNIVERSAL_LOCAL_READY_WITH_IGNORED",
+                            plan.operations.size.toString(),
+                            plan.operations.count { it.origin == OperationOrigin.RECIPE }.toString(),
+                            plan.operations.count { it.origin == OperationOrigin.GENERIC }.toString(),
+                            plan.operations.take(MAX_REPORTED_PATHS).joinToString(",") { displayPath(it.source) },
+                            plan.ignoredOwners.joinToString(","),
+                        ),
+                        legacyEvidence = true,
                     )
                 else ->
                     IdentityMigrationInspection(
@@ -169,6 +194,7 @@ class UniversalLocalIdentityMigrationProvider(
         val operationsByTarget = linkedMapOf<Path, LocalOperation>()
         val unresolvedOwners = linkedSetOf<String>()
         val unresolvedPaths = mutableListOf<String>()
+        val ignoredOwners = linkedSetOf<String>()
         var unresolvedFound = false
         var filesSeen = 0
         var bytesSeen = 0L
@@ -179,7 +205,9 @@ class UniversalLocalIdentityMigrationProvider(
                 val directory = directories.next()
                 if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) continue
                 val owner = directory.fileName.toString()
-                if (owner.lowercase(Locale.ROOT) in excluded) continue
+                val canonicalOwner = owner.lowercase(Locale.ROOT)
+                val intentionallyIgnored = canonicalOwner in ignoredPluginDirectories
+                if (canonicalOwner in excluded) continue
 
                 val recipeSources = linkedMapOf<Path, RecipeCandidate>()
                 for (recipe in recipesByDirectory[owner.lowercase(Locale.ROOT)].orEmpty()) {
@@ -212,6 +240,7 @@ class UniversalLocalIdentityMigrationProvider(
                         val path = iterator.next().toAbsolutePath().normalize()
                         if (shouldSkip(path, directory.toAbsolutePath().normalize())) continue
                         if (Files.isSymbolicLink(path)) {
+                            if (intentionallyIgnored) continue
                             return LocalPlan(
                                 blockedReason = diagnostic("UNMANAGED_PLUGIN_SYMLINK", displayPath(path)),
                                 legacyEvidence = unresolvedFound || operationsByTarget.isNotEmpty(),
@@ -245,6 +274,14 @@ class UniversalLocalIdentityMigrationProvider(
                             )
                         }
                         bytesSeen += size
+
+                        if (intentionallyIgnored) {
+                            val fileName = path.fileName.toString().lowercase(Locale.ROOT)
+                            if (patterns.textNames.any(fileName::contains) || containsPattern(path, patterns.bytes)) {
+                                ignoredOwners += owner
+                            }
+                            continue
+                        }
 
                         val recipe = recipeSources[path]
                         if (recipe != null) {
@@ -343,10 +380,12 @@ class UniversalLocalIdentityMigrationProvider(
                     unresolvedPaths.joinToString(","),
                 ),
                 legacyEvidence = true,
+                ignoredOwners = ignoredOwners.sortedWith(String.CASE_INSENSITIVE_ORDER),
             )
         }
         return LocalPlan(
             operations = operationsByTarget.values.sortedBy { pluginsRelative(it.target).toString() },
+            ignoredOwners = ignoredOwners.sortedWith(String.CASE_INSENSITIVE_ORDER),
         )
     }
 
@@ -708,6 +747,7 @@ class UniversalLocalIdentityMigrationProvider(
         val operations: List<LocalOperation> = emptyList(),
         val blockedReason: String? = null,
         val legacyEvidence: Boolean = false,
+        val ignoredOwners: List<String> = emptyList(),
     )
 
     private enum class OperationOrigin {
@@ -725,6 +765,14 @@ class UniversalLocalIdentityMigrationProvider(
         private const val MAX_REPORTED_VALUE_LENGTH = 512
         private const val JOURNAL_FILE = "targets.journal"
         private val EXTENSION = Regex("^[a-z0-9_-]{1,16}$")
+        private fun validPluginDirectory(value: String): Boolean =
+            value.isNotBlank() &&
+                value.length <= 96 &&
+                !value.contains('/') &&
+                !value.contains('\\') &&
+                value != "." &&
+                value != ".." &&
+                !value.contains('\u0000')
         private val SKIPPED_DIRECTORY_NAMES = setOf(
             "logs",
             "log",

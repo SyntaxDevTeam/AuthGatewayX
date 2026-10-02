@@ -146,6 +146,66 @@ class UniversalLocalIdentityMigrationProviderTest {
     }
 
     @Test
+    fun `administrator may intentionally ignore selected plugin data while preserving recovery evidence`() {
+        withProvider { root, own, backup, recipes, executor ->
+            val database = root.resolve("CoreProtect").also { Files.createDirectories(it) }
+                .resolve("database.db")
+            database.writeText("player=${context.sourceMinecraftUuid}\n")
+            val provider = provider(
+                root,
+                own,
+                backup,
+                recipes,
+                executor,
+                ignored = setOf("coreprotect"),
+            )
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.NO_DATA, inspection.status)
+            assertEquals("UNIVERSAL_LOCAL_IGNORED::CoreProtect", inspection.reasonCode)
+            assertTrue(inspection.legacyEvidence)
+            assertEquals(
+                IdentityMigrationOperationResult.NoData,
+                provider.migrate(context).toCompletableFuture().get(),
+            )
+            assertTrue(database.exists())
+        }
+    }
+
+    @Test
+    fun `ignored plugin does not block safe migrations belonging to other plugins`() {
+        withProvider { root, own, backup, recipes, executor ->
+            val ignoredDirectory = root.resolve("BeautyQuests").also { Files.createDirectories(it) }
+            ignoredDirectory.resolve("questers.db").writeText("player=${context.sourceMinecraftUuid}\n")
+            val users = root.resolve("SomePlugin/users").also { Files.createDirectories(it) }
+            val source = users.resolve("${context.sourceMinecraftUuid}.yml")
+            val target = users.resolve("${context.targetMinecraftUuid}.yml")
+            source.writeText("coins: 42\n")
+            val provider = provider(
+                root,
+                own,
+                backup,
+                recipes,
+                executor,
+                ignored = setOf("BeautyQuests"),
+            )
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.READY, inspection.status)
+            assertTrue(inspection.reasonCode.startsWith("UNIVERSAL_LOCAL_READY_WITH_IGNORED::1::0::1::"))
+            assertTrue(inspection.reasonCode.endsWith("::BeautyQuests"))
+            assertEquals(
+                IdentityMigrationOperationResult.Success,
+                provider.migrate(context).toCompletableFuture().get(),
+            )
+            assertEquals(source.readText(), target.readText())
+            assertFalse(ignoredDirectory.resolve("${context.targetMinecraftUuid}.db").exists())
+        }
+    }
+
+    @Test
     fun `aggregate byte budget still fails closed and reports path`() {
         withProvider { root, own, backup, recipes, executor ->
             val plugin = root.resolve("LargePlugin").also { Files.createDirectories(it) }
@@ -214,6 +274,7 @@ class UniversalLocalIdentityMigrationProviderTest {
         recipes: java.nio.file.Path,
         executor: BoundedTaskExecutor,
         managed: Set<String> = emptySet(),
+        ignored: Set<String> = emptySet(),
         maximumTotalBytes: Long = 8L * 1024 * 1024,
     ) = UniversalLocalIdentityMigrationProvider(
         pluginsRoot = root,
@@ -226,6 +287,7 @@ class UniversalLocalIdentityMigrationProviderTest {
         maximumTotalBytes = maximumTotalBytes,
         genericUuidFilesEnabled = true,
         genericExtensions = setOf("yml", "yaml", "json", "toml", "properties"),
+        ignoredPluginDirectories = ignored,
     )
 
     private fun withProvider(

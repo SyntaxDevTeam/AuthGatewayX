@@ -88,3 +88,9 @@ targetu EssentialsX nie blokuje więc recovery.
 
 Skan lokalny nie daje wiedzy o zdalnej bazie MySQL/PostgreSQL innego pluginu. Pluginy trzymające
 dane gracza poza lokalnym katalogiem powinny zawsze dostarczyć własny provider.
+
+Jeżeli danych konkretnego pluginu nie chcesz przenosić, dodaj dokładną nazwę jego katalogu
+do `migration.unmanaged-plugin-scan.ignored-plugin-directories`. AuthGatewayX sprawdzi w nim
+jedynie obecność starego UUID, pominie zapis i pokaże tę decyzję w `migrate inspect`. Dane
+pozostaną wyłącznie pod starym UUID; lista jest pusta domyślnie, ponieważ jej użycie oznacza
+świadomą rezygnację z tych danych.

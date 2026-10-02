@@ -142,6 +142,26 @@ Jeżeli obok bezpiecznych operacji istnieje choć jedno nierozpoznane wystąpien
 cała migracja pozostaje `BLOCKED`. AuthGatewayX nie wykonuje częściowego „best effort”
 przed uzyskaniem kompletnego planu.
 
+## Świadome pominięcie danych pluginu
+
+Jeżeli administrator świadomie nie chce zachować danych starej tożsamości z konkretnego
+pluginu, może podać dokładną nazwę jego katalogu danych:
+
+```yaml
+migration:
+  unmanaged-plugin-scan:
+    ignored-plugin-directories:
+      - BeautyQuests
+      - CoreProtect
+```
+
+Porównanie nazw nie rozróżnia wielkości liter. AuthGatewayX skanuje wskazany katalog
+wyłącznie w celu potwierdzenia obecności starego UUID, ale nie kopiuje ani nie modyfikuje
+żadnego jego pliku. `inspect` wymienia pominięte katalogi, a potwierdzone wystąpienie UUID
+stanowi dowód starej tożsamości wymagany przez recovery. Pozwala to zakończyć recovery bez
+tych danych, lecz gracz zachowa je wyłącznie pod starym UUID. Lista jest domyślnie pusta
+i nie zastępuje providera, gdy dane mają zostać zachowane.
+
 ## Ograniczenia
 
 Warstwa uniwersalna celowo nie modyfikuje:

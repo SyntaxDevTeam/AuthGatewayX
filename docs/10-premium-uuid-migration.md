@@ -78,6 +78,13 @@ binarne oraz zdalne MySQL/MariaDB/PostgreSQL/Redis nie są modyfikowane automaty
 Skan ma limit liczby plików i łącznego odczytu bajtów. Szczegółowy format recept i wbudowana
 obsługa AdvancedPortals są opisane w `docs/11-universal-local-migration-recipes.md`.
 
+Administrator może świadomie wyłączyć dokładne katalogi pluginów z migracji przez
+`migration.unmanaged-plugin-scan.ignored-plugin-directories`. Takie katalogi są skanowane
+wyłącznie w celu potwierdzenia starego UUID, nie są modyfikowane i pojawiają się w raporcie
+`inspect`. Recovery może zakończyć się bez ich danych. Ustawienie jest domyślnie puste;
+oznacza świadomą rezygnację z dostępu do tych danych pod nowym UUID, a nie potwierdzenie
+ich bezpiecznego przeniesienia.
+
 ## Publiczny provider
 
 `IdentityMigrationProvider` udostępnia:

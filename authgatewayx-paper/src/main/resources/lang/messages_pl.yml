@@ -127,6 +127,8 @@ migration_admin:
   reason_PLUGIN_ROOT_UNAVAILABLE: 'AuthGatewayX nie może odczytać katalogu plugins. Sprawdź ścieżkę i uprawnienia systemu plików.'
   reason_NO_UNIVERSAL_LOCAL_UUID_DATA: 'Nie znaleziono lokalnych danych starego UUID w pluginach bez dedykowanego providera.'
   reason_UNIVERSAL_LOCAL_READY: 'Możliwa jest bezpieczna migracja {total} plików lokalnych: recepty {recipe}, reguła uniwersalna {generic}. Przykłady: {paths}. Źródła pozostaną zachowane, a istniejące cele zostaną zbackupowane.'
+  reason_UNIVERSAL_LOCAL_READY_WITH_IGNORED: 'Możliwa jest bezpieczna migracja {total} plików lokalnych: recepty {recipe}, reguła uniwersalna {generic}. Przykłady: {paths}. Decyzją administratora nie zostaną przeniesione dane pluginów: {ignored}.'
+  reason_UNIVERSAL_LOCAL_IGNORED: 'Stare dane znaleziono wyłącznie w katalogach świadomie pominiętych przez administratora: {ignored}. Te dane nie zostaną przeniesione; recovery może zakończyć się bez nich.'
   reason_UNIVERSAL_LOCAL_REVIEW_REQUIRED: 'Wykryto dane wymagające interpretacji semantycznej. {safe} bezpiecznych operacji jest już rozpoznanych, ale migrację blokują pluginy: {owners}. Przykładowe pliki: {paths}. Dodaj receptę migracji lub dedykowany provider.'
   reason_UNIVERSAL_LOCAL_RECIPE_INVALID: 'Nie można użyć recepty migracji {file}: {detail}. Popraw lub usuń plik z plugins/AuthGatewayX/migration-recipes.'
   reason_UNIVERSAL_LOCAL_UNSAFE_PATH: 'Recepta lub plan wskazuje niedozwoloną ścieżkę ({recipe}: {path}). Dozwolone są wyłącznie ścieżki względne wewnątrz katalogu danego pluginu.'

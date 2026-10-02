@@ -393,6 +393,15 @@ class MigrationAdminCommandController(
                         .withText("{recipe}", parts.getOrNull(2) ?: "?")
                         .withText("{generic}", parts.getOrNull(3) ?: "?")
                         .withText("{paths}", parts.getOrNull(4) ?: "?")
+                "UNIVERSAL_LOCAL_READY_WITH_IGNORED" ->
+                    direct
+                        .withText("{total}", parts.getOrNull(1) ?: "?")
+                        .withText("{recipe}", parts.getOrNull(2) ?: "?")
+                        .withText("{generic}", parts.getOrNull(3) ?: "?")
+                        .withText("{paths}", parts.getOrNull(4) ?: "?")
+                        .withText("{ignored}", parts.getOrNull(5) ?: "?")
+                "UNIVERSAL_LOCAL_IGNORED" ->
+                    direct.withText("{ignored}", parts.getOrNull(1) ?: "?")
                 "UNIVERSAL_LOCAL_REVIEW_REQUIRED" ->
                     direct
                         .withText("{safe}", parts.getOrNull(1) ?: "?")

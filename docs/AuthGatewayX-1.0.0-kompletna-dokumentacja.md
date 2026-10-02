@@ -3107,6 +3107,14 @@ Administracyjne `migrate inspect` prezentuje nazwy integracji, liczniki danych, 
 gotowości i instrukcję usunięcia blokady. Wewnętrzne kody pozostają jedynie szczegółem
 technicznym przy błędach, a nie główną treścią raportu.
 
+Administrator może jawnie zrezygnować z migracji danych wybranych pluginów przez
+`migration.unmanaged-plugin-scan.ignored-plugin-directories`. Lista zawiera dokładne nazwy
+katalogów, jest porównywana bez uwzględniania wielkości liter i domyślnie pozostaje pusta.
+Pominięte katalogi są skanowane wyłącznie dla potwierdzenia starego UUID, lecz nie są
+modyfikowane; raport administracyjny wymienia je, a recovery może zakończyć się bez tych
+danych. Jest to udokumentowana decyzja o utracie dostępu do danych pod nowym UUID, nie
+automatyczna migracja ani wyłączenie pozostałych guardów.
+
 
 ## Aktualizacja 2026-09-28 — recovery i trwałe wznowienie migracji
 

@@ -428,6 +428,11 @@ class AuthGatewayXPaper : JavaPlugin() {
                     genericExtensions = configuredExtensions.ifEmpty {
                         setOf("yml", "yaml", "json", "toml", "properties")
                     },
+                    ignoredPluginDirectories = config
+                        .getStringList("migration.unmanaged-plugin-scan.ignored-plugin-directories")
+                        .map(String::trim)
+                        .filter(String::isNotBlank)
+                        .toSet(),
                 )
             }
             providers += external
@@ -699,6 +704,8 @@ class AuthGatewayXPaper : JavaPlugin() {
                     "PLUGIN_ROOT_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLUGIN_ROOT_UNAVAILABLE"),
                     "NO_UNIVERSAL_LOCAL_UUID_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_UNIVERSAL_LOCAL_UUID_DATA"),
                     "UNIVERSAL_LOCAL_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_READY"),
+                    "UNIVERSAL_LOCAL_READY_WITH_IGNORED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_READY_WITH_IGNORED"),
+                    "UNIVERSAL_LOCAL_IGNORED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_IGNORED"),
                     "UNIVERSAL_LOCAL_REVIEW_REQUIRED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_REVIEW_REQUIRED"),
                     "UNIVERSAL_LOCAL_RECIPE_INVALID" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_RECIPE_INVALID"),
                     "UNIVERSAL_LOCAL_UNSAFE_PATH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_UNSAFE_PATH"),
