@@ -8,19 +8,27 @@ package pl.syntaxdevteam.authgatewayx.api.craftconnect
 object CraftConnectProtocol {
     const val CHANNEL: String = "authgatewayx:craftconnect"
     const val VERSION: Int = 1
+    const val MAX_FRAME_BYTES: Int = 64 * 1024
 }
 
 enum class CraftConnectCapability(
+    val wireId: String,
     val permission: String,
 ) {
-    PAIRING("authgatewayx.craftconnect.pair"),
-    STATUS("authgatewayx.craftconnect.status"),
-    STATS("authgatewayx.craftconnect.stats"),
-    CONSOLE_VIEW("authgatewayx.craftconnect.console.view"),
-    CONSOLE_EXECUTE("authgatewayx.craftconnect.console.execute"),
-    SERVER_INFO("authgatewayx.craftconnect.server-info"),
-    BRANDING("authgatewayx.craftconnect.branding"),
-    DIAGNOSTICS("authgatewayx.craftconnect.diagnostics"),
+    PAIRING("pairing", "authgatewayx.craftconnect.pair"),
+    STATUS("status", "authgatewayx.craftconnect.status"),
+    STATS("stats", "authgatewayx.craftconnect.stats"),
+    CONSOLE_VIEW("console.view", "authgatewayx.craftconnect.console.view"),
+    CONSOLE_EXECUTE("console.execute", "authgatewayx.craftconnect.console.execute"),
+    SERVER_INFO("server.info", "authgatewayx.craftconnect.server-info"),
+    BRANDING("branding", "authgatewayx.craftconnect.branding"),
+    DIAGNOSTICS("diagnostics", "authgatewayx.craftconnect.diagnostics");
+
+    companion object {
+        private val BY_WIRE_ID = entries.associateBy(CraftConnectCapability::wireId)
+
+        fun fromWireId(wireId: String): CraftConnectCapability? = BY_WIRE_ID[wireId]
+    }
 }
 
 data class CraftConnectCapabilities(
