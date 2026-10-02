@@ -29,10 +29,11 @@ class CraftConnectWireProtocolTest {
     }
 
     @Test
-    fun pairingChallengeRoundTripsBinaryNonce() {
+    fun pairingChallengeRoundTripsBinaryNonceAndServerIdentity() {
         val nonce = ByteArray(32) { it.toByte() }
         val message = CraftConnectMessage.PairingChallenge(
             challengeId = UUID.randomUUID(),
+            serverId = "moonvale-1",
             nonce = nonce,
             expiresAt = Instant.ofEpochMilli(1_800_000_000_000),
         )
@@ -41,6 +42,7 @@ class CraftConnectWireProtocolTest {
         ).message as CraftConnectMessage.PairingChallenge
 
         assertEquals(message.challengeId, decoded.challengeId)
+        assertEquals(message.serverId, decoded.serverId)
         assertEquals(message.expiresAt, decoded.expiresAt)
         assertContentEquals(nonce, decoded.nonce)
     }
