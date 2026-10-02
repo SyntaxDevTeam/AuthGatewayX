@@ -34,6 +34,34 @@ class EssentialsXIdentityMigrationProviderTest {
         }
     }
 
+    @Test
+    fun `different target is backed up replaced and restored by rollback`() {
+        val root = Files.createTempDirectory("agx-essentials-conflict-")
+        val userdata = root.resolve("userdata").createDirectories()
+        val context = context()
+        val source = userdata.resolve("${context.sourceMinecraftUuid}.yml")
+        val target = userdata.resolve("${context.targetMinecraftUuid}.yml")
+        source.writeText("uuid: ${context.sourceMinecraftUuid}\nmoney: '42'\nhomes: legacy\n")
+        val originalTarget = "uuid: ${context.targetMinecraftUuid}\nmoney: '7'\nhomes: premium\n"
+        target.writeText(originalTarget)
+
+        BoundedTaskExecutor(1, 4, "essentials-test").use { executor ->
+            val provider = EssentialsXIdentityMigrationProvider(userdata, root.resolve("backups"), executor)
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+            assertEquals(IdentityMigrationInspectionStatus.READY, inspection.status)
+            assertEquals("ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED", inspection.reasonCode)
+
+            assertEquals(IdentityMigrationOperationResult.Success, provider.migrate(context).toCompletableFuture().get())
+            assertTrue(target.readText().contains("money: '42'"))
+            assertTrue(target.readText().contains(context.targetMinecraftUuid.toString()))
+            assertFalse(target.readText().contains(context.sourceMinecraftUuid.toString()))
+
+            assertEquals(IdentityMigrationOperationResult.Success, provider.rollback(context).toCompletableFuture().get())
+            assertEquals(originalTarget, target.readText())
+        }
+        root.toFile().deleteRecursively()
+    }
+
     private fun context() = IdentityMigrationContext(
         UUID.randomUUID(), UUID.randomUUID(), "Player", UUID.randomUUID(), UUID.randomUUID(),
     )

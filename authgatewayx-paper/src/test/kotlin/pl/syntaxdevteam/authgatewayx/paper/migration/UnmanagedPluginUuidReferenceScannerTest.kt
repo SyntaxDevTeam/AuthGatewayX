@@ -46,19 +46,48 @@ class UnmanagedPluginUuidReferenceScannerTest {
         }
     }
 
+    @Test
+    fun `large individual file is scanned when aggregate budget allows it`() {
+        withScanner { root, own, executor ->
+            val plugin = root.resolve("LargePlugin").also { Files.createDirectories(it) }
+            Files.write(plugin.resolve("players.db"), ByteArray(2 * 1024 * 1024) { 0x41 })
+            val scanner = scanner(root, own, executor, maximumTotalBytes = 4L * 1024 * 1024)
+
+            val result = scanner.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.NO_DATA, result.status)
+            assertEquals("NO_UNMANAGED_LOCAL_UUID_REFERENCES", result.reasonCode)
+        }
+    }
+
+    @Test
+    fun `aggregate byte limit reports the path that could not be scanned`() {
+        withScanner { root, own, executor ->
+            val plugin = root.resolve("LargePlugin").also { Files.createDirectories(it) }
+            Files.write(plugin.resolve("players.db"), ByteArray(2048) { 0x41 })
+            val scanner = scanner(root, own, executor, maximumTotalBytes = 1024)
+
+            val result = scanner.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.BLOCKED, result.status)
+            assertTrue(result.reasonCode.startsWith("UNMANAGED_SCAN_BYTE_LIMIT::LargePlugin"))
+            assertTrue(result.reasonCode.contains("players.db"))
+        }
+    }
+
     private fun scanner(
         root: java.nio.file.Path,
         own: java.nio.file.Path,
         executor: BoundedTaskExecutor,
         managed: Set<String> = emptySet(),
+        maximumTotalBytes: Long = 8L * 1024 * 1024,
     ) = UnmanagedPluginUuidReferenceScanner(
         root,
         own,
         { managed },
         executor,
         maximumFiles = 100,
-        maximumFileBytes = 1024 * 1024,
-        maximumTotalBytes = 8L * 1024 * 1024,
+        maximumTotalBytes = maximumTotalBytes,
     )
 
     private fun withScanner(test: (java.nio.file.Path, java.nio.file.Path, BoundedTaskExecutor) -> Unit) {
