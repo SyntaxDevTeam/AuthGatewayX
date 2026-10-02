@@ -18,6 +18,12 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 Komenda administracyjna `/authgatewayx` ma alias `/agx`; podkomendy, argumenty i
 uprawnienia są identyczne, np. `/agx migrate status Alex`.
 
+Dla `/authgatewayx alts <nick>` (także `/agx alts <nick>`) klient Minecraft
+podpowiada nazwy aktualnie połączonych graczy podczas wpisywania argumentu. Podpowiedzi
+są tylko ułatwieniem — nadal można ręcznie podać nazwę gracza offline. Lista jest
+udostępniana konsoli albo zalogowanemu graczowi; sama gałąź `alts` nadal wymaga
+`authgatewayx.admin.alts`, a sesja PRE_AUTH nie otrzymuje tych nazw.
+
 `<nick>` zastąp nazwą gracza, bez nawiasów. Przykład: `/authgatewayx setpassword Alex`.
 
 Raport `/authgatewayx info <nick>` pokazuje najwyżej 10 najnowszych zdarzeń audytu konta;

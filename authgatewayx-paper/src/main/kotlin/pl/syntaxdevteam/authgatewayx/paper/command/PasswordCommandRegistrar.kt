@@ -5,6 +5,7 @@ package pl.syntaxdevteam.authgatewayx.paper.command
 import com.mojang.brigadier.arguments.StringArgumentType
 import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import org.bukkit.command.CommandSender
 import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
@@ -37,7 +38,21 @@ class PasswordCommandRegistrar(
     private val multiAccountGateway: MultiAccountCommandGateway,
     private val accountInfoGateway: AccountInfoCommandGateway,
     private val migrationGateway: MigrationAdminCommandGateway,
+    private val canSuggestOnlinePlayers: (CommandSender) -> Boolean,
 ) {
+    private fun onlinePlayerArgument(name: String) =
+        Commands.argument(name, StringArgumentType.word())
+            .suggests { context, builder ->
+                if (!canSuggestOnlinePlayers(context.source.sender)) {
+                    return@suggests builder.buildFuture()
+                }
+                matchingOnlinePlayerNames(
+                    plugin.server.onlinePlayers.map { it.name },
+                    builder.remaining,
+                ).forEach(builder::suggest)
+                builder.buildFuture()
+            }
+
     fun register() {
         plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             event.registrar().register(
@@ -66,7 +81,7 @@ class PasswordCommandRegistrar(
                         }))
                     .then(Commands.literal("alts")
                         .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission("authgatewayx.admin.alts") }
-                        .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                        .then(onlinePlayerArgument("username").executes { context ->
                             multiAccountGateway.show(context.source.sender, StringArgumentType.getString(context, "username"))
                             1
                         }))
@@ -136,3 +151,13 @@ class PasswordCommandRegistrar(
         }
     }
 }
+
+
+internal fun matchingOnlinePlayerNames(
+    onlinePlayerNames: Iterable<String>,
+    remaining: String,
+): List<String> = onlinePlayerNames
+    .asSequence()
+    .filter { it.startsWith(remaining, ignoreCase = true) }
+    .sortedWith(Comparator { left, right -> left.compareTo(right, ignoreCase = true) })
+    .toList()

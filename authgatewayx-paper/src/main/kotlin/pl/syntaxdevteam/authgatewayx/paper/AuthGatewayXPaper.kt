@@ -7,6 +7,7 @@ import org.bukkit.plugin.ServicePriority
 import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
 import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
@@ -117,6 +118,12 @@ class AuthGatewayXPaper : JavaPlugin() {
             multiAccountCommandGateway,
             accountInfoCommandGateway,
             migrationAdminCommandGateway,
+            canSuggestOnlinePlayers = { sender ->
+                sender is ConsoleCommandSender ||
+                    sender is Player &&
+                    sender.isOnline &&
+                    runtime?.sessions?.get(ConnectionId(sender.uniqueId))?.state == ConnectionState.ACTIVE
+            },
         ).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
