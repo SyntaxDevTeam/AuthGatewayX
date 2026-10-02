@@ -146,7 +146,7 @@ class MigrationRecipeRegistry(
     private fun validTemplate(value: String, vararg requiredAny: String): Boolean {
         if (value.isBlank() || value.length > MAX_TEMPLATE_LENGTH) return false
         if (!requiredAny.any(value::contains)) return false
-        if (value.startsWith("/") || value.startsWith("\\") || value.contains("..")) return false
+        if (value.startsWith("/") || value.contains('\\') || value.contains("..")) return false
         if (value.contains('\u0000')) return false
         val allowed = setOf(
             "{source_uuid}",
