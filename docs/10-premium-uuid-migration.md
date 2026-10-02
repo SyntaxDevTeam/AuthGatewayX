@@ -66,7 +66,11 @@ rozszerzeniem jest publiczny `IdentityMigrationProvider`.
 
 AuthGatewayX dodatkowo skanuje lokalne katalogi pluginów bez providera. Szuka starego UUID
 w nazwach plików, zapisie tekstowym z/bez myślników oraz jako surowe 16 bajtów. Znalezienie
-referencji blokuje migrację. Skan ma limity I/O i również fail-closed po ich przekroczeniu.
+referencji blokuje migrację. Skan ma limit liczby plików i łącznego odczytu bajtów, więc
+pozostaje ograniczony I/O i fail-closed. Pojedynczy duży plik nie jest już sam w sobie
+powodem blokady: zawartość jest czytana strumieniowo, o ile mieści się w pozostałym budżecie
+łącznego skanu. Po przekroczeniu limitu `inspect` wskazuje plik, rozmiar, wykorzystany budżet
+i właściwą opcję konfiguracji zamiast samego kodu `UNMANAGED_SCAN_*`.
 
 Skan nie jest dowodem braku danych w zdalnej bazie. Plugin korzystający z zewnętrznego
 MySQL/MariaDB/PostgreSQL/Redis powinien rejestrować własny provider.
@@ -142,8 +146,12 @@ Jeżeli plugin jest zainstalowany, ale bridge jest niedostępny, migracja kończ
 ## Popularne integracje zewnętrzne
 
 EssentialsX ma kontrolowany migrator pliku YAML `userdata/<uuid>.yml` z trwałym backupem
-targetu, zapisem przez plik tymczasowy i rollbackiem. Source pozostaje zachowany, a różne
-istniejące dane targetu blokują migrację.
+targetu, zapisem przez plik tymczasowy i rollbackiem. Source pozostaje zachowany. Jeżeli
+docelowy plik już istnieje i różni się od danych starego UUID (typowy skutek wcześniejszego,
+przedwczesnego przełączenia UUID), nie jest to już automatycznie konflikt: dokładny target
+jest najpierw kopiowany do backupu, a następnie zastępowany zmigrowanym source. Rollback
+odtwarza poprzedni target bajt w bajt. Nadal fail-closed są dowiązania symboliczne i ścieżki,
+które nie są zwykłymi plikami.
 
 LuckPerms jest obsługiwany przez jego publiczne API 5.5, bez bezpośrednich zapytań do tabel.
 Provider kopiuje trwałe węzły source (w tym dziedziczenie grup/rang i bezpośrednie
@@ -156,3 +164,16 @@ Vault nie przechowuje sald i nie jest providerem danych — jest wyłącznie war
 Migracja ekonomii musi należeć do konkretnego pluginu ekonomii i jego transakcyjnego
 `IdentityMigrationProvider`; samo wykrycie Vault nie dowodzi ani obecności, ani braku salda.
 Do czasu dostarczenia takiego providera migrację należy traktować jako nieobsługiwaną.
+
+
+## Czytelna diagnostyka administratora
+
+`/authgatewayx migrate inspect <nick> [source-uuid]` jest raportem administracyjnym, a nie
+zrzutem wewnętrznych kodów providera. Raport pokazuje opis trybu i stanu, podsumowanie liczby
+integracji gotowych / bez danych / zablokowanych oraz opisuje każdą integrację językiem
+operacyjnym. Surowy kod pozostaje widoczny jako informacja techniczna tylko przy blokadzie.
+
+Dla providerów z licznikami (PlotsX, HorseManagerX, PunisherX) kody są rozbijane na czytelne
+liczby rekordów. Skan niezarządzanych pluginów raportuje przykładową względną ścieżkę pliku,
+który przekroczył budżet lub zawiera stare UUID. Dzięki temu administrator widzi zarówno
+przyczynę blokady, jak i sposób jej usunięcia bez zgadywania znaczenia kodu.
