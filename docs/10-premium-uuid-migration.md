@@ -61,19 +61,22 @@ Rollback odtwarza wcześniejszy target albo usuwa target, jeżeli przed migracj�
 ## Dane pluginów
 
 Nie istnieje bezpieczny uniwersalny UPDATE dla dowolnego pluginu. Plugin może trzymać UUID
-w YAML, SQLite, wielu tabelach SQL, Redisie lub własnym formacie. Dlatego właściwym
-rozszerzeniem jest publiczny `IdentityMigrationProvider`.
+w YAML, SQLite, wielu tabelach SQL, Redisie lub własnym formacie. Dlatego dedykowany
+`IdentityMigrationProvider` nadal jest najwyższym poziomem integracji.
 
-AuthGatewayX dodatkowo skanuje lokalne katalogi pluginów bez providera. Szuka starego UUID
-w nazwach plików, zapisie tekstowym z/bez myślników oraz jako surowe 16 bajtów. Znalezienie
-referencji blokuje migrację. Skan ma limit liczby plików i łącznego odczytu bajtów, więc
-pozostaje ograniczony I/O i fail-closed. Pojedynczy duży plik nie jest już sam w sobie
-powodem blokady: zawartość jest czytana strumieniowo, o ile mieści się w pozostałym budżecie
-łącznego skanu. Po przekroczeniu limitu `inspect` wskazuje plik, rozmiar, wykorzystany budżet
-i właściwą opcję konfiguracji zamiast samego kodu `UNMANAGED_SCAN_*`.
+Dla prostych lokalnych magazynów AuthGatewayX ma jednak warstwę pośrednią:
+`UniversalLocalIdentityMigrationProvider`. Najpierw stosuje wbudowane lub administracyjne
+recepty, a następnie bezpieczny fallback dla plików nazwanych dokładnie starym UUID
+(`.yml/.yaml/.json/.toml/.properties`). Generic fallback działa tylko wtedy, gdy stare UUID
+nie występuje również w treści pliku. Source pozostaje zachowany, target ma backup i journal
+rollbacku.
 
-Skan nie jest dowodem braku danych w zdalnej bazie. Plugin korzystający z zewnętrznego
-MySQL/MariaDB/PostgreSQL/Redis powinien rejestrować własny provider.
+Jeżeli stare UUID zostanie znalezione w innym miejscu, migracja nadal jest fail-closed i
+`inspect` pokazuje plugin oraz przykładowe ścieżki wymagające review. Pliki `.db`, formaty
+binarne oraz zdalne MySQL/MariaDB/PostgreSQL/Redis nie są modyfikowane automatycznie.
+
+Skan ma limit liczby plików i łącznego odczytu bajtów. Szczegółowy format recept i wbudowana
+obsługa AdvancedPortals są opisane w `docs/11-universal-local-migration-recipes.md`.
 
 ## Publiczny provider
 
