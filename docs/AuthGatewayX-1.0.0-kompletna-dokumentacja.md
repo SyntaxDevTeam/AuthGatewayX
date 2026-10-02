@@ -3092,8 +3092,20 @@ rollback w odwrotnej kolejności. Finalizacja rekordu AGX następuje dopiero po 
 Publiczny `IdentityMigrationProvider` w module API pozwala innym pluginom zadeklarować własny
 bezpieczny adapter oraz `managedDataOwners`. Dodatkowy lokalny skaner sprawdza katalogi
 pluginów nieprzejęte przez provider i blokuje finalizację po znalezieniu starego UUID albo
-przekroczeniu limitu skanowania. Mechanizm nie może zobaczyć danych w obcej zdalnej bazie
+przekroczeniu limitu liczby plików / łącznego odczytu. Pliki są skanowane strumieniowo, więc
+arbitralny limit wielkości pojedynczego pliku nie jest używany; raport wskazuje ścieżkę i
+wykorzystany budżet. Mechanizm nie może zobaczyć danych w obcej zdalnej bazie
 MySQL/PostgreSQL, dlatego takie pluginy wymagają jawnego providera.
+
+Kontrolowany provider EssentialsX traktuje source starego UUID jako dane do przeniesienia.
+Jeżeli target istnieje i różni się od source, jego dokładna kopia jest zachowywana przed
+atomowym zastąpieniem; rollback przywraca wcześniejszy target. Pozwala to naprawić recovery
+po starszej, przedwczesnej zmianie UUID bez rezygnacji z odwracalności. Symlinki i nietypowe
+ścieżki nadal blokują operację.
+
+Administracyjne `migrate inspect` prezentuje nazwy integracji, liczniki danych, podsumowanie
+gotowości i instrukcję usunięcia blokady. Wewnętrzne kody pozostają jedynie szczegółem
+technicznym przy błędach, a nie główną treścią raportu.
 
 
 ## Aktualizacja 2026-09-28 — recovery i trwałe wznowienie migracji

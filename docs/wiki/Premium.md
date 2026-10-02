@@ -66,5 +66,15 @@ katalogi danych pluginów, które nie zostały przejęte przez zarejestrowany
 pozostaje OFFLINE. Administrator musi wtedy zainstalować/dodać provider dla danego pluginu
 albo przenieść te dane świadomie.
 
+Skan jest ograniczony liczbą plików oraz łączną liczbą odczytanych bajtów. Nie blokuje już
+tylko dlatego, że pojedynczy plik jest duży — pliki są czytane strumieniowo. Gdy budżet
+zostanie przekroczony, `/agx migrate inspect` pokazuje ścieżkę i rozmiary potrzebne do
+podjęcia decyzji.
+
+EssentialsX ma własny migrator `userdata/<uuid>.yml`. Jeżeli nowe UUID zdążyło już utworzyć
+odmienny plik userdata, AuthGatewayX zachowuje go w backupie, przenosi dane starego profilu,
+a w razie niepowodzenia może dokładnie odtworzyć poprzedni target. Sam fakt istnienia innego
+targetu EssentialsX nie blokuje więc recovery.
+
 Skan lokalny nie daje wiedzy o zdalnej bazie MySQL/PostgreSQL innego pluginu. Pluginy trzymające
 dane gracza poza lokalnym katalogiem powinny zawsze dostarczyć własny provider.

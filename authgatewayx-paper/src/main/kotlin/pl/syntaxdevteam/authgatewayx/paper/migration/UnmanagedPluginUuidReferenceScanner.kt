@@ -22,14 +22,12 @@ class UnmanagedPluginUuidReferenceScanner(
     private val managedDataOwnersSupplier: () -> Set<String>,
     private val executor: BoundedTaskExecutor,
     private val maximumFiles: Int,
-    private val maximumFileBytes: Long,
     private val maximumTotalBytes: Long,
 ) : IdentityMigrationProvider {
     override val id: String = "authgatewayx:unmanaged-plugin-scan"
 
     init {
         require(maximumFiles > 0)
-        require(maximumFileBytes > 0)
         require(maximumTotalBytes > 0)
     }
 
@@ -43,7 +41,7 @@ class UnmanagedPluginUuidReferenceScanner(
             val patterns = uuidPatterns(context.sourceMinecraftUuid)
             var filesSeen = 0
             var bytesSeen = 0L
-            val matches = linkedSetOf<String>()
+            val matches = linkedMapOf<String, String>()
 
             if (!Files.isDirectory(pluginsRoot, LinkOption.NOFOLLOW_LINKS)) {
                 return@submit IdentityMigrationInspection(
@@ -64,47 +62,48 @@ class UnmanagedPluginUuidReferenceScanner(
                         while (iterator.hasNext()) {
                             val path = iterator.next()
                             if (shouldSkip(path, directory)) continue
-                            if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) continue
+                            val displayPath = displayPath(path)
                             if (Files.isSymbolicLink(path)) {
                                 return@submit IdentityMigrationInspection(
                                     IdentityMigrationInspectionStatus.BLOCKED,
-                                    "UNMANAGED_PLUGIN_SYMLINK",
+                                    diagnostic("UNMANAGED_PLUGIN_SYMLINK", displayPath),
                                 )
                             }
+                            if (!Files.isRegularFile(path, LinkOption.NOFOLLOW_LINKS)) continue
 
                             filesSeen++
                             if (filesSeen > maximumFiles) {
                                 return@submit IdentityMigrationInspection(
                                     IdentityMigrationInspectionStatus.BLOCKED,
-                                    "UNMANAGED_SCAN_FILE_LIMIT",
+                                    diagnostic("UNMANAGED_SCAN_FILE_LIMIT", displayPath, maximumFiles.toString()),
                                 )
                             }
 
                             val size = Files.size(path)
-                            if (size > maximumFileBytes) {
+                            if (size > maximumTotalBytes - bytesSeen) {
                                 return@submit IdentityMigrationInspection(
                                     IdentityMigrationInspectionStatus.BLOCKED,
-                                    "UNMANAGED_SCAN_LARGE_FILE",
+                                    diagnostic(
+                                        "UNMANAGED_SCAN_BYTE_LIMIT",
+                                        displayPath,
+                                        size.toString(),
+                                        bytesSeen.toString(),
+                                        maximumTotalBytes.toString(),
+                                    ),
                                 )
                             }
                             bytesSeen += size
-                            if (bytesSeen > maximumTotalBytes) {
-                                return@submit IdentityMigrationInspection(
-                                    IdentityMigrationInspectionStatus.BLOCKED,
-                                    "UNMANAGED_SCAN_BYTE_LIMIT",
-                                )
-                            }
 
                             val fileName = path.fileName.toString().lowercase(Locale.ROOT)
                             if (
                                 patterns.textNames.any { fileName.contains(it) } ||
                                 containsPattern(path, patterns.bytes)
                             ) {
-                                matches += directory.fileName.toString()
+                                matches.putIfAbsent(directory.fileName.toString(), displayPath)
                                 if (matches.size >= MAX_REPORTED_OWNERS) {
                                     return@submit IdentityMigrationInspection(
                                         IdentityMigrationInspectionStatus.BLOCKED,
-                                        "UNMANAGED_UUID_REFERENCES_${matches.sorted().joinToString(",")}",
+                                        uuidReferencesReason(matches),
                                         legacyEvidence = true,
                                     )
                                 }
@@ -122,7 +121,7 @@ class UnmanagedPluginUuidReferenceScanner(
             } else {
                 IdentityMigrationInspection(
                     IdentityMigrationInspectionStatus.BLOCKED,
-                    "UNMANAGED_UUID_REFERENCES_${matches.sorted().joinToString(",")}",
+                    uuidReferencesReason(matches),
                     legacyEvidence = true,
                 )
             }
@@ -133,6 +132,27 @@ class UnmanagedPluginUuidReferenceScanner(
 
     override fun rollback(context: IdentityMigrationContext): CompletionStage<IdentityMigrationOperationResult> =
         java.util.concurrent.CompletableFuture.completedFuture(IdentityMigrationOperationResult.NoData)
+
+    private fun displayPath(path: Path): String =
+        runCatching {
+            pluginsRoot.toAbsolutePath().normalize()
+                .relativize(path.toAbsolutePath().normalize())
+                .toString()
+        }.getOrElse { path.fileName?.toString() ?: "?" }
+            .replace("::", "_")
+            .take(MAX_REPORTED_PATH_LENGTH)
+
+    private fun diagnostic(code: String, vararg values: String): String =
+        (listOf(code) + values.map { it.replace("::", "_").take(MAX_REPORTED_PATH_LENGTH) })
+            .joinToString("::")
+
+    private fun uuidReferencesReason(matches: Map<String, String>): String {
+        val owners = matches.keys.sorted().joinToString(",") { it.replace("::", "_") }
+        val paths = matches.toSortedMap().values.joinToString(",") {
+            it.replace("::", "_").take(MAX_REPORTED_PATH_LENGTH)
+        }
+        return diagnostic("UNMANAGED_UUID_REFERENCES", owners, paths)
+    }
 
     private fun shouldSkip(path: Path, root: Path): Boolean {
         if (path == root) return false
@@ -199,6 +219,7 @@ class UnmanagedPluginUuidReferenceScanner(
     companion object {
         private const val BUFFER_SIZE = 64 * 1024
         private const val MAX_REPORTED_OWNERS = 8
+        private const val MAX_REPORTED_PATH_LENGTH = 180
         private val SKIPPED_DIRECTORY_NAMES = setOf(
             "logs",
             "log",
