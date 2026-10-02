@@ -5,6 +5,7 @@ import pl.syntaxdevteam.authgatewayx.api.craftconnect.CraftConnectDeviceKeyAlgor
 import pl.syntaxdevteam.authgatewayx.api.craftconnect.CraftConnectPairingChallenge
 import pl.syntaxdevteam.authgatewayx.api.craftconnect.CraftConnectPairingSignaturePayload
 import java.security.KeyFactory
+import java.security.MessageDigest
 import java.security.SecureRandom
 import java.security.Signature
 import java.security.interfaces.ECPublicKey
@@ -133,6 +134,9 @@ class CraftConnectPairingChallengeRegistry(
         require(device.publicKey.size in 64..4096) { "Invalid CraftConnect public key size" }
         require(device.algorithm == CraftConnectDeviceKeyAlgorithm.EC_P256_SHA256) { "Unsupported CraftConnect key algorithm" }
         decodeP256PublicKey(device)
+        require(device.deviceId == deviceIdFor(device.publicKey)) {
+            "CraftConnect device id does not match the submitted public key"
+        }
     }
 
     private fun decodeP256PublicKey(device: CraftConnectDevice): ECPublicKey {
@@ -142,6 +146,18 @@ class CraftConnectPairingChallengeRegistry(
         require(key.params.curve.field.fieldSize == 256) { "CraftConnect device key must use a 256-bit EC curve" }
         require(key.params.order.bitLength() == 256) { "CraftConnect device key must use P-256" }
         return key
+    }
+
+    private fun deviceIdFor(publicKey: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256").digest(publicKey)
+        return try {
+            buildString(35) {
+                append("cc-")
+                for (index in 0 until 16) append("%02x".format(digest[index]))
+            }
+        } finally {
+            digest.fill(0)
+        }
     }
 
     private companion object {
