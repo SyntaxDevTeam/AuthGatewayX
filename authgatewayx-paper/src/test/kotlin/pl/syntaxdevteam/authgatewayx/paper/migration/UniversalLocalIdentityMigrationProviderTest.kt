@@ -287,7 +287,7 @@ class UniversalLocalIdentityMigrationProviderTest {
         maximumTotalBytes = maximumTotalBytes,
         genericUuidFilesEnabled = true,
         genericExtensions = setOf("yml", "yaml", "json", "toml", "properties"),
-        ignoredPluginDirectories = ignored,
+        ignoredPluginDirectoriesSupplier = { ignored },
     )
 
     private fun withProvider(

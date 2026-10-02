@@ -41,7 +41,7 @@ class UniversalLocalIdentityMigrationProvider(
     private val maximumTotalBytes: Long,
     private val genericUuidFilesEnabled: Boolean,
     genericExtensions: Set<String>,
-    ignoredPluginDirectories: Set<String> = emptySet(),
+    private val ignoredPluginDirectoriesSupplier: () -> Set<String> = { emptySet() },
 ) : IdentityMigrationProvider {
     override val id: String = "authgatewayx:universal-local"
 
@@ -49,16 +49,9 @@ class UniversalLocalIdentityMigrationProvider(
         .map { it.trim().lowercase(Locale.ROOT).removePrefix(".") }
         .filter { it.matches(EXTENSION) }
         .toSet()
-    private val ignoredPluginDirectories = ignoredPluginDirectories.associateBy {
-        it.lowercase(Locale.ROOT)
-    }
-
     init {
         require(maximumFiles > 0)
         require(maximumTotalBytes > 0)
-        require(this.ignoredPluginDirectories.values.all(::validPluginDirectory)) {
-            "Ignored plugin directories must be simple directory names"
-        }
     }
 
     override fun inspect(context: IdentityMigrationContext): CompletionStage<IdentityMigrationInspection> =
@@ -190,6 +183,8 @@ class UniversalLocalIdentityMigrationProvider(
             .toMutableSet()
             .apply { add(authGatewayDataDirectory.fileName.toString().lowercase(Locale.ROOT)) }
         val recipesByDirectory = loadedRecipes.recipes.groupBy { it.pluginDirectory.lowercase(Locale.ROOT) }
+        val ignoredPluginDirectories = MigrationIgnorePolicy.normalize(ignoredPluginDirectoriesSupplier())
+            .associateBy { it.lowercase(Locale.ROOT) }
         val patterns = uuidPatterns(context.sourceMinecraftUuid)
         val operationsByTarget = linkedMapOf<Path, LocalOperation>()
         val unresolvedOwners = linkedSetOf<String>()
@@ -765,14 +760,6 @@ class UniversalLocalIdentityMigrationProvider(
         private const val MAX_REPORTED_VALUE_LENGTH = 512
         private const val JOURNAL_FILE = "targets.journal"
         private val EXTENSION = Regex("^[a-z0-9_-]{1,16}$")
-        private fun validPluginDirectory(value: String): Boolean =
-            value.isNotBlank() &&
-                value.length <= 96 &&
-                !value.contains('/') &&
-                !value.contains('\\') &&
-                value != "." &&
-                value != ".." &&
-                !value.contains('\u0000')
         private val SKIPPED_DIRECTORY_NAMES = setOf(
             "logs",
             "log",

@@ -9,6 +9,7 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 | `/changepassword` | Zalogowane konto offline | Otwiera okno zmiany własnego hasła |
 | `/logout` | Zalogowane konto offline | Kończy sesję i rozłącza gracza |
 | `/agx`, `/agx help` | Zalogowany gracz lub konsola | Pokazuje sformatowaną listę komend dostępnych dla bieżącego nadawcy |
+| `/agx reload` | Zalogowany administrator lub konsola | Przeładowuje ustawienia obsługiwane w runtime, obecnie listę pomijanych katalogów migracji |
 | `/agx info <nick>` | Zalogowany administrator lub konsola | Pokazuje raport konta, sesji, bezpieczeństwa i danych dostępnych dla uprawnień administratora |
 | `/agx alts <nick>` | Zalogowany administrator lub konsola | Pokazuje podejrzane powiązania kont offline przez historię wspólnych adresów |
 | `/agx setpassword <nick>` | Administrator z odpowiednim uprawnieniem | Otwiera okno ustawienia nowego hasła konta offline |
@@ -57,7 +58,10 @@ Przekaż nowe hasło prywatnie i poproś gracza o zmianę przez `/changepassword
 
 Logowanie i rejestracja otwierają się automatycznie w oknie. Ta wersja nie udostępnia tych komend. Przed zalogowaniem wszystkie komendy są zablokowane.
 
-Nie ma również komend `/premium`, `/unregister` ani `/authgatewayx reload`. Po edycji ustawień wykonaj pełny restart serwera.
+Nie ma komend `/premium` ani `/unregister`. `/authgatewayx reload` przeładowuje obecnie
+`migration.unmanaged-plugin-scan.ignored-plugin-directories` bez restartu i bez zatrzymywania
+uwierzytelniania. Pozostałe ustawienia nadal wymagają pełnego restartu serwera; komenda
+potwierdza liczbę aktywnych pominięć albo zachowuje poprzednią listę przy błędnym YAML/nazwie.
 
 ## Podejrzane multi-konta
 

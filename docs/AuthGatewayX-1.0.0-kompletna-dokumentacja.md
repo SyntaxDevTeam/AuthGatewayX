@@ -3115,6 +3115,12 @@ modyfikowane; raport administracyjny wymienia je, a recovery może zakończyć s
 danych. Jest to udokumentowana decyzja o utracie dostępu do danych pod nowym UUID, nie
 automatyczna migracja ani wyłączenie pozostałych guardów.
 
+Paper udostępnia `/agx reload` z uprawnieniem `authgatewayx.admin.reload`. Komenda odczytuje
+`config.yml` na ograniczonym executorze migracji i atomowo podmienia wyłącznie
+`migration.unmanaged-plugin-scan.ignored-plugin-directories`. Błąd YAML lub niedozwolona
+nazwa katalogu pozostawia ostatnią poprawną listę. Pozostałe ustawienia wymagają restartu,
+ponieważ są składane w runtime services, executorach i limiterach podczas inicjalizacji.
+
 
 ## Aktualizacja 2026-09-28 — recovery i trwałe wznowienie migracji
 

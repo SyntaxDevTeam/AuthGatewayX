@@ -19,6 +19,15 @@ fun interface LogoutCommandGateway {
     fun logout(player: Player)
 }
 
+fun interface ReloadCommandGateway {
+    fun reload(sender: CommandSender)
+}
+
+class MutableReloadCommandGateway : ReloadCommandGateway {
+    @Volatile var delegate: ReloadCommandGateway? = null
+    override fun reload(sender: CommandSender) = delegate?.reload(sender) ?: Unit
+}
+
 class MutableLogoutCommandGateway : LogoutCommandGateway {
     @Volatile var delegate: LogoutCommandGateway? = null
     override fun logout(player: Player) = delegate?.logout(player) ?: Unit
@@ -39,6 +48,7 @@ class PasswordCommandRegistrar(
     private val accountInfoGateway: AccountInfoCommandGateway,
     private val migrationGateway: MigrationAdminCommandGateway,
     private val helpGateway: AdminHelpCommandGateway,
+    private val reloadGateway: ReloadCommandGateway,
     private val canSuggestOnlinePlayers: (CommandSender) -> Boolean,
 ) {
     private fun onlinePlayerArgument(name: String) =
@@ -82,6 +92,12 @@ class PasswordCommandRegistrar(
                         helpGateway.show(context.source.sender)
                         1
                     })
+                    .then(Commands.literal("reload")
+                        .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(RELOAD_PERMISSION) }
+                        .executes { context ->
+                            reloadGateway.reload(context.source.sender)
+                            1
+                        })
                     .then(Commands.literal("info")
                         .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission("authgatewayx.admin.info") }
                         .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
@@ -158,6 +174,10 @@ class PasswordCommandRegistrar(
                 listOf("agx"),
             )
         }
+    }
+
+    companion object {
+        const val RELOAD_PERMISSION = "authgatewayx.admin.reload"
     }
 }
 

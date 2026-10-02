@@ -15,6 +15,7 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | `authgatewayx.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
 | `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
 | `authgatewayx.admin.password` | Ustawianie hasła cudzego konta offline | Operatorzy serwera |
+| `authgatewayx.admin.reload` | Przeładowanie ustawień obsługiwanych w runtime przez `/agx reload` | Operatorzy serwera |
 | `authgatewayx.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
 | `authgatewayx.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
 | `authgatewayx.admin.migration.recover` | Tworzenie recovery dla kont zmigrowanych przez starsze wersje AGX | Operatorzy serwera |

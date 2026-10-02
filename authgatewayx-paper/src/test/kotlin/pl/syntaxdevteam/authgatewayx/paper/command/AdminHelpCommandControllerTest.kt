@@ -25,6 +25,7 @@ class AdminHelpCommandControllerTest {
         migrateInspect = Component.text("inspect"),
         migrateRetry = Component.text("retry"),
         migrateRecover = Component.text("recover"),
+        reload = Component.text("reload"),
         hover = Component.text("hover"),
         footer = Component.text("footer"),
     )
@@ -65,6 +66,7 @@ class AdminHelpCommandControllerTest {
         assertTrue(replies.contains(text.migrateInspect))
         assertTrue(replies.contains(text.migrateRetry))
         assertTrue(replies.contains(text.migrateRecover))
+        assertTrue(replies.contains(text.reload))
         assertFalse(replies.contains(text.changePassword))
         assertFalse(replies.contains(text.logout))
         assertFalse(replies.contains(text.setPassword))

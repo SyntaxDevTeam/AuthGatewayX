@@ -160,7 +160,10 @@ wyłącznie w celu potwierdzenia obecności starego UUID, ale nie kopiuje ani ni
 żadnego jego pliku. `inspect` wymienia pominięte katalogi, a potwierdzone wystąpienie UUID
 stanowi dowód starej tożsamości wymagany przez recovery. Pozwala to zakończyć recovery bez
 tych danych, lecz gracz zachowa je wyłącznie pod starym UUID. Lista jest domyślnie pusta
-i nie zastępuje providera, gdy dane mają zostać zachowane.
+i nie zastępuje providera, gdy dane mają zostać zachowane. Po edycji listy można wykonać
+`/agx reload`; odczyt pliku odbywa się na ograniczonym executorze migracji, a nowa,
+zwalidowana lista jest atomowo używana przez kolejne `inspect`, `recover` i `retry`.
+Niepoprawny plik nie zastępuje ostatniej poprawnej listy.
 
 ## Ograniczenia
 

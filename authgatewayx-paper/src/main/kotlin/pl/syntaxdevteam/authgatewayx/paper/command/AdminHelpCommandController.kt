@@ -30,6 +30,7 @@ data class AdminHelpCommandText(
     val migrateInspect: Component,
     val migrateRetry: Component,
     val migrateRecover: Component,
+    val reload: Component,
     val hover: Component,
     val footer: Component,
 )
@@ -48,6 +49,9 @@ class AdminHelpCommandController(
             }
         }
         val adminEntries = buildList {
+            if (allowed(sender, PasswordCommandRegistrar.RELOAD_PERMISSION)) {
+                add(text.reload to "/agx reload")
+            }
             if (allowed(sender, INFO_PERMISSION)) add(text.info to "/agx info ")
             if (allowed(sender, ALTS_PERMISSION)) add(text.alts to "/agx alts ")
             if (sender is Player && sender.hasPermission(SET_PASSWORD_PERMISSION)) {

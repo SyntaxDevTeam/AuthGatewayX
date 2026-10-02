@@ -93,4 +93,5 @@ Jeżeli danych konkretnego pluginu nie chcesz przenosić, dodaj dokładną nazw�
 do `migration.unmanaged-plugin-scan.ignored-plugin-directories`. AuthGatewayX sprawdzi w nim
 jedynie obecność starego UUID, pominie zapis i pokaże tę decyzję w `migrate inspect`. Dane
 pozostaną wyłącznie pod starym UUID; lista jest pusta domyślnie, ponieważ jej użycie oznacza
-świadomą rezygnację z tych danych.
+świadomą rezygnację z tych danych. Po zapisaniu listy wykonaj `/agx reload`; pełny restart
+nie jest wymagany dla tego jednego ustawienia.

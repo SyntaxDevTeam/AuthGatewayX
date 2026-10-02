@@ -83,7 +83,8 @@ Administrator może świadomie wyłączyć dokładne katalogi pluginów z migrac
 wyłącznie w celu potwierdzenia starego UUID, nie są modyfikowane i pojawiają się w raporcie
 `inspect`. Recovery może zakończyć się bez ich danych. Ustawienie jest domyślnie puste;
 oznacza świadomą rezygnację z dostępu do tych danych pod nowym UUID, a nie potwierdzenie
-ich bezpiecznego przeniesienia.
+ich bezpiecznego przeniesienia. `/agx reload` atomowo przeładowuje tę listę poza wątkiem
+gry; pozostałe ustawienia konfiguracji nadal wymagają restartu.
 
 ## Publiczny provider
 

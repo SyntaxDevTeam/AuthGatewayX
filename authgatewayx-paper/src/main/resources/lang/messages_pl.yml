@@ -12,8 +12,13 @@ help:
   migrate_inspect: '<dark_gray>›</dark_gray> <aqua>/agx migrate inspect ‹nick› [stare-uuid]</aqua> <dark_gray>—</dark_gray> <gray>diagnostyka danych przed migracją</gray>'
   migrate_retry: '<dark_gray>›</dark_gray> <aqua>/agx migrate retry ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>ponowienie istniejącej migracji</gray>'
   migrate_recover: '<dark_gray>›</dark_gray> <aqua>/agx migrate recover ‹nick› [stare-uuid]</aqua> <dark_gray>—</dark_gray> <gray>bezpieczne recovery migracji</gray>'
+  reload: '<dark_gray>›</dark_gray> <aqua>/agx reload</aqua> <dark_gray>—</dark_gray> <gray>przeładowanie ustawień obsługiwanych w runtime</gray>'
   hover: '<gray>Kliknij, aby wstawić komendę do czatu.</gray>'
   footer: '<dark_gray>Alias: /authgatewayx  •  Pomoc: /agx help</dark_gray><newline><dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>'
+
+reload:
+  success: '<green>Przeładowano ustawienia migracji dostępne w runtime. Aktywnych pominiętych katalogów: {count}.</green>'
+  failure: '<red>Nie udało się przeładować konfiguracji. Popraw config.yml i sprawdź log serwera; poprzednie ustawienia nadal obowiązują.</red>'
 
 auth:
   login_title: "<aqua>Logowanie konta dla <white>{username}</white></aqua>"

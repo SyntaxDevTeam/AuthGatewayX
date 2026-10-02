@@ -30,6 +30,9 @@ permissions:
   authgatewayx.admin.password:
     description: Allows setting the password of an offline account through a secure dialog.
     default: op
+  authgatewayx.admin.reload:
+    description: Allows reloading configuration settings explicitly supported at runtime.
+    default: op
   authgatewayx.admin.info:
     description: Allows opening the administrative account inspection report.
     default: op

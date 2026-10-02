@@ -2,6 +2,7 @@ package pl.syntaxdevteam.authgatewayx.paper
 
 import io.papermc.paper.configuration.GlobalConfiguration
 import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.TextReplacementConfig
 import pl.syntaxdevteam.authgatewayx.paper.client.PaperClientAuthenticationChannel
 import org.bukkit.plugin.ServicePriority
 import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
@@ -9,6 +10,7 @@ import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
 import org.bukkit.plugin.java.JavaPlugin
 import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
+import org.bukkit.configuration.file.YamlConfiguration
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
 import pl.syntaxdevteam.authgatewayx.auth.alert.OfflineRiskAlerts
@@ -60,6 +62,8 @@ import pl.syntaxdevteam.authgatewayx.paper.command.MutableAdminHelpCommandGatewa
 import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableReloadCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.ReloadCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationListener
@@ -77,6 +81,7 @@ import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectC
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
 import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.MigrationRecipeRegistry
+import pl.syntaxdevteam.authgatewayx.paper.migration.MigrationIgnorePolicy
 import pl.syntaxdevteam.authgatewayx.paper.migration.UniversalLocalIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMode
@@ -112,6 +117,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     private val accountInfoCommandGateway = MutableAccountInfoCommandGateway()
     private val migrationAdminCommandGateway = MutableMigrationAdminCommandGateway()
     private val adminHelpCommandGateway = MutableAdminHelpCommandGateway()
+    private val reloadCommandGateway = MutableReloadCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
@@ -124,6 +130,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             accountInfoCommandGateway,
             migrationAdminCommandGateway,
             adminHelpCommandGateway,
+            reloadCommandGateway,
             canSuggestOnlinePlayers = { sender ->
                 sender is ConsoleCommandSender ||
                     sender is Player &&
@@ -197,6 +204,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                 migrateInspect = messages.stringMessageToComponentNoPrefix("help", "migrate_inspect"),
                 migrateRetry = messages.stringMessageToComponentNoPrefix("help", "migrate_retry"),
                 migrateRecover = messages.stringMessageToComponentNoPrefix("help", "migrate_recover"),
+                reload = messages.stringMessageToComponentNoPrefix("help", "reload"),
                 hover = messages.stringMessageToComponentNoPrefix("help", "hover"),
                 footer = messages.stringMessageToComponentNoPrefix("help", "footer"),
             ),
@@ -208,6 +216,9 @@ class AuthGatewayXPaper : JavaPlugin() {
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
         val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
         val migrationExecutor = BoundedTaskExecutor(positive("executors.migration-threads"), positive("executors.migration-queue"), "authgatewayx-migration")
+        val migrationIgnorePolicy = MigrationIgnorePolicy(
+            config.getStringList("migration.unmanaged-plugin-scan.ignored-plugin-directories"),
+        )
         val components = RuntimeComponents(
             sessions, storageExecutor, passwordExecutor, mojangExecutor, migrationExecutor,
             floodGate, usernameBurstGate, behaviorGate,
@@ -244,7 +255,8 @@ class AuthGatewayXPaper : JavaPlugin() {
                 runCatching {
                     installAuthentication(
                         initialized.first, initialized.second, hasher, messages, scheduler, sessions,
-                        passwordExecutor, mojangExecutor, migrationExecutor, usernameBurstGate, behaviorGate, cheapGuard,
+                        passwordExecutor, mojangExecutor, migrationExecutor, migrationIgnorePolicy,
+                        usernameBurstGate, behaviorGate, cheapGuard,
                     )
                 }
                     .onSuccess { readiness.force(RuntimeState.READY); logger.info("AuthGatewayX authentication runtime is READY") }
@@ -263,6 +275,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         passwordExecutor: BoundedTaskExecutor,
         mojangExecutor: BoundedTaskExecutor,
         migrationExecutor: BoundedTaskExecutor,
+        migrationIgnorePolicy: MigrationIgnorePolicy,
         usernameBurstGate: UsernameBurstGate,
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
@@ -428,11 +441,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                     genericExtensions = configuredExtensions.ifEmpty {
                         setOf("yml", "yaml", "json", "toml", "properties")
                     },
-                    ignoredPluginDirectories = config
-                        .getStringList("migration.unmanaged-plugin-scan.ignored-plugin-directories")
-                        .map(String::trim)
-                        .filter(String::isNotBlank)
-                        .toSet(),
+                    ignoredPluginDirectoriesSupplier = migrationIgnorePolicy::snapshot,
                 )
             }
             providers += external
@@ -725,6 +734,45 @@ class AuthGatewayXPaper : JavaPlugin() {
             isReady = { readiness.acceptsAuthentication() },
             isTargetOnline = { uuid -> server.getPlayer(uuid)?.isOnline == true },
         )
+        val reloadSuccess = messages.stringMessageToComponentNoPrefix("reload", "success")
+        val reloadFailure = messages.stringMessageToComponentNoPrefix("reload", "failure")
+        reloadCommandGateway.delegate = ReloadCommandGateway { sender ->
+            if (!readiness.acceptsAuthentication()) return@ReloadCommandGateway
+            if (sender is Player &&
+                (!sender.isOnline || sessions.get(ConnectionId(sender.uniqueId))?.state != ConnectionState.ACTIVE)
+            ) {
+                return@ReloadCommandGateway
+            }
+            migrationExecutor.submit<Set<String>> {
+                val loaded = YamlConfiguration()
+                loaded.load(dataFolder.resolve("config.yml"))
+                migrationIgnorePolicy.replace(
+                    loaded.getStringList("migration.unmanaged-plugin-scan.ignored-plugin-directories"),
+                )
+            }.whenComplete { ignored, failure ->
+                val task = Runnable {
+                    if (sender is Player &&
+                        (!sender.isOnline || sessions.get(ConnectionId(sender.uniqueId))?.state != ConnectionState.ACTIVE)
+                    ) {
+                        return@Runnable
+                    }
+                    if (failure == null && ignored != null) {
+                        sender.sendMessage(
+                            reloadSuccess.replaceText(
+                                TextReplacementConfig.builder()
+                                    .matchLiteral("{count}")
+                                    .replacement(Component.text(ignored.size.toString()))
+                                    .build(),
+                            ),
+                        )
+                    } else {
+                        failure?.let { logger.log(java.util.logging.Level.WARNING, "Cannot reload migration ignore policy", it) }
+                        sender.sendMessage(reloadFailure)
+                    }
+                }
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            }
+        }
         PremiumMigrationStartupRecovery(
             storage,
             migrationCoordinator,
@@ -816,6 +864,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         accountInfoCommandGateway.delegate = null
         migrationAdminCommandGateway.delegate = null
         adminHelpCommandGateway.delegate = null
+        reloadCommandGateway.delegate = null
         runtime?.close()
         runtime = null
     }
