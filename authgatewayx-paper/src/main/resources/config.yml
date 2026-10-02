@@ -228,11 +228,9 @@ migration:
     # Hard bounds keep a one-time migration scan from consuming unbounded disk I/O.
     maximum-files: 50000
 
-    # A single unmanaged file larger than this limit blocks migration and requires a
-    # dedicated provider or an intentional configuration change.
-    maximum-file-bytes: 134217728
-
     # Maximum total bytes inspected across unmanaged plugin directories.
+    # Files are streamed, so a single large database no longer blocks only because of
+    # its individual size. The aggregate budget still bounds disk I/O and fails closed.
     maximum-total-bytes: 1073741824
 
   recovery:

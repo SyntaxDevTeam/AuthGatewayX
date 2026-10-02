@@ -2,25 +2,33 @@
 
 [Home](Home.md) · [Uprawnienia](Uprawnienia.md) · [Poradnik gracza](Poradnik-gracza.md)
 
-Poniższe komendy działają na serwerze gry. Administrator w grze musi być zalogowany;
-samo uprawnienie nie omija ochrony logowania. Konsola obsługuje raporty i migracje, ale
-nie otworzy okna do wpisania hasła. Podstawowa komenda `/authgatewayx` ma krótszy alias
-`/agx`.
+Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, bezpośrednio w Minecraft. Konsola nie otworzy okna do wpisania hasła, ale obsługuje raport multi-kont.
 
-| Komenda | Kto i gdzie | Co robi | Jaką informację zwrotną daje |
-| --- | --- | --- | --- |
-| `/changepassword` | Zalogowany gracz offline | Otwiera bezpieczne okno zmiany własnego hasła | Okno wyjaśnia, czy stare hasło jest błędne, nowe hasła są różne albo zmiana się udała |
-| `/logout` | Zalogowany gracz offline | Unieważnia sesję i rozłącza gracza | Ekran rozłączenia potwierdza bezpieczne zakończenie sesji; konto premium ani gracz bez aktywnej sesji offline nie są zmieniani |
-| `/authgatewayx info <nick>` | Zalogowany administrator lub konsola | Pokazuje raport konta i bieżącą klasyfikację nicku Mojang | Pokazuje znalezione sekcje raportu albo informuje o braku konta lub chwilowej niedostępności; zakres zależy od uprawnień |
-| `/authgatewayx alts <nick>` | Zalogowany administrator lub konsola | Szuka kont połączonych historią wspólnych adresów | Pokazuje wyniki, brak powiązań, obcięcie do 20 pozycji, brak konta albo chwilową niedostępność |
-| `/authgatewayx setpassword <nick>` | Zalogowany administrator **w grze** | Otwiera okno ustawienia nowego hasła konta offline | Informuje o braku konta, złym typie konta, różnych hasłach albo sukcesie; aktywny cel zostaje rozłączony |
-| `/authgatewayx migrate status <nick>` | Zalogowany administrator lub konsola | Pokazuje ostatni trwały ticket migracji UUID | Zwraca typ, stan, stare i nowe UUID, ostatni błąd albo informację o braku ticketu/konta |
-| `/authgatewayx migrate inspect <nick> [stare-uuid]` | Zalogowany administrator lub konsola | Sprawdza migratory i ślady danych bez zmieniania danych | Pokazuje wynik każdego migratora albo błąd UUID, brak konta czy chwilową niedostępność |
-| `/authgatewayx migrate retry <nick>` | Zalogowany administrator lub konsola | Ponawia istniejący niezakończony ticket z tymi samymi kopiami | Informuje o starcie, ukończeniu, blokadzie i jej przyczynie, błędzie, trwającej operacji lub graczu online |
-| `/authgatewayx migrate recover <nick> [stare-uuid]` | Zalogowany administrator lub konsola | Przygotowuje recovery konta zmienionego przez starszą wersję | Pokazuje znalezione dowody i wynik migratorów; odmawia bez śladu danych, dla konta non-premium, konfliktu tożsamości lub gracza online |
+| Komenda | Dla kogo | Co robi |
+| --- | --- | --- |
+| `/changepassword` | Zalogowane konto offline | Otwiera okno zmiany własnego hasła |
+| `/logout` | Zalogowane konto offline | Kończy sesję i rozłącza gracza |
+| `/agx`, `/agx help` | Zalogowany gracz lub konsola | Pokazuje sformatowaną listę komend dostępnych dla bieżącego nadawcy |
+| `/agx info <nick>` | Zalogowany administrator lub konsola | Pokazuje raport konta, sesji, bezpieczeństwa i danych dostępnych dla uprawnień administratora |
+| `/agx alts <nick>` | Zalogowany administrator lub konsola | Pokazuje podejrzane powiązania kont offline przez historię wspólnych adresów |
+| `/agx setpassword <nick>` | Administrator z odpowiednim uprawnieniem | Otwiera okno ustawienia nowego hasła konta offline |
+| `/agx migrate status <nick>` | Administrator lub konsola | Pokazuje ostatni trwały ticket migracji UUID |
+| `/agx migrate inspect <nick> [stare-uuid]` | Administrator lub konsola | Sprawdza providery i potencjalne dane starego UUID bez wykonywania migracji |
+| `/agx migrate retry <nick>` | Administrator lub konsola | Ponawia istniejący `FAILED/PREPARED/MIGRATING` ticket przy użyciu tych samych backupów |
+| `/agx migrate recover <nick> [stare-uuid]` | Administrator lub konsola | Tworzy recovery dla konta już przełączonego przez starszą wersję AGX, wyłącznie po znalezieniu śladów starego UUID |
 
 Komenda administracyjna `/authgatewayx` ma alias `/agx`; podkomendy, argumenty i
-uprawnienia są identyczne, np. `/agx migrate status Alex`.
+uprawnienia są identyczne, np. `/agx migrate status Alex`. Samo `/agx` oraz
+`/agx help` wyświetla czytelną, kolorową listę komend. Lista jest filtrowana według
+uprawnień nadawcy, więc zwykły gracz nie zobaczy komend administracyjnych, których nie
+może wykonać. W grze pozycje listy są klikalne i wstawiają odpowiednią komendę do pola
+czatu bez automatycznego jej wykonywania.
+
+Dla `/authgatewayx alts <nick>` (także `/agx alts <nick>`) klient Minecraft
+podpowiada nazwy aktualnie połączonych graczy podczas wpisywania argumentu. Podpowiedzi
+są tylko ułatwieniem — nadal można ręcznie podać nazwę gracza offline. Lista jest
+udostępniana konsoli albo zalogowanemu graczowi; sama gałąź `alts` nadal wymaga
+`authgatewayx.admin.alts`, a sesja PRE_AUTH nie otrzymuje tych nazw.
 
 `<nick>` zastąp nazwą gracza, bez nawiasów. Przykład: `/authgatewayx setpassword Alex`.
 

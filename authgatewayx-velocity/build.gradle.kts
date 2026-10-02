@@ -35,6 +35,12 @@ dependencies {
 kotlin { jvmToolchain(25) }
 
 tasks {
+    jar {
+        // Never let the plain JAR race with shadowJar for the same output path.
+        // CI verifies and publishes only the shaded artifact.
+        archiveClassifier.set("plain")
+    }
+
     processResources {
         val props = mapOf("version" to version.toString())
         inputs.properties(props)

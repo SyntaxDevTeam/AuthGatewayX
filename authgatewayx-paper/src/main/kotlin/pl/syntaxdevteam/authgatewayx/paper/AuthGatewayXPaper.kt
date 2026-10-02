@@ -7,6 +7,7 @@ import org.bukkit.plugin.ServicePriority
 import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
 import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
 import org.bukkit.plugin.java.JavaPlugin
+import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
@@ -55,6 +56,9 @@ import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableMigrationAdminCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableAdminHelpCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -106,6 +110,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     private val multiAccountCommandGateway = MutableMultiAccountCommandGateway()
     private val accountInfoCommandGateway = MutableAccountInfoCommandGateway()
     private val migrationAdminCommandGateway = MutableMigrationAdminCommandGateway()
+    private val adminHelpCommandGateway = MutableAdminHelpCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
@@ -117,6 +122,13 @@ class AuthGatewayXPaper : JavaPlugin() {
             multiAccountCommandGateway,
             accountInfoCommandGateway,
             migrationAdminCommandGateway,
+            adminHelpCommandGateway,
+            canSuggestOnlinePlayers = { sender ->
+                sender is ConsoleCommandSender ||
+                    sender is Player &&
+                    sender.isOnline &&
+                    runtime?.sessions?.get(ConnectionId(sender.uniqueId))?.state == ConnectionState.ACTIVE
+            },
         ).register()
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
@@ -170,6 +182,25 @@ class AuthGatewayXPaper : JavaPlugin() {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
+        adminHelpCommandGateway.delegate = AdminHelpCommandController(
+            AdminHelpCommandText(
+                header = messages.stringMessageToComponentNoPrefix("help", "header"),
+                playerSection = messages.stringMessageToComponentNoPrefix("help", "player_section"),
+                adminSection = messages.stringMessageToComponentNoPrefix("help", "admin_section"),
+                changePassword = messages.stringMessageToComponentNoPrefix("help", "change_password"),
+                logout = messages.stringMessageToComponentNoPrefix("help", "logout"),
+                info = messages.stringMessageToComponentNoPrefix("help", "info"),
+                alts = messages.stringMessageToComponentNoPrefix("help", "alts"),
+                setPassword = messages.stringMessageToComponentNoPrefix("help", "set_password"),
+                migrateStatus = messages.stringMessageToComponentNoPrefix("help", "migrate_status"),
+                migrateInspect = messages.stringMessageToComponentNoPrefix("help", "migrate_inspect"),
+                migrateRetry = messages.stringMessageToComponentNoPrefix("help", "migrate_retry"),
+                migrateRecover = messages.stringMessageToComponentNoPrefix("help", "migrate_recover"),
+                hover = messages.stringMessageToComponentNoPrefix("help", "hover"),
+                footer = messages.stringMessageToComponentNoPrefix("help", "footer"),
+            ),
+            description.version,
+        )
         val scheduler = PaperPlatformScheduler(this)
         val sessions = InMemorySessionRegistry()
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
@@ -381,7 +412,6 @@ class AuthGatewayXPaper : JavaPlugin() {
                     { managedOwners },
                     migrationExecutor,
                     positive("migration.unmanaged-plugin-scan.maximum-files"),
-                    positiveLong("migration.unmanaged-plugin-scan.maximum-file-bytes"),
                     positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
                 )
             }
@@ -576,24 +606,82 @@ class AuthGatewayXPaper : JavaPlugin() {
                 if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
             },
             text = MigrationAdminCommandText(
-                messages.stringMessageToComponentNoPrefix("migration_admin", "title"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "close"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "not_found"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "unavailable"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "invalid_uuid"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "online_blocked"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "no_evidence"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "not_premium"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "identity_conflict"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "status"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "provider"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "no_ticket"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "retry_started"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "completed"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "failed"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "blocked"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "already_running"),
-                messages.stringMessageToComponentNoPrefix("migration_admin", "recovery_prepared"),
+                title = messages.stringMessageToComponentNoPrefix("migration_admin", "title"),
+                close = messages.stringMessageToComponentNoPrefix("migration_admin", "close"),
+                notFound = messages.stringMessageToComponentNoPrefix("migration_admin", "not_found"),
+                unavailable = messages.stringMessageToComponentNoPrefix("migration_admin", "unavailable"),
+                invalidUuid = messages.stringMessageToComponentNoPrefix("migration_admin", "invalid_uuid"),
+                onlineBlocked = messages.stringMessageToComponentNoPrefix("migration_admin", "online_blocked"),
+                noEvidence = messages.stringMessageToComponentNoPrefix("migration_admin", "no_evidence"),
+                notPremium = messages.stringMessageToComponentNoPrefix("migration_admin", "not_premium"),
+                identityConflict = messages.stringMessageToComponentNoPrefix("migration_admin", "identity_conflict"),
+                status = messages.stringMessageToComponentNoPrefix("migration_admin", "status"),
+                summaryReady = messages.stringMessageToComponentNoPrefix("migration_admin", "summary_ready"),
+                summaryBlocked = messages.stringMessageToComponentNoPrefix("migration_admin", "summary_blocked"),
+                providerReady = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_ready"),
+                providerNoData = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_no_data"),
+                providerBlocked = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_blocked"),
+                reasonFallback = messages.stringMessageToComponentNoPrefix("migration_admin", "reason_fallback"),
+                noTicket = messages.stringMessageToComponentNoPrefix("migration_admin", "no_ticket"),
+                retryStarted = messages.stringMessageToComponentNoPrefix("migration_admin", "retry_started"),
+                completed = messages.stringMessageToComponentNoPrefix("migration_admin", "completed"),
+                failed = messages.stringMessageToComponentNoPrefix("migration_admin", "failed"),
+                blocked = messages.stringMessageToComponentNoPrefix("migration_admin", "blocked"),
+                alreadyRunning = messages.stringMessageToComponentNoPrefix("migration_admin", "already_running"),
+                recoveryPrepared = messages.stringMessageToComponentNoPrefix("migration_admin", "recovery_prepared"),
+                kindUpgrade = messages.stringMessageToComponentNoPrefix("migration_admin", "kind_upgrade"),
+                kindRecovery = messages.stringMessageToComponentNoPrefix("migration_admin", "kind_recovery"),
+                kindCandidate = messages.stringMessageToComponentNoPrefix("migration_admin", "kind_candidate"),
+                stateInspect = messages.stringMessageToComponentNoPrefix("migration_admin", "state_inspect"),
+                statePrepared = messages.stringMessageToComponentNoPrefix("migration_admin", "state_prepared"),
+                stateMigrating = messages.stringMessageToComponentNoPrefix("migration_admin", "state_migrating"),
+                stateCompleted = messages.stringMessageToComponentNoPrefix("migration_admin", "state_completed"),
+                stateFailed = messages.stringMessageToComponentNoPrefix("migration_admin", "state_failed"),
+                providerSystem = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_system"),
+                providerNames = mapOf(
+                    "authgatewayx:vanilla" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_vanilla"),
+                    "authgatewayx:plotsx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_plotsx"),
+                    "authgatewayx:horsemanagerx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_horsemanagerx"),
+                    "authgatewayx:punisherx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_punisherx"),
+                    "authgatewayx:luckperms" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_luckperms"),
+                    "authgatewayx:essentialsx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_essentialsx"),
+                    "authgatewayx:external-identity-data-guard" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_external_guard"),
+                    "authgatewayx:unmanaged-plugin-scan" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_unmanaged_scan"),
+                ),
+                reasonTemplates = mapOf(
+                    "NO_VANILLA_UUID_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_VANILLA_UUID_DATA"),
+                    "VANILLA_FILES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_VANILLA_FILES"),
+                    "VANILLA_SYMLINK_REJECTED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_VANILLA_SYMLINK_REJECTED"),
+                    "PLOTSX_COUNTS" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLOTSX_COUNTS"),
+                    "PLOTSX_MIGRATION_BRIDGE_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLOTSX_MIGRATION_BRIDGE_UNAVAILABLE"),
+                    "PLOTSX_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLOTSX_NOT_INSTALLED"),
+                    "HORSEMANAGERX_COUNTS" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_HORSEMANAGERX_COUNTS"),
+                    "HORSEMANAGERX_MIGRATION_BRIDGE_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_HORSEMANAGERX_MIGRATION_BRIDGE_UNAVAILABLE"),
+                    "HORSEMANAGERX_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_HORSEMANAGERX_NOT_INSTALLED"),
+                    "PUNISHERX_COUNTS" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PUNISHERX_COUNTS"),
+                    "PUNISHERX_MIGRATION_BRIDGE_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PUNISHERX_MIGRATION_BRIDGE_UNAVAILABLE"),
+                    "PUNISHERX_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PUNISHERX_NOT_INSTALLED"),
+                    "LUCKPERMS_SOURCE_ABSENT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_SOURCE_ABSENT"),
+                    "LUCKPERMS_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_NOT_INSTALLED"),
+                    "LUCKPERMS_API_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_API_UNAVAILABLE"),
+                    "LUCKPERMS_USER_NODES_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_USER_NODES_READY"),
+                    "LUCKPERMS_TARGET_HAS_DIFFERENT_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_TARGET_HAS_DIFFERENT_DATA"),
+                    "ESSENTIALSX_SOURCE_ABSENT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_SOURCE_ABSENT"),
+                    "ESSENTIALSX_USERDATA_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_USERDATA_READY"),
+                    "ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED"),
+                    "ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA"),
+                    "ESSENTIALSX_SYMLINK_REJECTED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_SYMLINK_REJECTED"),
+                    "ESSENTIALSX_TARGET_NOT_REGULAR_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_TARGET_NOT_REGULAR_FILE"),
+                    "EXTERNAL_IDENTITY_DATA_CLAIMED_OR_ABSENT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_EXTERNAL_IDENTITY_DATA_CLAIMED_OR_ABSENT"),
+                    "IDENTITY_MIGRATION_PROVIDER_REQUIRED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_IDENTITY_MIGRATION_PROVIDER_REQUIRED"),
+                    "NO_UNMANAGED_LOCAL_UUID_REFERENCES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_UNMANAGED_LOCAL_UUID_REFERENCES"),
+                    "UNMANAGED_PLUGIN_SYMLINK" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_PLUGIN_SYMLINK"),
+                    "UNMANAGED_SCAN_FILE_LIMIT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_FILE_LIMIT"),
+                    "UNMANAGED_SCAN_BYTE_LIMIT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_BYTE_LIMIT"),
+                    "UNMANAGED_UUID_REFERENCES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_UUID_REFERENCES"),
+                    "UNMANAGED_SCAN_LARGE_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_LARGE_FILE"),
+                    "PLUGIN_ROOT_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLUGIN_ROOT_UNAVAILABLE"),
+                ),
             ),
             isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
             isReady = { readiness.acceptsAuthentication() },
@@ -689,6 +777,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         multiAccountCommandGateway.delegate = null
         accountInfoCommandGateway.delegate = null
         migrationAdminCommandGateway.delegate = null
+        adminHelpCommandGateway.delegate = null
         runtime?.close()
         runtime = null
     }

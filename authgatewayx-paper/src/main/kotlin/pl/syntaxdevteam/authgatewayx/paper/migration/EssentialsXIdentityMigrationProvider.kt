@@ -8,11 +8,18 @@ import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import java.nio.charset.StandardCharsets
 import java.nio.file.Files
+import java.nio.file.LinkOption
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.CompletionStage
 
-/** Migrates EssentialsX YAML userdata while retaining the source file as a recovery copy. */
+/**
+ * Migrates EssentialsX YAML userdata while retaining the source file as a recovery copy.
+ *
+ * The source profile is authoritative for the identity migration. If EssentialsX has already
+ * created a different target profile (for example after a historical premature UUID switch),
+ * the target is backed up before it is replaced. Rollback restores that exact target.
+ */
 class EssentialsXIdentityMigrationProvider(
     private val userdataDirectory: java.nio.file.Path,
     private val backupRoot: java.nio.file.Path,
@@ -24,23 +31,42 @@ class EssentialsXIdentityMigrationProvider(
     override fun inspect(context: IdentityMigrationContext): CompletionStage<IdentityMigrationInspection> =
         executor.submit {
             val source = source(context)
-            if (!Files.isRegularFile(source)) {
-                IdentityMigrationInspection(IdentityMigrationInspectionStatus.NO_DATA, "ESSENTIALSX_SOURCE_ABSENT")
-            } else {
-                val expected = migratedContent(context, Files.readAllBytes(source))
-                val target = target(context)
-                if (!Files.exists(target) || Files.readAllBytes(target).contentEquals(expected)) {
-                    IdentityMigrationInspection(
-                        IdentityMigrationInspectionStatus.READY,
-                        "ESSENTIALSX_USERDATA_READY",
-                        legacyEvidence = true,
-                    )
-                } else {
+            val target = target(context)
+            when {
+                Files.isSymbolicLink(source) || Files.isSymbolicLink(target) ->
                     IdentityMigrationInspection(
                         IdentityMigrationInspectionStatus.BLOCKED,
-                        "ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA",
+                        "ESSENTIALSX_SYMLINK_REJECTED",
+                    )
+                !Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS) ->
+                    IdentityMigrationInspection(
+                        IdentityMigrationInspectionStatus.NO_DATA,
+                        "ESSENTIALSX_SOURCE_ABSENT",
+                    )
+                Files.exists(target, LinkOption.NOFOLLOW_LINKS) &&
+                    !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS) ->
+                    IdentityMigrationInspection(
+                        IdentityMigrationInspectionStatus.BLOCKED,
+                        "ESSENTIALSX_TARGET_NOT_REGULAR_FILE",
                         legacyEvidence = true,
                     )
+                else -> {
+                    val expected = migratedContent(context, Files.readAllBytes(source))
+                    if (!Files.exists(target, LinkOption.NOFOLLOW_LINKS) ||
+                        Files.readAllBytes(target).contentEquals(expected)
+                    ) {
+                        IdentityMigrationInspection(
+                            IdentityMigrationInspectionStatus.READY,
+                            "ESSENTIALSX_USERDATA_READY",
+                            legacyEvidence = true,
+                        )
+                    } else {
+                        IdentityMigrationInspection(
+                            IdentityMigrationInspectionStatus.READY,
+                            "ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED",
+                            legacyEvidence = true,
+                        )
+                    }
                 }
             }
         }
@@ -49,17 +75,34 @@ class EssentialsXIdentityMigrationProvider(
         executor.submit {
             runCatching {
                 val source = source(context)
-                if (!Files.isRegularFile(source)) return@submit IdentityMigrationOperationResult.NoData
-                val expected = migratedContent(context, Files.readAllBytes(source))
                 val target = target(context)
-                if (Files.exists(target) && !Files.readAllBytes(target).contentEquals(expected)) {
-                    return@submit IdentityMigrationOperationResult.Failure("ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA")
+                if (Files.isSymbolicLink(source) || Files.isSymbolicLink(target)) {
+                    return@submit IdentityMigrationOperationResult.Failure("ESSENTIALSX_SYMLINK_REJECTED")
                 }
+                if (!Files.isRegularFile(source, LinkOption.NOFOLLOW_LINKS)) {
+                    return@submit IdentityMigrationOperationResult.NoData
+                }
+                if (Files.exists(target, LinkOption.NOFOLLOW_LINKS) &&
+                    !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
+                ) {
+                    return@submit IdentityMigrationOperationResult.Failure("ESSENTIALSX_TARGET_NOT_REGULAR_FILE")
+                }
+                val expected = migratedContent(context, Files.readAllBytes(source))
                 val backup = backup(context)
                 Files.createDirectories(backup.parent)
-                if (!Files.exists(backup) && !Files.exists(marker(context))) {
-                    if (Files.exists(target)) Files.copy(target, backup, StandardCopyOption.REPLACE_EXISTING)
-                    else Files.writeString(marker(context), "target-absent", StandardOpenOption.CREATE_NEW)
+                if (!Files.exists(backup, LinkOption.NOFOLLOW_LINKS) &&
+                    !Files.exists(marker(context), LinkOption.NOFOLLOW_LINKS)
+                ) {
+                    if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) {
+                        Files.copy(
+                            target,
+                            backup,
+                            StandardCopyOption.REPLACE_EXISTING,
+                            StandardCopyOption.COPY_ATTRIBUTES,
+                        )
+                    } else {
+                        Files.writeString(marker(context), "target-absent", StandardOpenOption.CREATE_NEW)
+                    }
                 }
                 writeAtomically(target, expected)
                 IdentityMigrationOperationResult.Success
