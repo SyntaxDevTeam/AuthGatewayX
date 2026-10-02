@@ -1,4 +1,20 @@
 prefix: "<gradient:#55ffff:#5555ff>[<b>AuthGatewayX</b>]</gradient>"
+help:
+  header: '<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline><gradient:#55ffff:#5555ff><b>AuthGatewayX</b></gradient> <gray>v{version}</gray> <dark_gray>•</dark_gray> <white>Lista komend</white>'
+  player_section: '<yellow><b>Komendy gracza</b></yellow>'
+  admin_section: '<gold><b>Administracja</b></gold>'
+  change_password: '<dark_gray>›</dark_gray> <aqua>/changepassword</aqua> <dark_gray>—</dark_gray> <gray>zmiana hasła konta offline</gray>'
+  logout: '<dark_gray>›</dark_gray> <aqua>/logout</aqua> <dark_gray>—</dark_gray> <gray>bezpieczne zakończenie sesji</gray>'
+  info: '<dark_gray>›</dark_gray> <aqua>/agx info ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>pełny raport konta gracza</gray>'
+  alts: '<dark_gray>›</dark_gray> <aqua>/agx alts ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>powiązania kont przez wspólne IP</gray>'
+  set_password: '<dark_gray>›</dark_gray> <aqua>/agx setpassword ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>administracyjne ustawienie hasła</gray>'
+  migrate_status: '<dark_gray>›</dark_gray> <aqua>/agx migrate status ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>stan ostatniej migracji UUID</gray>'
+  migrate_inspect: '<dark_gray>›</dark_gray> <aqua>/agx migrate inspect ‹nick› [stare-uuid]</aqua> <dark_gray>—</dark_gray> <gray>diagnostyka danych przed migracją</gray>'
+  migrate_retry: '<dark_gray>›</dark_gray> <aqua>/agx migrate retry ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>ponowienie istniejącej migracji</gray>'
+  migrate_recover: '<dark_gray>›</dark_gray> <aqua>/agx migrate recover ‹nick› [stare-uuid]</aqua> <dark_gray>—</dark_gray> <gray>bezpieczne recovery migracji</gray>'
+  hover: '<gray>Kliknij, aby wstawić komendę do czatu.</gray>'
+  footer: '<dark_gray>Alias: /authgatewayx  •  Pomoc: /agx help</dark_gray><newline><dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>'
+
 auth:
   login_title: "<aqua>Logowanie konta dla <white>{username}</white></aqua>"
   registration_title: "<aqua>Rejestracja konta dla <white>{username}</white></aqua>"

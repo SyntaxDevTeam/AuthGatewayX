@@ -8,6 +8,8 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 | --- | --- | --- |
 | `/changepassword` | Zalogowane konto offline | Otwiera okno zmiany własnego hasła |
 | `/logout` | Zalogowane konto offline | Kończy sesję i rozłącza gracza |
+| `/agx`, `/agx help` | Zalogowany gracz lub konsola | Pokazuje sformatowaną listę komend dostępnych dla bieżącego nadawcy |
+| `/authgatewayx info <nick>` | Zalogowany administrator lub konsola | Pokazuje raport konta, sesji, bezpieczeństwa i danych dostępnych dla uprawnień administratora |
 | `/authgatewayx alts <nick>` | Zalogowany administrator lub konsola | Pokazuje podejrzane powiązania kont offline przez historię wspólnych adresów |
 | `/authgatewayx setpassword <nick>` | Administrator z odpowiednim uprawnieniem | Otwiera okno ustawienia nowego hasła konta offline |
 | `/authgatewayx migrate status <nick>` | Administrator lub konsola | Pokazuje ostatni trwały ticket migracji UUID |
@@ -16,7 +18,11 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 | `/authgatewayx migrate recover <nick> [stare-uuid]` | Administrator lub konsola | Tworzy recovery dla konta już przełączonego przez starszą wersję AGX, wyłącznie po znalezieniu śladów starego UUID |
 
 Komenda administracyjna `/authgatewayx` ma alias `/agx`; podkomendy, argumenty i
-uprawnienia są identyczne, np. `/agx migrate status Alex`.
+uprawnienia są identyczne, np. `/agx migrate status Alex`. Samo `/agx` oraz
+`/agx help` wyświetla czytelną, kolorową listę komend. Lista jest filtrowana według
+uprawnień nadawcy, więc zwykły gracz nie zobaczy komend administracyjnych, których nie
+może wykonać. W grze pozycje listy są klikalne i wstawiają odpowiednią komendę do pola
+czatu bez automatycznego jej wykonywania.
 
 Dla `/authgatewayx alts <nick>` (także `/agx alts <nick>`) klient Minecraft
 podpowiada nazwy aktualnie połączonych graczy podczas wpisywania argumentu. Podpowiedzi

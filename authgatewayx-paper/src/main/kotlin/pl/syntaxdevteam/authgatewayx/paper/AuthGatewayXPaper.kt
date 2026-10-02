@@ -56,6 +56,9 @@ import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableMigrationAdminCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableAdminHelpCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -107,6 +110,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     private val multiAccountCommandGateway = MutableMultiAccountCommandGateway()
     private val accountInfoCommandGateway = MutableAccountInfoCommandGateway()
     private val migrationAdminCommandGateway = MutableMigrationAdminCommandGateway()
+    private val adminHelpCommandGateway = MutableAdminHelpCommandGateway()
     private var runtime: RuntimeComponents? = null
 
     override fun onEnable() {
@@ -118,6 +122,7 @@ class AuthGatewayXPaper : JavaPlugin() {
             multiAccountCommandGateway,
             accountInfoCommandGateway,
             migrationAdminCommandGateway,
+            adminHelpCommandGateway,
             canSuggestOnlinePlayers = { sender ->
                 sender is ConsoleCommandSender ||
                     sender is Player &&
@@ -177,6 +182,25 @@ class AuthGatewayXPaper : JavaPlugin() {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
+        adminHelpCommandGateway.delegate = AdminHelpCommandController(
+            AdminHelpCommandText(
+                header = messages.stringMessageToComponentNoPrefix("help", "header"),
+                playerSection = messages.stringMessageToComponentNoPrefix("help", "player_section"),
+                adminSection = messages.stringMessageToComponentNoPrefix("help", "admin_section"),
+                changePassword = messages.stringMessageToComponentNoPrefix("help", "change_password"),
+                logout = messages.stringMessageToComponentNoPrefix("help", "logout"),
+                info = messages.stringMessageToComponentNoPrefix("help", "info"),
+                alts = messages.stringMessageToComponentNoPrefix("help", "alts"),
+                setPassword = messages.stringMessageToComponentNoPrefix("help", "set_password"),
+                migrateStatus = messages.stringMessageToComponentNoPrefix("help", "migrate_status"),
+                migrateInspect = messages.stringMessageToComponentNoPrefix("help", "migrate_inspect"),
+                migrateRetry = messages.stringMessageToComponentNoPrefix("help", "migrate_retry"),
+                migrateRecover = messages.stringMessageToComponentNoPrefix("help", "migrate_recover"),
+                hover = messages.stringMessageToComponentNoPrefix("help", "hover"),
+                footer = messages.stringMessageToComponentNoPrefix("help", "footer"),
+            ),
+            description.version,
+        )
         val scheduler = PaperPlatformScheduler(this)
         val sessions = InMemorySessionRegistry()
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
@@ -696,6 +720,7 @@ class AuthGatewayXPaper : JavaPlugin() {
         multiAccountCommandGateway.delegate = null
         accountInfoCommandGateway.delegate = null
         migrationAdminCommandGateway.delegate = null
+        adminHelpCommandGateway.delegate = null
         runtime?.close()
         runtime = null
     }

@@ -38,6 +38,7 @@ class PasswordCommandRegistrar(
     private val multiAccountGateway: MultiAccountCommandGateway,
     private val accountInfoGateway: AccountInfoCommandGateway,
     private val migrationGateway: MigrationAdminCommandGateway,
+    private val helpGateway: AdminHelpCommandGateway,
     private val canSuggestOnlinePlayers: (CommandSender) -> Boolean,
 ) {
     private fun onlinePlayerArgument(name: String) =
@@ -73,6 +74,14 @@ class PasswordCommandRegistrar(
             )
             event.registrar().register(
                 Commands.literal("authgatewayx")
+                    .executes { context ->
+                        helpGateway.show(context.source.sender)
+                        1
+                    }
+                    .then(Commands.literal("help").executes { context ->
+                        helpGateway.show(context.source.sender)
+                        1
+                    })
                     .then(Commands.literal("info")
                         .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission("authgatewayx.admin.info") }
                         .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
