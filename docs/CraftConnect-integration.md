@@ -30,7 +30,7 @@ Sparowanie urządzenia potwierdza zaufanie do urządzenia, ale samo w sobie NIE 
 
 Każda capability musi być przyznawana na podstawie aktualnych permissions gracza/rangi na serwerze.
 
-Docelowe permission nodes:
+Permission nodes:
 
 ```text
 authgatewayx.craftconnect.pair
@@ -45,6 +45,8 @@ authgatewayx.craftconnect.diagnostics
 
 Permissions są sprawdzane po stronie AGX. Nie należy ufać deklarowanym permissions z aplikacji.
 
+`PaperCraftConnectCapabilityProvider` wylicza capabilities z aktualnego `Player#hasPermission(...)`. Dla niesparowanego urządzenia może zwrócić wyłącznie `PAIRING`; pozostałe uprawnienia Enhanced Mode nie są ujawniane przed potwierdzonym pairingiem.
+
 ## Pairing
 
 Minimalny przepływ:
@@ -58,8 +60,9 @@ AuthGatewayX
     │
     ├── identyfikacja UUID gracza
     ├── jednorazowy challenge
-    ├── jawne zatwierdzenie urządzenia
-    └── rejestracja device public key
+    ├── proof-of-possession klucza urządzenia
+    ├── jawne zatwierdzenie urządzenia przez gracza
+    └── zapis rekordu pairingu
 ```
 
 Rekord sparowania powinien docelowo zawierać co najmniej:
@@ -76,12 +79,46 @@ revokedAt?
 
 Klucz prywatny pozostaje wyłącznie po stronie urządzenia.
 
+### Aktualny proof-of-possession
+
+Pierwszy etap kryptograficzny jest zaimplementowany jako EC P-256 + `SHA256withECDSA`.
+
+Kanoniczny podpisywany payload jest rozdzielony domeną:
+
+```text
+AGX-CRAFTCONNECT-PAIR-V1
+```
+
+i zawiera:
+
+```text
+serverId
+challengeId
+playerUuid
+deviceId
+nonce
+expiresAt
+```
+
+`CraftConnectPairingChallengeRegistry`:
+
+- utrzymuje ograniczoną liczbę oczekujących challenge,
+- domyślnie wygasza je po 2 minutach,
+- utrzymuje najwyżej jeden aktywny challenge per gracz,
+- generuje 32-bajtowy losowy nonce,
+- sprawdza klucz P-256,
+- usuwa challenge PRZED weryfikacją podpisu, więc każdy challenge jest jednorazowy również przy błędnym podpisie,
+- wiąże podpis z serwerem, graczem, urządzeniem i czasem wygaśnięcia.
+
+Poprawny podpis NIE tworzy jeszcze pairingu. Warstwa Paper odpowiada obecnie `player_approval_required`. Jest to zamierzone: następny etap musi dostarczyć jawny Minecraft Dialog/akcję zatwierdzenia, trwały storage, revoke i audit.
+
 ### Wymagania bezpieczeństwa
 
 - pairing wolno rozpocząć dopiero po bezpiecznej identyfikacji gracza,
 - dla kont wymagających `/login` lub `/register` pairing nie może omijać PRE_AUTH,
 - challenge musi być jednorazowy, mieć TTL i być odporny na replay,
 - liczba aktywnych challenge musi być ograniczona,
+- proof-of-possession nie może samodzielnie oznaczać urządzenia jako zaakceptowane,
 - pairing/revoke wymagają audytu,
 - token/sesja urządzenia nie może zawierać trwałego snapshotu permissions,
 - odebranie permission powinno skutkować utratą capability bez ponownego pairingu,
@@ -89,7 +126,7 @@ Klucz prywatny pozostaje wyłącznie po stronie urządzenia.
 
 ## Capability model
 
-Początkowy zestaw logiczny:
+Aktualny zestaw logiczny:
 
 ```text
 PAIRING
@@ -102,35 +139,93 @@ BRANDING
 DIAGNOSTICS
 ```
 
-Nie wszystkie capabilities muszą być dostępne na każdej platformie. Warstwa wspólna definiuje nazwę i permission, a adapter Paper/Velocity dostarcza implementację tylko tam, gdzie dane są faktycznie dostępne.
+Wire IDs są stabilne i niezależne od nazw enumów:
 
-## Protokół
+```text
+pairing
+status
+stats
+console.view
+console.execute
+server.info
+branding
+diagnostics
+```
 
-Stałe początkowe:
+Nie wszystkie capabilities muszą być dostępne na każdej platformie. Warstwa wspólna definiuje wire ID i permission, a adapter Paper/Velocity dostarcza implementację tylko tam, gdzie dane są faktycznie dostępne.
+
+## Protokół v1
+
+Stałe:
 
 ```text
 channel = authgatewayx:craftconnect
 protocolVersion = 1
+maxFrameBytes = 65536
+magic = AGXC (0x41475843)
 ```
 
-Przykładowy logiczny handshake:
+Framing binarny v1:
 
 ```text
-C -> S  HELLO(protocolVersion, appVersion, deviceId)
-S -> C  HELLO(protocolVersion, serverId, supportedFeatures)
-S -> C  CAPABILITIES(grantedCapabilities)
+magic:int32
+version:uint8
+type:uint8
+requestId:UUID/128-bit
+payload zależny od typu
 ```
 
-Format transportowy nie jest jeszcze zamrożony. Przed implementacją należy zdefiniować:
+Typy pierwszego etapu:
 
-- framing,
-- maksymalny rozmiar wiadomości,
-- limity częstotliwości,
-- request/response correlation ID,
-- wersjonowanie komunikatów,
-- obsługę nieznanych typów,
-- timeouty,
-- replay protection dla operacji uprzywilejowanych.
+```text
+1   ClientHello
+2   ServerHello
+3   Capabilities
+10  PairingBegin
+11  PairingChallenge
+12  PairingConfirm
+13  PairingResult
+127 Error
+```
+
+Pola tekstowe i binarne są length-prefixed i ograniczone rozmiarem. Nieznane capability są ignorowane przy dekodowaniu, aby umożliwić kompatybilne rozszerzanie protokołu. Nieznany typ wiadomości lub niezgodna wersja powodują odrzucenie ramki.
+
+Oba repozytoria posiadają ten sam wektor kompatybilności `ClientHello`, dzięki czemu przypadkowa zmiana framingu, endianowości albo type ID powinna zostać wykryta przez testy.
+
+Logiczny handshake:
+
+```text
+C -> S  ClientHello(appVersion, deviceId?)
+S -> C  ServerHello(serverId, serverName, supportedCapabilities)
+S -> C  Capabilities(grantedCapabilities)
+```
+
+## Paper/Folia — aktualny adapter
+
+`PaperCraftConnectChannel` rejestruje `authgatewayx:craftconnect` jako native plugin messaging channel i obsługuje:
+
+- `ClientHello`,
+- permission-derived pre-pair `Capabilities`,
+- `PairingBegin`,
+- generowanie challenge,
+- asynchroniczną weryfikację podpisu na ograniczonym executorze,
+- powrót do kontekstu gracza przez EntityScheduler przed wysłaniem odpowiedzi.
+
+Weryfikacja ECDSA nie jest wykonywana na threadzie gracza.
+
+### Konfiguracja tożsamości serwera
+
+Pairing wymaga stabilnego `serverId`. Adapter Paper odczytuje:
+
+```yaml
+craftconnect:
+  server-id: "unikalny-stabilny-id-serwera"
+  server-name: "Opcjonalna nazwa wyświetlana"
+```
+
+Jeżeli `server-id` nie jest skonfigurowany, discovery może odpowiedzieć jako `unconfigured`, ale `PAIRING` nie jest reklamowany i rozpoczęcie pairingu kończy się `server_id_not_configured`. Nie wolno automatycznie generować nowego serverId przy każdym starcie.
+
+Domyślne wpisy configu powinny zostać dodane przed uznaniem Etapu 1 za gotowy produkcyjnie.
 
 ## Console
 
@@ -219,22 +314,26 @@ Awaria integracji CraftConnect:
 
 ## Etapy implementacji
 
+Checkbox `[x]` oznacza element wdrożony i zweryfikowany. Element istniejący w kodzie, ale oczekujący na końcową walidację CI/end-to-end, pozostaje niezaznaczony z opisem stanu.
+
 ### Etap 0 — kontrakt
 
 - [x] udokumentowany model integracji,
 - [x] podstawowe typy capability i permission w publicznym API,
-- [ ] format transportowy v1,
-- [ ] testy kontraktu capability/permission.
+- [ ] format transportowy v1 — zaimplementowany i zamrożony, oczekuje na końcową walidację CI,
+- [ ] testy kontraktu capability/protocol — zaimplementowane, oczekują na zielony CI.
 
 ### Etap 1 — discovery + pairing
 
-- [ ] rejestracja kanału `authgatewayx:craftconnect`,
-- [ ] HELLO v1,
-- [ ] jednorazowy challenge,
-- [ ] device public key,
-- [ ] zapis/revoke sparowanych urządzeń,
-- [ ] permission-based capabilities,
-- [ ] security/replay/rate-limit tests.
+- [ ] rejestracja kanału `authgatewayx:craftconnect` — Paper zaimplementowany, walidacja CI w toku,
+- [ ] HELLO v1 — Paper zaimplementowany, brak pełnego end-to-end z aplikacją,
+- [ ] jednorazowy challenge — zaimplementowany + testy replay/expiry,
+- [ ] device public key / proof-of-possession — zaimplementowane,
+- [ ] jawne zatwierdzenie gracza przez Minecraft Dialog,
+- [ ] zapis/revoke/list sparowanych urządzeń,
+- [ ] permission-based capabilities — provider Paper zaimplementowany, pełny paired flow jeszcze nie istnieje,
+- [ ] rate-limit/audit całego endpointu,
+- [ ] test end-to-end CraftConnect ↔ Paper/Folia.
 
 ### Etap 2 — status / branding / metrics
 
