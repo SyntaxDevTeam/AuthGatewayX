@@ -125,6 +125,64 @@ class UniversalLocalIdentityMigrationProviderTest {
     }
 
     @Test
+    fun `dedicated provider ownership excludes its plugin directory from fallback`() {
+        withProvider { root, own, backup, recipes, executor ->
+            val plots = root.resolve("PlotsX").also { Files.createDirectories(it) }
+            plots.resolve("${context.sourceMinecraftUuid}.yml").writeText("plots: 2\n")
+            val provider = provider(
+                root,
+                own,
+                backup,
+                recipes,
+                executor,
+                managed = setOf("PlotsX"),
+            )
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.NO_DATA, inspection.status)
+            assertEquals("NO_UNIVERSAL_LOCAL_UUID_DATA", inspection.reasonCode)
+        }
+    }
+
+    @Test
+    fun `aggregate byte budget still fails closed and reports path`() {
+        withProvider { root, own, backup, recipes, executor ->
+            val plugin = root.resolve("LargePlugin").also { Files.createDirectories(it) }
+            Files.write(plugin.resolve("players.db"), ByteArray(2048) { 0x41 })
+            val provider = provider(
+                root,
+                own,
+                backup,
+                recipes,
+                executor,
+                maximumTotalBytes = 1024,
+            )
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.BLOCKED, inspection.status)
+            assertTrue(inspection.reasonCode.startsWith("UNMANAGED_SCAN_BYTE_LIMIT::LargePlugin"))
+            assertTrue(inspection.reasonCode.contains("players.db"))
+        }
+    }
+
+    @Test
+    fun `AdvancedPortals recipe fails closed if future schema starts embedding source UUID`() {
+        withProvider { root, own, backup, recipes, executor ->
+            val playerData = root.resolve("AdvancedPortals/playerData").also { Files.createDirectories(it) }
+            playerData.resolve("${context.sourceMinecraftUuid}.yaml")
+                .writeText("uuid: ${context.sourceMinecraftUuid}\nselectedPortal: spawn\n")
+            val provider = provider(root, own, backup, recipes, executor)
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.BLOCKED, inspection.status)
+            assertTrue(inspection.reasonCode.startsWith("UNIVERSAL_LOCAL_REVIEW_REQUIRED"))
+        }
+    }
+
+    @Test
     fun `existing target is restored byte for byte on rollback`() {
         withProvider { root, own, backup, recipes, executor ->
             val users = root.resolve("SomePlugin/users").also { Files.createDirectories(it) }
