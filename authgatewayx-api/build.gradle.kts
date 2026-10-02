@@ -6,6 +6,8 @@ repositories { mavenCentral() }
 
 dependencies {
     api(project(":authgatewayx-domain"))
+    testImplementation(kotlin("test"))
 }
 
 kotlin { jvmToolchain(25) }
+tasks.test { useJUnitPlatform() }
