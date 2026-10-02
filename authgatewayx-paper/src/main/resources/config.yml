@@ -220,18 +220,32 @@ executors:
 
 migration:
   unmanaged-plugin-scan:
-    # Before AuthGatewayX finalizes a UUID change, inspect local plugin data directories
-    # not claimed by a registered IdentityMigrationProvider. Finding the old UUID blocks
-    # migration instead of attempting an unsafe generic search/replace.
+    # Local fallback for plugin data directories not claimed by a dedicated provider.
+    # AuthGatewayX first applies known migration recipes, then may migrate exact UUID-named
+    # text files when the old UUID does not also occur in their contents. Everything else
+    # remains fail-closed and is shown in /agx migrate inspect for manual review.
     enabled: true
 
-    # Hard bounds keep a one-time migration scan from consuming unbounded disk I/O.
+    # Hard bounds keep one migration inspection from consuming unbounded disk I/O.
     maximum-files: 50000
 
     # Maximum total bytes inspected across unmanaged plugin directories.
-    # Files are streamed, so a single large database no longer blocks only because of
-    # its individual size. The aggregate budget still bounds disk I/O and fails closed.
+    # Files are streamed; databases and binary formats are never modified by this fallback.
     maximum-total-bytes: 1073741824
+
+    generic-uuid-files:
+      # Safe generic fallback for files named exactly <uuid>.<extension>.
+      # Source files are preserved; the target is backed up before replacement.
+      enabled: true
+
+      # Only these text-like formats are eligible for generic filename migration.
+      # If the old UUID is also found inside the file, the operation is NOT automatic.
+      extensions:
+        - yml
+        - yaml
+        - json
+        - toml
+        - properties
 
   recovery:
     # Maximum number of PREPARED/MIGRATING tickets inspected after one server start.
