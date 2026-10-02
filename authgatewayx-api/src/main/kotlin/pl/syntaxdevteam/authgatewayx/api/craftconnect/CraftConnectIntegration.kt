@@ -39,10 +39,12 @@ data class CraftConnectCapabilities(
 }
 
 /**
- * Resolves the currently granted capabilities for an already authenticated player.
+ * Resolves capabilities for an authenticated player and the current device state.
+ *
  * Implementations must derive authorization from current server-side permissions,
- * never from claims sent by the CraftConnect client.
+ * never from claims sent by the CraftConnect client. Before a device proves an
+ * active pairing, enhanced administration capabilities must not be granted.
  */
 fun interface CraftConnectCapabilityProvider {
-    fun capabilitiesFor(playerUuid: java.util.UUID): CraftConnectCapabilities
+    fun capabilitiesFor(playerUuid: java.util.UUID, pairedDevice: Boolean): CraftConnectCapabilities
 }
