@@ -66,7 +66,17 @@ katalogi danych pluginów, które nie zostały przejęte przez zarejestrowany
 pozostaje OFFLINE. Administrator musi wtedy zainstalować/dodać provider dla danego pluginu
 albo przenieść te dane świadomie.
 
-Skan jest ograniczony liczbą plików oraz łączną liczbą odczytanych bajtów. Nie blokuje już
+Dla prostych lokalnych magazynów AuthGatewayX potrafi zrobić więcej niż sam skan. Wbudowane
+i własne recepty migracji obsługują jednoznaczne pliki indeksowane UUID, a bezpieczny fallback
+może skopiować plik nazwany dokładnie `<stare-uuid>.yml/.yaml/.json/.toml/.properties` na
+nowe UUID, jeżeli stare UUID nie występuje również w treści. Source pozostaje zachowany,
+target jest backupowany, a operacja ma rollback.
+
+AdvancedPortals ma wbudowaną receptę dla `playerData/<uuid>.yaml`. Dodatkowe recepty można
+umieszczać w `plugins/AuthGatewayX/migration-recipes/*.yml`; pełny format opisuje
+`docs/11-universal-local-migration-recipes.md`.
+
+Skan pozostaje ograniczony liczbą plików oraz łączną liczbą odczytanych bajtów. Nie blokuje
 tylko dlatego, że pojedynczy plik jest duży — pliki są czytane strumieniowo. Gdy budżet
 zostanie przekroczony, `/agx migrate inspect` pokazuje ścieżkę i rozmiary potrzebne do
 podjęcia decyzji.
