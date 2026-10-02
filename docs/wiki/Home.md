@@ -26,6 +26,7 @@ Obecna wersja to **1.0.0-WIP**, czyli wersja w rozwoju. Możesz ją poznawać i 
 | Strona | Co znajdziesz |
 | --- | --- |
 | [Instalacja](Instalacja.md) | Plik pluginu, wymagania i pierwsze uruchomienie |
+| [Możliwości pluginu](Mozliwosci.md) | Pełny przegląd funkcji i obecnych ograniczeń |
 | [Poradnik gracza](Poradnik-gracza.md) | Rejestracja, logowanie i zmiana hasła |
 | [Komendy](Komendy.md) | Wszystkie dostępne komendy |
 | [Uprawnienia](Uprawnienia.md) | Dostęp dla graczy i administracji |

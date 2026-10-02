@@ -4,6 +4,8 @@ Dokumentacja użytkowa: [WIKI dla graczy i administratorów](wiki/Home.md).
 Każdy temat ma osobną stronę; WIKI opisuje obecne wydanie WIP, bez nazw klas i opisu
 architektury. Zawiera pełny opis dostarczanych opcji Paper i Velocity oraz ograniczenia
 funkcji, instrukcje instalacji, komend, uprawnień, kopii i rozwiązywania problemów.
+Pełny, nietechniczny przegląd dostępnych funkcji znajduje się na stronie
+[Możliwości pluginu](wiki/Mozliwosci.md).
 
 Dokumentacja w tym katalogu jest źródłem prawdy dla implementacji AuthGatewayX.
 Dokumenty należy czytać w kolejności:
