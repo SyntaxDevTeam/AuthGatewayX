@@ -76,7 +76,8 @@ import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProv
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
 import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
 import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
-import pl.syntaxdevteam.authgatewayx.paper.migration.UnmanagedPluginUuidReferenceScanner
+import pl.syntaxdevteam.authgatewayx.paper.migration.MigrationRecipeRegistry
+import pl.syntaxdevteam.authgatewayx.paper.migration.UniversalLocalIdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMode
 import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
@@ -406,13 +407,27 @@ class AuthGatewayXPaper : JavaPlugin() {
                 managedDataOwnersSupplier = { managedOwners },
             )
             if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
-                providers += UnmanagedPluginUuidReferenceScanner(
-                    dataFolder.parentFile.toPath(),
-                    dataFolder.toPath(),
-                    { managedOwners },
-                    migrationExecutor,
-                    positive("migration.unmanaged-plugin-scan.maximum-files"),
-                    positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
+                val configuredExtensions = config
+                    .getStringList("migration.unmanaged-plugin-scan.generic-uuid-files.extensions")
+                    .map { it.trim().lowercase(java.util.Locale.ROOT).removePrefix(".") }
+                    .filter(String::isNotBlank)
+                    .toSet()
+                providers += UniversalLocalIdentityMigrationProvider(
+                    pluginsRoot = dataFolder.parentFile.toPath(),
+                    authGatewayDataDirectory = dataFolder.toPath(),
+                    backupRoot = dataFolder.toPath().resolve("migration-backups").resolve("universal-local"),
+                    managedDataOwnersSupplier = { managedOwners },
+                    recipeRegistry = MigrationRecipeRegistry(dataFolder.toPath().resolve("migration-recipes")),
+                    executor = migrationExecutor,
+                    maximumFiles = positive("migration.unmanaged-plugin-scan.maximum-files"),
+                    maximumTotalBytes = positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
+                    genericUuidFilesEnabled = config.getBoolean(
+                        "migration.unmanaged-plugin-scan.generic-uuid-files.enabled",
+                        true,
+                    ),
+                    genericExtensions = configuredExtensions.ifEmpty {
+                        setOf("yml", "yaml", "json", "toml", "properties")
+                    },
                 )
             }
             providers += external
