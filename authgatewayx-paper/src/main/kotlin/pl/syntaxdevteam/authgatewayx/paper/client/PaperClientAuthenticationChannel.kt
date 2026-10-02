@@ -21,7 +21,9 @@ class PaperClientAuthenticationChannel(
         @Volatile var task: ScheduledTask? = null
         @Volatile var confirmed = false
     }
+
     private val pending = ConcurrentHashMap<Player, Pending>()
+    private val enhancedChannel = PaperCraftConnectChannel(plugin, status)
     @Volatile private var closed = false
 
     fun register() {
@@ -29,6 +31,7 @@ class PaperClientAuthenticationChannel(
             plugin.server.messenger.registerIncomingPluginChannel(plugin, channel, this)
             plugin.server.messenger.registerOutgoingPluginChannel(plugin, channel)
         }
+        enhancedChannel.register()
         plugin.server.pluginManager.registerEvents(this, plugin)
     }
 
@@ -62,6 +65,7 @@ class PaperClientAuthenticationChannel(
             pending.values.forEach { it.task?.cancel() }
             pending.clear()
         }
+        enhancedChannel.close()
         ClientAuthenticationProtocol.channels.forEach { channel ->
             plugin.server.messenger.unregisterIncomingPluginChannel(plugin, channel, this)
             plugin.server.messenger.unregisterOutgoingPluginChannel(plugin, channel)
