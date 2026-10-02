@@ -1,6 +1,7 @@
 package pl.syntaxdevteam.authgatewayx.api.craftconnect
 
 import java.time.Instant
+import java.util.Base64
 import java.util.UUID
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -9,6 +10,19 @@ import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class CraftConnectWireProtocolTest {
+    @Test
+    fun clientHelloMatchesProtocolV1CompatibilityVector() {
+        val frame = CraftConnectFrame(
+            UUID.fromString("12345678-1234-5678-1234-567812345678"),
+            CraftConnectMessage.ClientHello("0.1.0", null),
+        )
+
+        assertEquals(
+            "QUdYQwEBEjRWeBI0VngSNFZ4EjRWeAAAAAUwLjEuMAA=",
+            Base64.getEncoder().encodeToString(CraftConnectWireProtocol.encode(frame)),
+        )
+    }
+
     @Test
     fun helloAndCapabilitiesRoundTrip() {
         val id = UUID.fromString("12345678-1234-5678-1234-567812345678")
