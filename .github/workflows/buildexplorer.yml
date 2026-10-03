@@ -240,7 +240,7 @@ jobs:
           fi
           sha256="$(sha256sum "${jar}" | awk '{print $1}')"
           size="$(stat -c%s "${jar}")"
-          max_build_explorer_size=$((20 * 1024 * 1024))
+          max_build_explorer_size=$((45 * 1024 * 1024))
 
           echo "Selected artifact: ${jar} (${size} bytes)"
           if [ "${size}" -le 0 ]; then
@@ -248,7 +248,7 @@ jobs:
             exit 1
           fi
           if [ "${size}" -gt "${max_build_explorer_size}" ]; then
-            echo "Selected JAR exceeds Build Explorer's 20 MiB application limit." >&2
+            echo "Selected JAR exceeds Build Explorer's 45 MiB application limit." >&2
             exit 1
           fi
           if ! unzip -tqq "${jar}"; then

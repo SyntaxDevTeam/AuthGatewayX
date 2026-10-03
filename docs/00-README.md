@@ -52,6 +52,10 @@ zewnętrzne sprawdzenia są domyślnie wyłączone. Zobacz WIKI konfiguracji i o
 
 API integracji: [stan uwierzytelnienia i CraftConnect](11-authentication-status-api.md).
 
+Workflow publikacji do miniPORTAL Build Explorer dopuszcza artefakty JAR do 45 MiB,
+zgodnie z limitem aplikacji. Warstwa HTTP/PHP endpointu musi przyjmować plik 45 MiB
+oraz co najmniej 48 MiB całego żądania multipart.
+
 
 ## Natywne potwierdzenie logowania dla klienta
 
