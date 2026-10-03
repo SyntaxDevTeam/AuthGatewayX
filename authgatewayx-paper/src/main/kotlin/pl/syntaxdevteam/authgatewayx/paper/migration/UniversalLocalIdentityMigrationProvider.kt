@@ -7,6 +7,7 @@ import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationOperationRes
 import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import java.io.BufferedInputStream
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
@@ -20,6 +21,8 @@ import java.util.Base64
 import java.util.Locale
 import java.util.UUID
 import java.util.concurrent.CompletionStage
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.locks.LockSupport
 
 /**
  * Safe fallback for local plugin data that is not claimed by a dedicated migration provider.
@@ -29,6 +32,10 @@ import java.util.concurrent.CompletionStage
  *  - paths explicitly described by a trusted built-in/admin recipe.
  *
  * Everything else remains fail-closed and is reported for review.
+ *
+ * File scanning is deliberately paced. Running on a worker thread protects the tick thread from
+ * direct blocking, while the I/O budget additionally prevents a deep scan from saturating the
+ * same disk used by worlds and plugin databases.
  */
 class UniversalLocalIdentityMigrationProvider(
     private val pluginsRoot: Path,
@@ -42,6 +49,8 @@ class UniversalLocalIdentityMigrationProvider(
     private val genericUuidFilesEnabled: Boolean,
     genericExtensions: Set<String>,
     private val ignoredPluginDirectoriesSupplier: () -> Set<String> = { emptySet() },
+    private val maximumScanBytesPerSecond: Long = DEFAULT_MAX_SCAN_BYTES_PER_SECOND,
+    private val planCacheTtlNanos: Long = DEFAULT_PLAN_CACHE_TTL_NANOS,
 ) : IdentityMigrationProvider {
     override val id: String = "authgatewayx:universal-local"
 
@@ -49,14 +58,19 @@ class UniversalLocalIdentityMigrationProvider(
         .map { it.trim().lowercase(Locale.ROOT).removePrefix(".") }
         .filter { it.matches(EXTENSION) }
         .toSet()
+    private val planCache = ConcurrentHashMap<UUID, CachedPlan>()
+
     init {
         require(maximumFiles > 0)
         require(maximumTotalBytes > 0)
+        require(maximumScanBytesPerSecond > 0)
+        require(planCacheTtlNanos > 0)
     }
 
     override fun inspect(context: IdentityMigrationContext): CompletionStage<IdentityMigrationInspection> =
         executor.submit {
             val plan = buildPlan(context)
+            cachePlan(context, plan)
             when {
                 plan.blockedReason != null ->
                     IdentityMigrationInspection(
@@ -104,31 +118,38 @@ class UniversalLocalIdentityMigrationProvider(
 
     override fun migrate(context: IdentityMigrationContext): CompletionStage<IdentityMigrationOperationResult> =
         executor.submit {
-            val plan = buildPlan(context)
-            if (plan.blockedReason != null) {
-                return@submit IdentityMigrationOperationResult.Failure(plan.blockedReason)
-            }
-            if (plan.operations.isEmpty()) return@submit IdentityMigrationOperationResult.NoData
+            val plan = cachedPlan(context) ?: buildPlan(context).also { cachePlan(context, it) }
+            try {
+                if (plan.blockedReason != null) {
+                    return@submit IdentityMigrationOperationResult.Failure(plan.blockedReason)
+                }
+                if (plan.operations.isEmpty()) return@submit IdentityMigrationOperationResult.NoData
 
-            runCatching {
-                val resolved = plan.operations.map { operation ->
-                    operation to desiredContent(operation, context)
+                runCatching {
+                    val ioBudget = MigrationIoBudget(maximumScanBytesPerSecond)
+                    val resolved = plan.operations.map { operation ->
+                        operation to desiredContent(operation, context, ioBudget)
+                    }
+                    prepareRollback(context, resolved.map { it.first })
+                    resolved.forEach { (operation, content) ->
+                        writeAtomically(operation.target, content, ioBudget)
+                    }
+                    IdentityMigrationOperationResult.Success
+                }.getOrElse { failure ->
+                    val reason = (failure as? LocalMigrationFailure)?.reasonCode
+                        ?: "UNIVERSAL_LOCAL_MIGRATE_${failure.javaClass.simpleName}"
+                    IdentityMigrationOperationResult.Failure(reason)
                 }
-                prepareRollback(context, resolved.map { it.first })
-                resolved.forEach { (operation, content) ->
-                    writeAtomically(operation.target, content)
-                }
-                IdentityMigrationOperationResult.Success
-            }.getOrElse { failure ->
-                val reason = (failure as? LocalMigrationFailure)?.reasonCode
-                    ?: "UNIVERSAL_LOCAL_MIGRATE_${failure.javaClass.simpleName}"
-                IdentityMigrationOperationResult.Failure(reason)
+            } finally {
+                planCache.remove(context.migrationId)
             }
         }
 
     override fun rollback(context: IdentityMigrationContext): CompletionStage<IdentityMigrationOperationResult> =
         executor.submit {
+            planCache.remove(context.migrationId)
             runCatching {
+                val ioBudget = MigrationIoBudget(maximumScanBytesPerSecond)
                 val root = migrationBackupRoot(context)
                 val journal = root.resolve(JOURNAL_FILE)
                 if (!Files.isRegularFile(journal, LinkOption.NOFOLLOW_LINKS)) {
@@ -147,7 +168,7 @@ class UniversalLocalIdentityMigrationProvider(
                     val absent = targetAbsentMarker(root, relative)
                     when {
                         Files.isRegularFile(backup, LinkOption.NOFOLLOW_LINKS) ->
-                            writeAtomically(target, Files.readAllBytes(backup))
+                            writeAtomically(target, readAllBytesThrottled(backup, ioBudget), ioBudget)
                         Files.isRegularFile(absent, LinkOption.NOFOLLOW_LINKS) -> {
                             if (Files.exists(target, LinkOption.NOFOLLOW_LINKS) &&
                                 !Files.isRegularFile(target, LinkOption.NOFOLLOW_LINKS)
@@ -186,6 +207,7 @@ class UniversalLocalIdentityMigrationProvider(
         val ignoredPluginDirectories = MigrationIgnorePolicy.normalize(ignoredPluginDirectoriesSupplier())
             .associateBy { it.lowercase(Locale.ROOT) }
         val patterns = uuidPatterns(context.sourceMinecraftUuid)
+        val scanBudget = MigrationIoBudget(maximumScanBytesPerSecond)
         val operationsByTarget = linkedMapOf<Path, LocalOperation>()
         val unresolvedOwners = linkedSetOf<String>()
         val unresolvedPaths = mutableListOf<String>()
@@ -226,8 +248,6 @@ class UniversalLocalIdentityMigrationProvider(
                         recipeSources[source] = RecipeCandidate(recipe.id, rule, target)
                     }
                 }
-
-                val recipeTargets = recipeSources.values.mapTo(mutableSetOf()) { it.target }
 
                 Files.walk(directory).use { paths ->
                     val iterator = paths.iterator()
@@ -272,7 +292,7 @@ class UniversalLocalIdentityMigrationProvider(
 
                         if (intentionallyIgnored) {
                             val fileName = path.fileName.toString().lowercase(Locale.ROOT)
-                            if (patterns.textNames.any(fileName::contains) || containsPattern(path, patterns.bytes)) {
+                            if (patterns.textNames.any(fileName::contains) || containsPattern(path, patterns.bytes, scanBudget)) {
                                 ignoredOwners += owner
                             }
                             continue
@@ -288,7 +308,7 @@ class UniversalLocalIdentityMigrationProvider(
                                 )
                             }
                             if (recipe.rule.requireSourceUuidAbsentInContent &&
-                                containsPattern(path, patterns.bytes)
+                                containsPattern(path, patterns.bytes, scanBudget)
                             ) {
                                 unresolvedFound = true
                                 unresolvedOwners += owner
@@ -296,7 +316,7 @@ class UniversalLocalIdentityMigrationProvider(
                                 continue
                             }
                             if (recipe.rule.rewriteUuidInContent) {
-                                runCatching { rewriteUuid(Files.readAllBytes(path), context) }.getOrElse {
+                                runCatching { rewriteUuid(readAllBytesThrottled(path, scanBudget), context) }.getOrElse {
                                     return LocalPlan(
                                         blockedReason = diagnostic(
                                             "UNIVERSAL_LOCAL_RECIPE_NOT_UTF8",
@@ -332,7 +352,7 @@ class UniversalLocalIdentityMigrationProvider(
                                     legacyEvidence = true,
                                 )
                             }
-                            if (containsPattern(path, patterns.bytes)) {
+                            if (containsPattern(path, patterns.bytes, scanBudget)) {
                                 unresolvedFound = true
                                 unresolvedOwners += owner
                                 reportPath(unresolvedPaths, path)
@@ -355,7 +375,7 @@ class UniversalLocalIdentityMigrationProvider(
                         }
 
                         val fileName = path.fileName.toString().lowercase(Locale.ROOT)
-                        if (patterns.textNames.any(fileName::contains) || containsPattern(path, patterns.bytes)) {
+                        if (patterns.textNames.any(fileName::contains) || containsPattern(path, patterns.bytes, scanBudget)) {
                             unresolvedFound = true
                             unresolvedOwners += owner
                             reportPath(unresolvedPaths, path)
@@ -475,13 +495,17 @@ class UniversalLocalIdentityMigrationProvider(
             .replace("{target_uuid}", context.targetMinecraftUuid.toString())
             .replace("{target_uuid_compact}", context.targetMinecraftUuid.toString().replace("-", ""))
 
-    private fun desiredContent(operation: LocalOperation, context: IdentityMigrationContext): ByteArray {
+    private fun desiredContent(
+        operation: LocalOperation,
+        context: IdentityMigrationContext,
+        ioBudget: MigrationIoBudget,
+    ): ByteArray {
         if (!Files.isRegularFile(operation.source, LinkOption.NOFOLLOW_LINKS) ||
             Files.isSymbolicLink(operation.source)
         ) {
             throw LocalMigrationFailure("UNIVERSAL_LOCAL_SOURCE_CHANGED")
         }
-        val bytes = Files.readAllBytes(operation.source)
+        val bytes = readAllBytesThrottled(operation.source, ioBudget)
         return if (operation.rewriteUuidInContent) rewriteUuid(bytes, context) else bytes
     }
 
@@ -605,15 +629,26 @@ class UniversalLocalIdentityMigrationProvider(
             throw LocalMigrationFailure("UNIVERSAL_LOCAL_JOURNAL_MISMATCH")
         }
 
-    private fun writeAtomically(target: Path, content: ByteArray) {
+    private fun writeAtomically(
+        target: Path,
+        content: ByteArray,
+        ioBudget: MigrationIoBudget? = null,
+    ) {
         Files.createDirectories(target.parent)
         val temporary = target.resolveSibling(".${target.fileName}.agx.tmp")
-        Files.write(
+        Files.newOutputStream(
             temporary,
-            content,
             StandardOpenOption.CREATE,
             StandardOpenOption.TRUNCATE_EXISTING,
-        )
+        ).use { output ->
+            var offset = 0
+            while (offset < content.size) {
+                val length = minOf(BUFFER_SIZE, content.size - offset)
+                output.write(content, offset, length)
+                ioBudget?.pace(length)
+                offset += length
+            }
+        }
         try {
             Files.move(
                 temporary,
@@ -623,6 +658,8 @@ class UniversalLocalIdentityMigrationProvider(
             )
         } catch (_: AtomicMoveNotSupportedException) {
             Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING)
+        } finally {
+            Files.deleteIfExists(temporary)
         }
     }
 
@@ -665,15 +702,20 @@ class UniversalLocalIdentityMigrationProvider(
             it.replace("::", "_").take(MAX_REPORTED_VALUE_LENGTH)
         }).joinToString("::")
 
-    private fun containsPattern(path: Path, patterns: List<ByteArray>): Boolean {
+    private fun containsPattern(
+        path: Path,
+        patterns: List<ByteArray>,
+        ioBudget: MigrationIoBudget,
+    ): Boolean {
         if (patterns.isEmpty() || Files.size(path) == 0L) return false
         val longest = patterns.maxOf { it.size }
         val buffer = ByteArray(BUFFER_SIZE)
         var tail = ByteArray(0)
-        BufferedInputStream(Files.newInputStream(path)).use { input ->
+        BufferedInputStream(Files.newInputStream(path), BUFFER_SIZE).use { input ->
             while (true) {
                 val read = input.read(buffer)
                 if (read < 0) return false
+                ioBudget.pace(read)
                 val combined = ByteArray(tail.size + read)
                 System.arraycopy(tail, 0, combined, 0, tail.size)
                 System.arraycopy(buffer, 0, combined, tail.size, read)
@@ -682,6 +724,47 @@ class UniversalLocalIdentityMigrationProvider(
                 tail = combined.copyOfRange(combined.size - keep, combined.size)
             }
         }
+    }
+
+    private fun readAllBytesThrottled(path: Path, ioBudget: MigrationIoBudget): ByteArray {
+        val size = Files.size(path)
+        if (size > Int.MAX_VALUE) throw LocalMigrationFailure("UNIVERSAL_LOCAL_SOURCE_TOO_LARGE")
+        val initialCapacity = minOf(size, MAX_INITIAL_BUFFER_BYTES.toLong()).toInt().coerceAtLeast(BUFFER_SIZE)
+        val output = ByteArrayOutputStream(initialCapacity)
+        val buffer = ByteArray(BUFFER_SIZE)
+        BufferedInputStream(Files.newInputStream(path), BUFFER_SIZE).use { input ->
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                ioBudget.pace(read)
+                output.write(buffer, 0, read)
+            }
+        }
+        return output.toByteArray()
+    }
+
+    private fun cachePlan(context: IdentityMigrationContext, plan: LocalPlan) {
+        val now = System.nanoTime()
+        planCache.entries.removeIf { now - it.value.createdAtNanos >= planCacheTtlNanos }
+        if (planCache.size >= MAX_CACHED_PLANS) planCache.clear()
+        planCache[context.migrationId] = CachedPlan(
+            sourceMinecraftUuid = context.sourceMinecraftUuid,
+            targetMinecraftUuid = context.targetMinecraftUuid,
+            createdAtNanos = now,
+            plan = plan,
+        )
+    }
+
+    private fun cachedPlan(context: IdentityMigrationContext): LocalPlan? {
+        val cached = planCache[context.migrationId] ?: return null
+        val valid = cached.sourceMinecraftUuid == context.sourceMinecraftUuid &&
+            cached.targetMinecraftUuid == context.targetMinecraftUuid &&
+            System.nanoTime() - cached.createdAtNanos < planCacheTtlNanos
+        if (!valid) {
+            planCache.remove(context.migrationId, cached)
+            return null
+        }
+        return cached.plan
     }
 
     private fun containsBytes(haystack: ByteArray, needle: ByteArray): Boolean {
@@ -745,20 +828,53 @@ class UniversalLocalIdentityMigrationProvider(
         val ignoredOwners: List<String> = emptyList(),
     )
 
+    private data class CachedPlan(
+        val sourceMinecraftUuid: UUID,
+        val targetMinecraftUuid: UUID,
+        val createdAtNanos: Long,
+        val plan: LocalPlan,
+    )
+
     private enum class OperationOrigin {
         RECIPE,
         GENERIC,
+    }
+
+    private class MigrationIoBudget(private val maximumBytesPerSecond: Long) {
+        private var previousPaceNanos = System.nanoTime()
+
+        fun pace(bytes: Int) {
+            if (bytes <= 0) return
+            val minimumNanos = ((bytes.toDouble() * NANOS_PER_SECOND) / maximumBytesPerSecond.toDouble())
+                .toLong()
+                .coerceAtLeast(1L)
+            var remaining = minimumNanos - (System.nanoTime() - previousPaceNanos)
+            while (remaining > 0L) {
+                if (Thread.currentThread().isInterrupted) {
+                    throw InterruptedException("Migration I/O worker interrupted")
+                }
+                LockSupport.parkNanos(minOf(remaining, MAX_PARK_NANOS))
+                remaining = minimumNanos - (System.nanoTime() - previousPaceNanos)
+            }
+            previousPaceNanos = System.nanoTime()
+        }
     }
 
     private class LocalMigrationFailure(val reasonCode: String) : RuntimeException(reasonCode)
 
     companion object {
         private const val BUFFER_SIZE = 64 * 1024
+        private const val MAX_INITIAL_BUFFER_BYTES = 1024 * 1024
         private const val MAX_REPORTED_OWNERS = 8
         private const val MAX_REPORTED_PATHS = 8
         private const val MAX_REPORTED_PATH_LENGTH = 180
         private const val MAX_REPORTED_VALUE_LENGTH = 512
+        private const val MAX_CACHED_PLANS = 32
         private const val JOURNAL_FILE = "targets.journal"
+        private const val NANOS_PER_SECOND = 1_000_000_000.0
+        private const val MAX_PARK_NANOS = 50_000_000L
+        private const val DEFAULT_MAX_SCAN_BYTES_PER_SECOND = 8L * 1024L * 1024L
+        private const val DEFAULT_PLAN_CACHE_TTL_NANOS = 120L * 1_000_000_000L
         private val EXTENSION = Regex("^[a-z0-9_-]{1,16}$")
         private val SKIPPED_DIRECTORY_NAMES = setOf(
             "logs",
