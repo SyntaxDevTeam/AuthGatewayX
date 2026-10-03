@@ -38,7 +38,9 @@ class UniversalLocalMigrationIoBudgetTest {
                 maximumTotalBytes = 8L * 1024 * 1024,
                 genericUuidFilesEnabled = true,
                 genericExtensions = setOf("yml", "yaml", "json"),
-                maximumScanBytesPerSecond = 64L * 1024 * 1024,
+                // One 64 KiB read is deliberately paced for about one second, guaranteeing
+                // the callback is registered before the worker completes the scan.
+                maximumScanBytesPerSecond = 64L * 1024,
             )
 
             val caller = Thread.currentThread().name
