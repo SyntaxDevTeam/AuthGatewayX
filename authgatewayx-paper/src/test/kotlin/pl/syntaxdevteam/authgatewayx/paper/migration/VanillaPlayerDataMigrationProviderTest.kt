@@ -83,4 +83,68 @@ class VanillaPlayerDataMigrationProviderTest {
             backups.toFile().deleteRecursively()
         }
     }
+
+    @Test
+    fun `startup empty world snapshot discovers world from filesystem later`() {
+        val serverRoot = Files.createTempDirectory("agx-server-")
+        val world = serverRoot.resolve("world")
+        val backups = Files.createTempDirectory("agx-backups-")
+        val executor = BoundedTaskExecutor(1, 8, "migration-test")
+        try {
+            Files.createDirectories(world)
+            world.resolve("level.dat").writeText("world-marker")
+            val source = world.resolve("playerdata").resolve("${context.sourceMinecraftUuid}.dat")
+            val target = world.resolve("playerdata").resolve("${context.targetMinecraftUuid}.dat")
+            Files.createDirectories(source.parent)
+            source.writeText("inventory-from-offline-profile")
+
+            val provider = VanillaPlayerDataMigrationProvider(
+                emptyList(),
+                backups,
+                executor,
+                worldContainer = serverRoot,
+            )
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+            assertEquals(IdentityMigrationInspectionStatus.READY, inspection.status)
+            assertEquals("VANILLA_FILES_1", inspection.reasonCode)
+
+            assertIs<IdentityMigrationOperationResult.Success>(
+                provider.migrate(context).toCompletableFuture().get(),
+            )
+            assertEquals("inventory-from-offline-profile", target.readText())
+        } finally {
+            executor.close()
+            serverRoot.toFile().deleteRecursively()
+            backups.toFile().deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `missing world roots block migration instead of reporting no player data`() {
+        val serverRoot = Files.createTempDirectory("agx-empty-server-")
+        val backups = Files.createTempDirectory("agx-backups-")
+        val executor = BoundedTaskExecutor(1, 8, "migration-test")
+        try {
+            val provider = VanillaPlayerDataMigrationProvider(
+                emptyList(),
+                backups,
+                executor,
+                worldContainer = serverRoot,
+            )
+
+            val inspection = provider.inspect(context).toCompletableFuture().get()
+
+            assertEquals(IdentityMigrationInspectionStatus.BLOCKED, inspection.status)
+            assertEquals("VANILLA_WORLD_ROOTS_UNAVAILABLE", inspection.reasonCode)
+            assertEquals(
+                IdentityMigrationOperationResult.Failure("VANILLA_WORLD_ROOTS_UNAVAILABLE"),
+                provider.migrate(context).toCompletableFuture().get(),
+            )
+        } finally {
+            executor.close()
+            serverRoot.toFile().deleteRecursively()
+            backups.toFile().deleteRecursively()
+        }
+    }
 }
