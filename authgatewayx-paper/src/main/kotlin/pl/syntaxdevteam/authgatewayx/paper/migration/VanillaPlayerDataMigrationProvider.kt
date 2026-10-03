@@ -13,15 +13,35 @@ import java.nio.file.StandardCopyOption
 import java.util.concurrent.CompletionStage
 
 class VanillaPlayerDataMigrationProvider(
-    private val worldRoots: List<Path>,
+    worldRoots: List<Path>,
     private val backupRoot: Path,
     private val executor: BoundedTaskExecutor,
+    private val worldContainer: Path = Path.of("").toAbsolutePath().normalize(),
 ) : IdentityMigrationProvider {
     override val id: String = "authgatewayx:vanilla"
 
+    /**
+     * Paper plugins marked STARTUP may be constructed before Server#getWorlds exposes every
+     * loaded world. Keep the initial snapshot, but resolve filesystem world roots again for
+     * every migration operation so a startup-time empty list can never be interpreted as
+     * "this player has no vanilla data".
+     */
+    private val initialWorldRoots = worldRoots
+        .map { it.toAbsolutePath().normalize() }
+        .distinct()
+        .sortedBy { it.toString() }
+
     override fun inspect(context: IdentityMigrationContext): CompletionStage<IdentityMigrationInspection> =
         executor.submit {
-            val mappings = mappings(context)
+            val roots = resolveWorldRoots()
+            if (roots.isEmpty()) {
+                return@submit IdentityMigrationInspection(
+                    IdentityMigrationInspectionStatus.BLOCKED,
+                    "VANILLA_WORLD_ROOTS_UNAVAILABLE",
+                )
+            }
+
+            val mappings = mappings(context, roots)
             val source = mappings.filter { Files.exists(it.source, LinkOption.NOFOLLOW_LINKS) }
             val unsafe = source.firstOrNull {
                 Files.isSymbolicLink(it.source) ||
@@ -46,7 +66,12 @@ class VanillaPlayerDataMigrationProvider(
 
     override fun migrate(context: IdentityMigrationContext): CompletionStage<IdentityMigrationOperationResult> =
         executor.submit {
-            val mappings = mappings(context).filter { Files.exists(it.source, LinkOption.NOFOLLOW_LINKS) }
+            val roots = resolveWorldRoots()
+            if (roots.isEmpty()) {
+                return@submit IdentityMigrationOperationResult.Failure("VANILLA_WORLD_ROOTS_UNAVAILABLE")
+            }
+
+            val mappings = mappings(context, roots).filter { Files.exists(it.source, LinkOption.NOFOLLOW_LINKS) }
             if (mappings.isEmpty()) return@submit IdentityMigrationOperationResult.NoData
 
             for (mapping in mappings) {
@@ -87,7 +112,12 @@ class VanillaPlayerDataMigrationProvider(
 
     override fun rollback(context: IdentityMigrationContext): CompletionStage<IdentityMigrationOperationResult> =
         executor.submit {
-            for (mapping in mappings(context)) {
+            val roots = resolveWorldRoots()
+            if (roots.isEmpty()) {
+                return@submit IdentityMigrationOperationResult.Failure("VANILLA_WORLD_ROOTS_UNAVAILABLE")
+            }
+
+            for (mapping in mappings(context, roots)) {
                 when {
                     Files.exists(mapping.targetBackup, LinkOption.NOFOLLOW_LINKS) -> {
                         requireRegularFile(mapping.targetBackup)
@@ -114,7 +144,37 @@ class VanillaPlayerDataMigrationProvider(
             IdentityMigrationOperationResult.Success
         }
 
-    private fun mappings(context: IdentityMigrationContext): List<FileMapping> {
+    private fun resolveWorldRoots(): List<Path> {
+        val discovered = discoverWorldRoots(worldContainer)
+        return (initialWorldRoots + discovered)
+            .map { it.toAbsolutePath().normalize() }
+            .filter { Files.isDirectory(it, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(it) }
+            .distinct()
+            .sortedBy { it.toString() }
+    }
+
+    private fun discoverWorldRoots(container: Path): List<Path> {
+        val root = container.toAbsolutePath().normalize()
+        if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS) || Files.isSymbolicLink(root)) {
+            return emptyList()
+        }
+        return runCatching {
+            Files.list(root).use { children ->
+                children
+                    .filter { Files.isDirectory(it, LinkOption.NOFOLLOW_LINKS) }
+                    .filter { !Files.isSymbolicLink(it) }
+                    .filter {
+                        val levelDat = it.resolve("level.dat")
+                        Files.isRegularFile(levelDat, LinkOption.NOFOLLOW_LINKS) && !Files.isSymbolicLink(levelDat)
+                    }
+                    .map { it.toAbsolutePath().normalize() }
+                    .sorted()
+                    .toList()
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    private fun mappings(context: IdentityMigrationContext, roots: List<Path>): List<FileMapping> {
         val source = context.sourceMinecraftUuid.toString()
         val target = context.targetMinecraftUuid.toString()
         val relativePairs = listOf(
@@ -123,7 +183,7 @@ class VanillaPlayerDataMigrationProvider(
             "stats/$source.json" to "stats/$target.json",
             "advancements/$source.json" to "advancements/$target.json",
         )
-        val uniqueRoots = worldRoots.map { it.toAbsolutePath().normalize() }.distinct()
+        val uniqueRoots = roots.map { it.toAbsolutePath().normalize() }.distinct().sortedBy { it.toString() }
         return buildList {
             uniqueRoots.forEachIndexed { index, root ->
                 relativePairs.forEachIndexed { pairIndex, pair ->
