@@ -26,7 +26,7 @@ class UniversalLocalMigrationIoBudgetTest {
             )
             root.resolve("SomePlugin").also { Files.createDirectories(it) }
                 .resolve("data.yml")
-                .writeText("uuid: ${context.sourceMinecraftUuid}\n")
+                .writeText("x".repeat(64 * 1024) + "\nuuid: ${context.sourceMinecraftUuid}\n")
             val provider = UniversalLocalIdentityMigrationProvider(
                 pluginsRoot = root,
                 authGatewayDataDirectory = own,
@@ -38,8 +38,8 @@ class UniversalLocalMigrationIoBudgetTest {
                 maximumTotalBytes = 8L * 1024 * 1024,
                 genericUuidFilesEnabled = true,
                 genericExtensions = setOf("yml", "yaml", "json"),
-                // One 64 KiB read is deliberately paced for about one second, guaranteeing
-                // the callback is registered before the worker completes the scan.
+                // The first full 64 KiB chunk is deliberately paced for about one second,
+                // guaranteeing the completion callback is registered before the worker finishes.
                 maximumScanBytesPerSecond = 64L * 1024,
             )
 
