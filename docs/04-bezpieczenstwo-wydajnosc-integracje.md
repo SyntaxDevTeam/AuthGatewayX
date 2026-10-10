@@ -794,3 +794,15 @@ na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracz
 To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
 Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
 Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
+
+## Aktualizacja 2026-10-10 — końcowy admission i bounded lifecycle
+
+Po kosztownej pracy offline/premium, a przed ACTIVE, AccountActivationGuard ponawia
+CleanerX/PunisherX z bieżącym UUID konta. Odmowa/awaria zgodnie z polityką nie zwalnia
+PRE_AUTH; audit używa istniejącego kontraktu, UI istniejącego MessageHandler. Testy
+obejmują ban dodany w trakcie auth, awarię, disconnect oraz konkurencję aktywacji.
+Nie jest to atomowa transakcja z zewnętrznym systemem kar. Forced shutdown kończy
+queued futures, błąd odczytu storage zeruje hasło, clear/activate nie pozostawia
+osieroconych indeksów. ConnectionFloodGate wygasza wyłącznie nieaktywne IP po czasie
+nie krótszym niż pełne odtworzenie tokenów; aktywne limity i globalny bucket są zachowane.
+Szczegółowe koszty, decyzje, ograniczenia i testy: [walidacja wydania](13-release-validation.md).

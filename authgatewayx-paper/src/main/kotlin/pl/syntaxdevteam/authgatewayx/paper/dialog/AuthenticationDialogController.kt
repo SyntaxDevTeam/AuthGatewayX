@@ -44,6 +44,7 @@ data class AuthenticationDialogText(
     val accountExists: Component,
     val identityConflict: Component,
     val internalFailure: Component,
+    val accessDenied: Component = internalFailure,
 )
 
 class AuthenticationDialogController(
@@ -177,6 +178,7 @@ class AuthenticationDialogController(
         AuthenticationFormResult.RATE_LIMITED -> text.rateLimited
         AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS -> text.accountExists
         AuthenticationFormResult.IDENTITY_CONFLICT -> text.identityConflict
+        AuthenticationFormResult.ACCESS_DENIED -> text.accessDenied
         else -> text.internalFailure
     }
 

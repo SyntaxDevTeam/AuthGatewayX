@@ -16,6 +16,23 @@ import java.util.concurrent.CompletionStage
 import kotlin.test.*
 
 class LoginServiceTest {
+    @Test
+    fun `storage failure wipes password before exceptional completion`() {
+        val storage = FakeStorage(null)
+        val executor = BoundedTaskExecutor(1, 1, "failed-lookup-test")
+        try {
+            for (synchronous in listOf(false, true)) {
+                storage.lookupFailure = IllegalStateException("Storage unavailable")
+                storage.synchronousFailure = synchronous
+                val password = "valid-password".toCharArray()
+                val result = service(storage, CapturingAudit(), executor, "unused")
+                    .login(username, address, password).toCompletableFuture()
+                assertFails { result.get() }
+                assertTrue(password.all { it == '\u0000' })
+                assertEquals(0, storage.successes)
+            }
+        } finally { executor.close() }
+    }
     private val now = Instant.parse("2026-08-30T10:00:00Z")
     private val username = AccountUsername.parse("LoginPlayer")
     private val address = InetAddress.getLoopbackAddress()
@@ -69,7 +86,16 @@ class LoginServiceTest {
     private class FakeStorage(private val credentials: AccountCredentials?) : AccountStorage {
         var lookups = 0
         var successes = 0
-        override fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?> { lookups++; return CompletableFuture.completedFuture(credentials) }
+        var lookupFailure: Exception? = null
+        var synchronousFailure = false
+        override fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?> {
+            lookups++
+            lookupFailure?.let {
+                if (synchronousFailure) throw it
+                return CompletableFuture.failedFuture(it)
+            }
+            return CompletableFuture.completedFuture(credentials)
+        }
         override fun recordLoginSuccess(accountId: AccountId, sourceAddress: InetAddress, authenticatedAt: Instant): CompletionStage<Unit> { successes++; return CompletableFuture.completedFuture(Unit) }
         override fun recordLoginFailure(accountId: AccountId, failedAt: Instant, lockThreshold: Int, lockDuration: Duration) = CompletableFuture.completedFuture(FailedLoginUpdate(1, null))
         override fun migrate() = CompletableFuture.completedFuture(Unit)

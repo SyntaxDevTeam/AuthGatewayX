@@ -615,8 +615,9 @@ potwierdził odpowiedź `0x01 Encryption Request` zamiast wejścia do ścieżki 
 
 Liczbę jednoczesnych handshake'ów premium ogranicza
 `premium.authentication.maximum-concurrent-handshakes`. Adapter kompiluje się i startuje
-na Paper 26.2 build 121; test wejścia rzeczywistym klientem premium pozostaje wymagany,
-więc checklista pełnego premium loginu nie jest jeszcze zamknięta. Standalone LOGIN
+na Paper 26.2 build 121. Roadmapa odnotowuje późniejszy pełny test premium dla
+wcześniejszego środowiska; po przypięciu build 129 wymagany jest test regresyjny
+rzeczywistym klientem na tej konkretnej wersji. Standalone LOGIN
 wykonuje teraz `ConnectionFloodGate`, walidację `AccountUsername`,
 `ConnectionBehaviorGate` oraz `UsernameBurstGate` przed pierwszym
 `MojangProfileLookup`. Ownership stanowych guardów jest przejmowany przez adapter
@@ -637,8 +638,9 @@ Wybrany tryb jest zapisywany w ograniczonym rozmiarem i TTL rejestrze oczekując
 połączeń. `LoginEvent` odbiera wpis dokładnie raz i sprawdza `Player.isOnlineMode`;
 brak wpisu, wygaśnięcie lub rozbieżność trybu kończą połączenie. Moduł inicjalizuje
 `ProxySyntaxCore` oraz MessageHandler-Velocity i ma niezależny fail-closed readiness.
-Przekazanie zweryfikowanej tożsamości premium do backendu Paper pozostaje następnym
-etapem i wymaga uwierzytelnionego kanału, nie zwykłej ufności do plugin message.
+Bieżący premium handoff korzysta ze zgodności official UUID z tożsamością dostarczoną
+przez zabezpieczony Velocity modern forwarding, zgodnie z dokumentem 07. Zwykła
+wiadomość pluginowa nie autoryzuje gracza. Testy całego wdrożenia pozostają otwarte.
 
 ## 24. Stan implementacji — username burst anti-bot
 
@@ -806,3 +808,11 @@ na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracz
 To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
 Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
 Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
+
+## Aktualizacja 2026-10-10 — weryfikacja release
+
+Dev bundle: `26.2.build.129-stable`. Dodano AccountActivationGuard przed ACTIVE,
+serializację clear/activate rejestru sesji, zakończenie queued futures przy forced shutdown,
+zerowanie hasła przy błędzie odczytu storage i wygaszanie IP ConnectionFloodGate.
+Testy współbieżności i awarii, kontrakt czterech backendów oraz benchmarki opisuje
+[walidacja wydania](13-release-validation.md). Wyniki lokalne nie zamykają Folia/Velocity.

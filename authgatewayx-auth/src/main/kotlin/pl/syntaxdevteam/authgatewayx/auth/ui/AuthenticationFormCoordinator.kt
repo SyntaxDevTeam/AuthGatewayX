@@ -5,6 +5,8 @@ import pl.syntaxdevteam.authgatewayx.auth.login.OfflineLoginUseCase
 import pl.syntaxdevteam.authgatewayx.auth.registration.OfflineRegistrationUseCase
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationOutcome
 import pl.syntaxdevteam.authgatewayx.auth.session.SessionRegistry
+import pl.syntaxdevteam.authgatewayx.auth.session.AccountActivationGuard
+import pl.syntaxdevteam.authgatewayx.domain.account.AuthAccount
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.domain.session.AuthenticationMethod
@@ -29,6 +31,7 @@ enum class AuthenticationFormResult {
     RATE_LIMITED,
     ACCOUNT_ALREADY_EXISTS,
     IDENTITY_CONFLICT,
+    ACCESS_DENIED,
 }
 
 fun interface AuthenticationFormHandler {
@@ -48,40 +51,44 @@ class AuthenticationFormCoordinator(
     private val sessions: SessionRegistry,
     private val clock: Clock = Clock.systemUTC(),
     private val activationListener: AuthenticationActivationListener = AuthenticationActivationListener {},
+    private val activationGuard: AccountActivationGuard = AccountActivationGuard.ALLOW,
 ) : AuthenticationFormHandler {
     override fun submitLogin(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
-        loginService.login(context.username, context.sourceAddress, password).thenApply { result ->
+        loginService.login(context.username, context.sourceAddress, password).thenCompose { result ->
             when (result) {
                 is LoginResult.Success -> {
-                    sessions.activate(
-                        context.connectionId, result.account.id, result.account.minecraftUuid,
-                        IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
-                    )
-                    activationListener.activated(context)
-                    AuthenticationFormResult.AUTHENTICATED
+                    activate(context, result.account)
                 }
-                LoginResult.InvalidCredentials -> AuthenticationFormResult.INVALID_CREDENTIALS
-                LoginResult.AccountLocked -> AuthenticationFormResult.ACCOUNT_LOCKED
-                LoginResult.RateLimited -> AuthenticationFormResult.RATE_LIMITED
+                LoginResult.InvalidCredentials -> completed(AuthenticationFormResult.INVALID_CREDENTIALS)
+                LoginResult.AccountLocked -> completed(AuthenticationFormResult.ACCOUNT_LOCKED)
+                LoginResult.RateLimited -> completed(AuthenticationFormResult.RATE_LIMITED)
             }
         }
 
     override fun submitRegistration(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
-        registrationService.register(context.username, context.sourceAddress, password).thenApply { result ->
+        registrationService.register(context.username, context.sourceAddress, password).thenCompose { result ->
             when (result) {
                 is RegistrationOutcome.Created -> {
-                    sessions.activate(
-                        context.connectionId, result.account.id, result.account.minecraftUuid,
-                        IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
-                    )
-                    activationListener.activated(context)
-                    AuthenticationFormResult.AUTHENTICATED
+                    activate(context, result.account)
                 }
-                RegistrationOutcome.UsernameAlreadyExists -> AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS
-                RegistrationOutcome.IdentityConflict -> AuthenticationFormResult.IDENTITY_CONFLICT
-                RegistrationOutcome.RateLimited -> AuthenticationFormResult.RATE_LIMITED
+                RegistrationOutcome.UsernameAlreadyExists -> completed(AuthenticationFormResult.ACCOUNT_ALREADY_EXISTS)
+                RegistrationOutcome.IdentityConflict -> completed(AuthenticationFormResult.IDENTITY_CONFLICT)
+                RegistrationOutcome.RateLimited -> completed(AuthenticationFormResult.RATE_LIMITED)
             }
         }
+
+    private fun activate(context: AuthenticationFormContext, account: AuthAccount): CompletionStage<AuthenticationFormResult> =
+        activationGuard.allows(account, context.sourceAddress).thenApply { allowed ->
+            if (allowed != true) AuthenticationFormResult.ACCESS_DENIED
+            else {
+                sessions.activate(context.connectionId, account.id, account.minecraftUuid,
+                    IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant())
+                activationListener.activated(context)
+                AuthenticationFormResult.AUTHENTICATED
+            }
+        }
+
+    private fun completed(result: AuthenticationFormResult) = CompletableFuture.completedFuture(result)
 }
 
 object PasswordConfirmation {

@@ -1,6 +1,8 @@
 package pl.syntaxdevteam.authgatewayx.auth.premium
 
 import pl.syntaxdevteam.authgatewayx.auth.session.SessionRegistry
+import pl.syntaxdevteam.authgatewayx.auth.session.AccountActivationGuard
+import java.util.concurrent.CompletableFuture
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.AuthAccount
 import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
@@ -49,6 +51,7 @@ sealed interface VerifiedMojangAuthenticationResult {
         val migrationId: UUID,
     ) : VerifiedMojangAuthenticationResult
     data object IdentityConflict : VerifiedMojangAuthenticationResult
+    data object AccessDenied : VerifiedMojangAuthenticationResult
 }
 
 fun interface VerifiedMojangAuthenticationUseCase {
@@ -60,31 +63,16 @@ class VerifiedMojangAuthenticationService(
     private val sessions: SessionRegistry,
     private val auditSink: SecurityAuditSink,
     private val clock: Clock = Clock.systemUTC(),
+    private val activationGuard: AccountActivationGuard = AccountActivationGuard.ALLOW,
 ) : VerifiedMojangAuthenticationUseCase {
     override fun authenticate(context: VerifiedMojangAuthenticationContext): CompletionStage<VerifiedMojangAuthenticationResult> {
         val verifiedAt = clock.instant()
         return storage.bindVerifiedMojangIdentity(
             VerifiedMojangIdentity(context.username, context.minecraftUuid, context.sourceAddress, verifiedAt),
-        ).thenApply { binding ->
-            when (binding) {
-                is MojangIdentityBindingResult.Bound -> {
-                    sessions.activate(
-                        context.connectionId,
-                        binding.account.id,
-                        context.minecraftUuid,
-                        IdentityType.MOJANG,
-                        AuthenticationMethod.MOJANG,
-                        verifiedAt,
-                    )
-                    audit(
-                        context,
-                        binding.account,
-                        if (binding.migratedFromOffline) SecurityEventType.OFFLINE_TO_PREMIUM_MIGRATION
-                        else SecurityEventType.PREMIUM_VERIFIED,
-                        if (binding.migratedFromOffline) "OFFLINE_ACCOUNT_MIGRATED" else "FORWARDED_UUID_MATCH",
-                    )
-                    VerifiedMojangAuthenticationResult.Success(binding.account, binding.migratedFromOffline)
-                }
+        ).thenCompose { binding ->
+            val result = when (binding) {
+                is MojangIdentityBindingResult.Bound ->
+                    return@thenCompose activateVerified(context, binding, verifiedAt)
                 is MojangIdentityBindingResult.MigrationRequired -> {
                     audit(
                         context,
@@ -114,8 +102,27 @@ class VerifiedMojangAuthenticationService(
                     VerifiedMojangAuthenticationResult.IdentityConflict
                 }
             }
+            CompletableFuture.completedFuture(result)
         }
     }
+
+    private fun activateVerified(
+        context: VerifiedMojangAuthenticationContext,
+        binding: MojangIdentityBindingResult.Bound,
+        verifiedAt: java.time.Instant,
+    ): CompletionStage<VerifiedMojangAuthenticationResult> =
+        activationGuard.allows(binding.account, context.sourceAddress).thenApply { allowed ->
+            if (allowed != true) VerifiedMojangAuthenticationResult.AccessDenied
+            else {
+                sessions.activate(context.connectionId, binding.account.id, context.minecraftUuid,
+                    IdentityType.MOJANG, AuthenticationMethod.MOJANG, verifiedAt)
+                audit(context, binding.account,
+                    if (binding.migratedFromOffline) SecurityEventType.OFFLINE_TO_PREMIUM_MIGRATION
+                    else SecurityEventType.PREMIUM_VERIFIED,
+                    if (binding.migratedFromOffline) "OFFLINE_ACCOUNT_MIGRATED" else "FORWARDED_UUID_MATCH")
+                VerifiedMojangAuthenticationResult.Success(binding.account, binding.migratedFromOffline)
+            }
+        }
 
     private fun audit(
         context: VerifiedMojangAuthenticationContext,

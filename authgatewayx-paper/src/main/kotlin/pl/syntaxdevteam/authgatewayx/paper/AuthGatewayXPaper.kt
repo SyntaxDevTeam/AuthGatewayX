@@ -482,7 +482,36 @@ class AuthGatewayXPaper : JavaPlugin() {
                 )
             }
         }
-        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationListener = { context ->
+        val integrationResolver = PaperIntegrationResolver(server, mojangExecutor)
+        val cleanerMode = config.getString("integrations.cleanerx.mode", "AUTO")!!.uppercase()
+        val punisherMode = config.getString("integrations.punisherx.mode", "AUTO")!!.uppercase()
+        val resolvedCleaner = if (cleanerMode == "DISABLED") null else integrationResolver.usernamePolicy()
+        val resolvedPunisher = if (punisherMode == "DISABLED") null else integrationResolver.punishmentProvider()
+        val loginAdmission = LoginAdmissionService(
+            resolvedCleaner ?: if (cleanerMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.UsernamePolicyProvider {
+                java.util.concurrent.CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.UsernameVerdict.UNAVAILABLE)
+            } else null,
+            resolvedPunisher ?: if (punisherMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.PunishmentProvider {
+                java.util.concurrent.CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.LoginPunishmentResult.Unavailable())
+            } else null,
+            FailureStrategy.valueOf(config.getString("integrations.cleanerx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
+            FailureStrategy.valueOf(config.getString("integrations.punisherx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
+        )
+        val activationGuard = pl.syntaxdevteam.authgatewayx.auth.session.AccountActivationGuard { account, address ->
+            loginAdmission.check(account.username, account.minecraftUuid, address).thenApply { decision ->
+                if (decision is pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionDecision.Deny) {
+                    val type = if (decision.reasonCode.startsWith("CLEANER"))
+                        pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.USERNAME_POLICY_DENY
+                    else pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.PUNISHMENT_DENY
+                    runCatching { storage.record(pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent(
+                        java.time.Instant.now(), account.id.value, account.minecraftUuid, account.username.value,
+                        address, type, decision.reasonCode,
+                    )) }
+                }
+                decision == pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionDecision.Allow
+            }
+        }
+        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationGuard = activationGuard, activationListener = { context ->
             admission.release(context.connectionId.value)
             isolation.activated(context)
             sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
@@ -503,7 +532,8 @@ class AuthGatewayXPaper : JavaPlugin() {
             messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
             messages.stringMessageToComponentNoPrefix("auth", "account_exists"),
             messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
-            messages.stringMessageToComponentNoPrefix("auth", "internal_failure")),
+            messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+            accessDenied = messages.stringMessageToComponentNoPrefix("auth", "integration_denied")),
             onOutcome = { context, result ->
                 if (result != AuthenticationFormResult.AUTHENTICATED) {
                     behaviorGate.record(context.sourceAddress, ConnectionBehaviorSignal.AUTHENTICATION_FAILURE)
@@ -557,22 +587,7 @@ class AuthGatewayXPaper : JavaPlugin() {
                 logger.info("AuthGatewayX premium mode: Velocity modern forwarding; standalone Paper encryption interceptor disabled")
             }
         }
-        val mojangAuthentication = VerifiedMojangAuthenticationService(storage, sessions, storage)
-        val integrationResolver = PaperIntegrationResolver(server, mojangExecutor)
-        val cleanerMode = config.getString("integrations.cleanerx.mode", "AUTO")!!.uppercase()
-        val punisherMode = config.getString("integrations.punisherx.mode", "AUTO")!!.uppercase()
-        val resolvedCleaner = if (cleanerMode == "DISABLED") null else integrationResolver.usernamePolicy()
-        val resolvedPunisher = if (punisherMode == "DISABLED") null else integrationResolver.punishmentProvider()
-        val loginAdmission = LoginAdmissionService(
-            resolvedCleaner ?: if (cleanerMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.UsernamePolicyProvider {
-                java.util.concurrent.CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.UsernameVerdict.UNAVAILABLE)
-            } else null,
-            resolvedPunisher ?: if (punisherMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.PunishmentProvider {
-                java.util.concurrent.CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.LoginPunishmentResult.Unavailable())
-            } else null,
-            FailureStrategy.valueOf(config.getString("integrations.cleanerx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
-            FailureStrategy.valueOf(config.getString("integrations.punisherx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
-        )
+        val mojangAuthentication = VerifiedMojangAuthenticationService(storage, sessions, storage, activationGuard = activationGuard)
         val router = AuthenticationDialogRouter(
             storage, dialogs, premiumMigrationDialogs, access, scheduler,
             premiumLookup = premiumLookup,

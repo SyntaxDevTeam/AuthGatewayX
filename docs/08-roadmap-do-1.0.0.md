@@ -16,7 +16,7 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - [x] Paper standalone premium lookup i rozpoczęcie natywnego szyfrowanego handshake.
 - [x] Podstawowy selektor online/offline w module Velocity.
 - [x] Paper lifecycle: loader, bootstrap, composition root i Lifecycle Commands API.
-- [x] Powtarzalny Paper dev bundle przypięty do `26.2.build.121-stable` zamiast wersji dynamicznej.
+- [x] Powtarzalny Paper dev bundle przypięty do `26.2.build.129-stable` zamiast wersji dynamicznej; build i testy lokalne 2026-10-10.
 - [x] Konfigurowalne runtime JDBC dla SQLite, MySQL, MariaDB i PostgreSQL wraz z
   dialektami migracji, slotów rejestracji i sterownikami PluginLoader.
 - [x] CleanerX przez publiczne API `ServicesManager` oraz kontraktowy
@@ -29,7 +29,8 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 ### Uwierzytelnianie i bezpieczeństwo kont
 
 - [X] Wykonać pełny login premium rzeczywistym klientem i potwierdzić official UUID,
-  profil oraz brak fallbacku offline na każdej ścieżce błędu.
+  profil oraz brak fallbacku offline na każdej ścieżce błędu — wcześniejsze środowisko.
+- [ ] Powtórzyć test premium rzeczywistym klientem na przypiętym Paper build 129.
 - [ ] Dokończyć i przetestować migrację konta `OFFLINE -> MOJANG`, w tym konflikt nazwy,
   konflikt UUID, równoległe logowania oraz audit migracji.
   - Gate migracyjny, weryfikacja starego hasła, trwałe tickety UPGRADE/RECOVERY, historia UUID,
@@ -44,10 +45,15 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
     wymaga providera konkretnego pluginu, ponieważ Vault sam nie przechowuje sald. Checkbox
     pozostaje otwarty dla testu całego flow na rzeczywistym serwerze oraz zewnętrznych pluginów,
     które przechowują UUID poza lokalnym katalogiem i nie udostępniają IdentityMigrationProvider.
-- [ ] Dodać bezpieczną politykę concurrent login/kick lub deny i test dwóch jednoczesnych
-  logowań tego samego konta.
-- [ ] Zweryfikować disconnect podczas Argon2/JDBC/HTTP oraz późne callbacki po shutdownie.
-- [ ] Przeprowadzić benchmark parametrów Argon2id i bounded queue na wspieranym sprzęcie.
+- [x] Zweryfikować politykę deny równoczesnej aktywacji konta: test rejestru oraz
+  dwóch równoległych wyników poprawnego loginu w koordynatorze formularza.
+- [ ] Zweryfikować tę politykę dwoma rzeczywistymi klientami na każdej platformie.
+- [ ] Zweryfikować disconnect podczas Argon2/JDBC/HTTP oraz późne callbacki po shutdownie
+  na rzeczywistych platformach; testy koordynatorów offline/premium i wyścigu clear/activate
+  już potwierdzają brak reaktywacji, a executor kończy futures usunięte z kolejki.
+- [x] Przygotować i uruchomić ograniczony benchmark rzeczywistych Argon2id, bounded queue
+  i guardów w procesie; raport 20 próbek i limity w `13-release-validation.md`.
+- [ ] Powtórzyć benchmark na wspieranym sprzęcie pod obciążeniem gry i dobrać limity.
 
 ### Paper, Purpur i Folia
 
@@ -72,11 +78,14 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 
 ### Anti-bot, anti-flood i obserwowalność
 
+- [x] Przygotować ograniczony harness protokołu LOGIN tylko dla loopback i przetestować
+  go z lokalnym responderem; nie zamyka to testów Minecraft ani pełnego floodu.
 - [ ] Wykonać test obciążeniowy connection flood, username burst, reconnect loop,
   registration flood i behavioral scoring; dobrać limity na podstawie wyników.
 - [ ] Dodać flood metrics, liczniki decyzji, latencję DB/Mojang/Argon2 oraz kontrolowany
   eksport statystyk bez wpływu na krytyczną ścieżkę auth.
 - [ ] Zweryfikować limity pamięci, TTL, invalidację i zachowanie po stale data każdego cache.
+  ConnectionFloodGate ma teraz testowane wygaszanie nieaktywnych IP bez resetu aktywnych bucketów.
 - [ ] Przejrzeć logi pod kątem sekretów, danych osobowych i odporności na log injection.
 
 ### Storage i integralność danych
@@ -85,6 +94,9 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
   migracji tożsamości: v8, UPGRADE, RECOVERY i równoległa idempotentna finalizacja.
 - [ ] Zapewnić i zweryfikować pełną równoważność atomowości rejestracji, limitów IP, lockoutu
   i compare-and-set hasła na każdym backendzie; migracja tożsamości ma już osobne testy multi-DB.
+  Wspólny StorageAtomicityContractTest przechodzi lokalnie dla SQLite; trzy zdalne warianty
+  są przygotowane, lecz wymagają wykonania w CI. Brak konfiguracji jest widocznym skip,
+  a AGX_REQUIRE_REMOTE_DATABASES=true w CI zamienia brak dowolnego silnika w błąd.
 - [ ] Dodać test awarii połączenia/puli w trakcie migracji; recovery po przerwaniu procesu,
   trwały retry oraz blokada logowania przy niedokończonym rollbacku są już pokryte.
 
@@ -154,3 +166,14 @@ Instrukcja wdrożenia: [09-proxy-risk-admission.md](09-proxy-risk-admission.md).
 
 - [x] Diagnostyka AGX-STARTUP przy odmowie: testy zachowania blokady, limitu logów i cudzej odmowy.
 - [ ] Ustalenie przyczyny braku READY na zgłoszonym proxy na podstawie logu startowego/AGX-STARTUP.
+
+## Weryfikacja 2026-10-10
+
+- [x] Zakończenie futures kolejki przy forced shutdown i pomijanie anulowanych zadań — testy.
+- [x] Zerowanie hasła po synchronicznej/asynchronicznej awarii odczytu storage — testy.
+- [x] Końcowy admission po kosztownej pracy offline/premium; testy późnego bana, odmowy,
+  awarii providera i disconnect bez zwolnienia PRE_AUTH.
+- [ ] Walidacja końcowego admission z rzeczywistym CleanerX/PunisherX na Folia/Velocity.
+- [ ] Rozwiązać limit dystrybucji portable Velocity: JAR przekracza 20 MiB BuildExplorer.
+
+Procedury, wyniki i zakres weryfikacji: [walidacja wydania](13-release-validation.md).

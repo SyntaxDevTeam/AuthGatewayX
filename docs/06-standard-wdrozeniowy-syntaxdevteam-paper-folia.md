@@ -1049,3 +1049,11 @@ Komenda alts i alerty proxy wymagają permisji oraz uwierzytelnienia administrat
 Dla offline służy osobny, jednorazowy podpisany dowód ACTIVE z backendu, obsługiwany
 na EntityScheduler Paper/Folia. Nie zastępuje premium handoff ani sesji auth.
 Szczegóły i aktualne ograniczenia: [kontrole na proxy](09-proxy-risk-admission.md).
+
+## Weryfikacja 2026-10-10
+
+Build używa przypiętego Paper dev bundle `26.2.build.129-stable`. Zmiany guarda admission,
+rejestru sesji i executora nie dodają platformowego API do kodu wspólnego ani JDBC/HTTP/Argon2
+do ownership threadów. UI pozostaje na EntityScheduler; rzeczywiste testy Folia są otwarte.
+Forced shutdown kończy futures z kolejki zamiast je porzucać. Benchmarki, procedury
+platformowe i zakres wykonanych testów: [walidacja wydania](13-release-validation.md).

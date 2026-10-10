@@ -37,13 +37,7 @@ class BoundedTaskExecutor(
     fun <T> submit(task: () -> T): CompletableFuture<T> {
         val result = CompletableFuture<T>()
         try {
-            executor.execute {
-                try {
-                    result.complete(task())
-                } catch (failure: Throwable) {
-                    result.completeExceptionally(failure)
-                }
-            }
+            executor.execute(PendingTask(result, task))
         } catch (rejected: RejectedExecutionException) {
             result.completeExceptionally(rejected)
         }
@@ -53,11 +47,31 @@ class BoundedTaskExecutor(
     fun shutdown(timeout: Duration): Boolean {
         executor.shutdown()
         if (executor.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS)) return true
-        executor.shutdownNow()
+        executor.shutdownNow().forEach { queued ->
+            (queued as PendingTask<*>).reject()
+        }
         return executor.awaitTermination(timeout.toMillis(), TimeUnit.MILLISECONDS)
     }
 
     override fun close() {
         shutdown(Duration.ofSeconds(5))
+    }
+
+    private class PendingTask<T>(
+        private val result: CompletableFuture<T>,
+        private val task: () -> T,
+    ) : Runnable {
+        override fun run() {
+            if (result.isDone) return
+            try {
+                result.complete(task())
+            } catch (failure: Throwable) {
+                result.completeExceptionally(failure)
+            }
+        }
+
+        fun reject() {
+            result.completeExceptionally(RejectedExecutionException("Executor stopped before task started"))
+        }
     }
 }

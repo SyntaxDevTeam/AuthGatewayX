@@ -2867,8 +2867,9 @@ nicku. `premium.authentication.maximum-concurrent-handshakes` ogranicza równole
 weryfikacje kryptograficzne. Implementacja kompiluje się, testy jednostkowe przechodzą,
 a runtime osiąga `READY` na Paper 26.2 build 121. Usunięto wyścig instalacji handlera
 Netty przez synchroniczną instalację w `channelActive`; test LOGIN dla `WieszczY`
-potwierdził zwrócenie `0x01 Encryption Request`. Przed zaznaczeniem kompletnego premium
-loginu wymagany pozostaje test pełnej sesji rzeczywistym klientem oraz test Folia.
+potwierdził zwrócenie `0x01 Encryption Request`. Roadmapa odnotowuje późniejszy test pełnego premium loginu dla wcześniejszego
+środowiska. Po przypięciu build 129 wymagany jest test regresyjny rzeczywistym
+klientem na tej wersji oraz test Folia.
 
 Dla połączenia skierowanego do premium handshake adapter zastępuje dokładnie vanilla
 `multiplayer.disconnect.unverified_username` komunikatem MessageHandler
@@ -2893,9 +2894,9 @@ wygaśnięcie albo rozbieżność kończą połączenie. Moduł korzysta z
 `ProxySyntaxCore.initVelocity` i MessageHandler-Velocity oraz zamyka własny executor na
 `ProxyShutdownEvent`.
 
-Nie jest to jeszcze kompletna integracja proxy-backend. Następny etap musi przekazać
-zweryfikowany principal premium do Paper przez uwierzytelniony, odporny na replay kanał.
-Zwykła wiadomość pluginowa bez podpisu nie może zdejmować izolacji PRE_AUTH.
+Bieżący handoff premium do Paper opiera się na zabezpieczonym Velocity modern
+forwarding i zgodności official UUID, jak opisano w dokumencie 07. Zwykła wiadomość
+pluginowa nie może zdejmować PRE_AUTH. Testy całego wdrożenia proxy/backend pozostają otwarte.
 
 ## 23. Aktualny priorytet rozwoju
 
@@ -2966,7 +2967,7 @@ sesję offline, usuwa ją wraz z indeksami concurrent-login, zapisuje zdarzenie
 Ponowne wejście wymaga pełnego logowania. Kanoniczna lista prac pozostałych do wydania
 znajduje się w `08-roadmap-do-1.0.0.md`.
 
-Paper dev bundle został przypięty do zweryfikowanego `26.2.build.121-stable`; usunięto
+Paper dev bundle jest obecnie przypięty do zweryfikowanego buildem `26.2.build.129-stable`; usunięto
 dynamiczne `26.2.build.+`, aby konfiguracja i build nie zależały od bieżących metadanych
 repozytorium.
 
@@ -3163,3 +3164,20 @@ na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracz
 To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
 Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
 Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
+
+## Aktualizacja 2026-10-10 — testy i benchmarki wydania
+
+Obowiązuje przypięty Paper dev bundle `26.2.build.129-stable`; stare wzmianki build 121
+opisują historyczne testy, a nie aktualną zależność. Runtime używa końcowego
+AccountActivationGuard po kosztownej pracy offline/premium i przed ACTIVE, z tą samą
+polityką CleanerX/PunisherX, audytem i neutralnym MessageHandler feedbackiem.
+Rejestr sesji serializuje clear/activate, executor kończy futures usunięte z kolejki,
+LoginService zeruje hasło także po błędzie storage, ConnectionFloodGate wygasza
+nieaktywne IP po pełnym odtworzeniu tokenów.
+
+Dodano testy wyścigów auth/lifecycle/późnego bana, wspólny kontrakt atomowości czterech
+baz, jawne skip lokalnych niekonfigurowanych baz i obowiązkowe silniki w CI.
+Uruchomiono bounded benchmark realnego Argon2 i guardów, przygotowano loopback-only
+harness LOGIN oraz macierz ręcznych testów. Nie zamknięto niewykonanych testów
+Folia/Velocity, zdalnych kontraktów ani pełnego stress testu. Portable Velocity nadal
+przekracza limit publikacji 20 MiB. Szczegóły: [walidacja wydania](13-release-validation.md).

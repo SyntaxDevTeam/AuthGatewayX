@@ -75,6 +75,7 @@ jobs:
 
       - name: Test and build distributable JARs
         env:
+          AGX_REQUIRE_REMOTE_DATABASES: "true"
           AGX_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:33060/authgatewayx_test?useSSL=false&allowPublicKeyRetrieval=true
           AGX_TEST_MYSQL_USER: authgatewayx
           AGX_TEST_MYSQL_PASSWORD: authgatewayx
@@ -87,6 +88,14 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew clean check :authgatewayx-paper:shadowJar :authgatewayx-velocity:shadowJar --console=plain --no-daemon
+
+      - name: Verify bounded local protocol harness
+        run: python3 -m unittest discover -s tools -p 'test_*.py'
+
+      - name: Measure bounded in-process security workloads
+        run: |
+          ./gradlew :authgatewayx-security:securityBenchmark --console=plain --no-daemon
+          cat authgatewayx-security/build/reports/benchmarks/security.json
 
       - name: Verify Paper distributable JAR
         run: |

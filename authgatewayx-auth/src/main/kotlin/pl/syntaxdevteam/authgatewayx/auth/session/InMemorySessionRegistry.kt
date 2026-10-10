@@ -15,6 +15,7 @@ class InMemorySessionRegistry : SessionRegistry {
     private val activeAccounts = ConcurrentHashMap<AccountId, ConnectionId>()
     private val activeMinecraftIds = ConcurrentHashMap<UUID, ConnectionId>()
 
+    @Synchronized
     override fun create(session: AuthSession): Boolean =
         sessions.putIfAbsent(session.connectionId, AtomicReference(session)) == null
 
@@ -23,9 +24,11 @@ class InMemorySessionRegistry : SessionRegistry {
     override fun getActive(minecraftUuid: UUID): AuthSession? =
         activeMinecraftIds[minecraftUuid]?.let(::get)?.takeIf { it.isActive() }
 
+    @Synchronized
     override fun enterPreAuth(connectionId: ConnectionId): AuthSession =
         update(connectionId, AuthSession::enterPreAuth)
 
+    @Synchronized
     override fun activate(
         connectionId: ConnectionId,
         accountId: AccountId,
@@ -59,6 +62,7 @@ class InMemorySessionRegistry : SessionRegistry {
         }
     }
 
+    @Synchronized
     override fun disconnect(connectionId: ConnectionId): AuthSession? {
         val ref = sessions[connectionId] ?: return null
         synchronized(ref) {
@@ -72,6 +76,7 @@ class InMemorySessionRegistry : SessionRegistry {
         }
     }
 
+    @Synchronized
     override fun clear() {
         sessions.clear()
         activeAccounts.clear()

@@ -26,6 +26,8 @@ Dokument kompletnej dokumentacji agreguje decyzje z dokumentów tematycznych, al
 sekcje stanu implementacji muszą być aktualizowane razem z kodem. W razie rozbieżności
 obowiązuje nowsza, bardziej szczegółowa i jawnie uzasadniona decyzja.
 
+Procedury testowe i pomiary lokalne: [walidacja wydania i benchmarki](13-release-validation.md).
+
 ## Stan ogólny
 
 Projekt jest aktywnym `1.0.0-WIP`, a nie gotowym wydaniem. Istnieją fundament domenowy,
@@ -36,9 +38,10 @@ Velocity oraz bezpieczny handoff zweryfikowanej tożsamości
 premium z Velocity do Paper oparty o zgodność oficjalnego UUID z UUID przekazanym przez
 Velocity modern forwarding. Paper posiada także ograniczony pamięciowo, ważony scoring
 zachowania IP łączący połączenia, różne nicki, nieudane auth i rozłączenia PRE_AUTH.
-Otwarte pozostają między innymi test rzeczywistym klientem premium adaptera standalone,
-testy serwerowe Purpur/Folia/Velocity, pozostałe backendy JDBC, kompletne anti-bot,
-integracje CleanerX/PunisherX i obserwowalność.
+Roadmapa odnotowuje testy premium oraz Paper/Purpur dla wcześniejszego środowiska.
+Przypięcie do build 129 wymaga ponownego testu rzeczywistym klientem. Otwarte pozostają
+testy serwerowe Folia/Velocity, pełna równoważność JDBC, testy obciążeniowe, rozszerzenia
+PunisherX i obserwowalność. CleanerX oraz adapter banów UUID PunisherX są już wdrożone.
 
 Checkbox `[x]` wolno ustawić dopiero po wdrożeniu, integracji i weryfikacji danego
 elementu w zakresie wymaganym przez dokumentację.

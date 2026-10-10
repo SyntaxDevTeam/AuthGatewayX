@@ -34,7 +34,10 @@ class RemoteJdbcPremiumMigrationTest {
             remote("MARIADB", JdbcDatabaseType.MARIADB),
             remote("POSTGRESQL", JdbcDatabaseType.POSTGRESQL),
         )
-        if (cases.isEmpty()) return
+        if (System.getenv("AGX_REQUIRE_REMOTE_DATABASES") == "true") {
+            assertEquals(3, cases.size, "Release CI requires all three remote databases")
+        }
+        org.junit.jupiter.api.Assumptions.assumeTrue(cases.isNotEmpty(), "Remote databases not configured")
 
         cases.forEach(::exercise)
     }

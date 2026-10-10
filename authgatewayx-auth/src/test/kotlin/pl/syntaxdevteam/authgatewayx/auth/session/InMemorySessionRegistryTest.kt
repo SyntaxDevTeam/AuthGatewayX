@@ -11,6 +11,7 @@ import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
@@ -18,6 +19,31 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class InMemorySessionRegistryTest {
+    @Test
+    fun `shutdown racing activation cannot leave orphan active indexes`() {
+        val callers = Executors.newFixedThreadPool(2)
+        try {
+            repeat(100) {
+                val registry = InMemorySessionRegistry()
+                val session = connecting("RacePlayer")
+                val uuid = UUID.randomUUID()
+                registry.create(session)
+                registry.enterPreAuth(session.connectionId)
+                val start = CountDownLatch(1)
+                val activation = callers.submit {
+                    start.await()
+                    runCatching { registry.activate(session.connectionId, AccountId.random(), uuid,
+                        IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, now) }
+                }
+                val clearing = callers.submit { start.await(); registry.clear() }
+                start.countDown()
+                activation.get(2, TimeUnit.SECONDS)
+                clearing.get(2, TimeUnit.SECONDS)
+                assertEquals(0, registry.size())
+                assertNull(registry.getActive(uuid))
+            }
+        } finally { callers.shutdownNow() }
+    }
     private val now = Instant.parse("2026-08-30T10:00:00Z")
 
     @Test

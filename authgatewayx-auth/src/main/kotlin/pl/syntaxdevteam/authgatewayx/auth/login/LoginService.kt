@@ -48,7 +48,13 @@ class LoginService(
             audit(username, sourceAddress, null, SecurityEventType.LOGIN_FAILURE, "RATE_LIMITED")
             return CompletableFuture.completedFuture(LoginResult.RateLimited)
         }
-        return storage.findCredentials(username).thenCompose { credentials ->
+        val lookup = try {
+            storage.findCredentials(username)
+        } catch (failure: Exception) {
+            password.fill('\u0000')
+            return CompletableFuture.failedFuture(failure)
+        }
+        return lookup.thenCompose { credentials ->
             val now = clock.instant()
             if (credentials?.lockedUntil?.isAfter(now) == true) {
                 password.fill('\u0000')
@@ -57,7 +63,7 @@ class LoginService(
             } else {
                 verifyAndComplete(username, sourceAddress, password, credentials, now)
             }
-        }
+        }.whenComplete { _, _ -> password.fill('\u0000') }
     }
 
     private fun verifyAndComplete(

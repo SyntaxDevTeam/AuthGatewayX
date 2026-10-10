@@ -116,6 +116,7 @@ class AuthenticationDialogRouter(
                     is VerifiedMojangAuthenticationResult.MigrationInProgress ->
                         player.kick(migrationInProgressMessage)
                     VerifiedMojangAuthenticationResult.IdentityConflict -> player.kick(identityConflictMessage)
+                    VerifiedMojangAuthenticationResult.AccessDenied -> player.kick(integrationDeniedMessage)
                 }
             })
         }
