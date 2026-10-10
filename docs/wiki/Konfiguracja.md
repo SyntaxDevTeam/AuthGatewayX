@@ -183,3 +183,10 @@ Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekret
 Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
 [instrukcja kontroli proxy](../09-proxy-risk-admission.md). Opcje alertów opisane
 powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+
+Diagnostyka samodzielnego Paper: ustaw `premium.authentication.diagnostics.enabled: true`
+i zrestartuj serwer. `maximum-lines-per-minute` domyślnie wynosi 120. Linie
+`[premium-diag]` pokazują trace, czasy lookup/handshake, stany NMS, sloty i odmowy,
+bez nicków, IP, UUID i sekretów. Podsumowania co 30 s zawierają także suppressed/dropped.
+Próba klientem i weryfikacja ACTIVE/UUID są nadal wymagane. [Procedura i ograniczenia](../13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).

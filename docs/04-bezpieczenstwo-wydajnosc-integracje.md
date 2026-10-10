@@ -806,3 +806,14 @@ queued futures, błąd odczytu storage zeruje hasło, clear/activate nie pozosta
 osieroconych indeksów. ConnectionFloodGate wygasza wyłącznie nieaktywne IP po czasie
 nie krótszym niż pełne odtworzenie tokenów; aktywne limity i globalny bucket są zachowane.
 Szczegółowe koszty, decyzje, ograniczenia i testy: [walidacja wydania](13-release-validation.md).
+
+
+## Aktualizacja — diagnostyka i Paper 26.3 (2026-10-10)
+
+Aktualny cel to przypięty `26.3.build.169-beta`, API 26.3 i Java 25. Wzmianki o
+startach/testach 26.2 build 121 są historyczne. NMS skompilowano i przetestowano na
+26.3; rzeczywiste testy klientem oraz Folia/Purpur/Velocity pozostają odrębnymi bramkami.
+Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy etapów,
+zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
+na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
+Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).

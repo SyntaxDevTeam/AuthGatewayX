@@ -16,7 +16,8 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - [x] Paper standalone premium lookup i rozpoczęcie natywnego szyfrowanego handshake.
 - [x] Podstawowy selektor online/offline w module Velocity.
 - [x] Paper lifecycle: loader, bootstrap, composition root i Lifecycle Commands API.
-- [x] Powtarzalny Paper dev bundle przypięty do `26.2.build.129-stable` zamiast wersji dynamicznej; build i testy lokalne 2026-10-10.
+- [x] Opt-in bounded diagnostyka handshake standalone: czasy, sloty, odmowy i liczniki; testy JVM, bez danych graczy.
+- [x] Powtarzalny Paper dev bundle przypięty do `26.3.build.169-beta` zamiast wersji dynamicznej; build i testy JVM lokalne 2026-10-10; wydanie dev bundle jest beta.
 - [x] Konfigurowalne runtime JDBC dla SQLite, MySQL, MariaDB i PostgreSQL wraz z
   dialektami migracji, slotów rejestracji i sterownikami PluginLoader.
 - [x] CleanerX przez publiczne API `ServicesManager` oraz kontraktowy
@@ -30,7 +31,7 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 
 - [X] Wykonać pełny login premium rzeczywistym klientem i potwierdzić official UUID,
   profil oraz brak fallbacku offline na każdej ścieżce błędu — wcześniejsze środowisko.
-- [ ] Powtórzyć test premium rzeczywistym klientem na przypiętym Paper build 129.
+- [ ] Powtórzyć test premium rzeczywistym klientem na przypiętym Paper 26.3 build 169-beta.
 - [ ] Dokończyć i przetestować migrację konta `OFFLINE -> MOJANG`, w tym konflikt nazwy,
   konflikt UUID, równoległe logowania oraz audit migracji.
   - Gate migracyjny, weryfikacja starego hasła, trwałe tickety UPGRADE/RECOVERY, historia UUID,

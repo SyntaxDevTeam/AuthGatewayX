@@ -566,7 +566,7 @@ Moduł `authgatewayx-auth` ma wyłącznie kompilacyjną zależność
 `org.jetbrains:annotations:26.1.0`. Zapewnia ona IDE dostęp do adnotacji nullability
 obecnych w sygnaturach Javy; nie jest biblioteką runtime ani częścią ścieżki auth.
 
-Paper dev bundle jest przypięty do `26.2.build.121-stable`. Wersja dynamiczna
+Paper dev bundle jest przypięty do `26.3.build.169-beta`. Wersja dynamiczna
 `26.2.build.+` powodowała niepowtarzalne konfiguracje Gradle i awarię buildu przy
 chwilowym braku metadanych repozytorium.
 
@@ -616,7 +616,7 @@ potwierdził odpowiedź `0x01 Encryption Request` zamiast wejścia do ścieżki 
 Liczbę jednoczesnych handshake'ów premium ogranicza
 `premium.authentication.maximum-concurrent-handshakes`. Adapter kompiluje się i startuje
 na Paper 26.2 build 121. Roadmapa odnotowuje późniejszy pełny test premium dla
-wcześniejszego środowiska; po przypięciu build 129 wymagany jest test regresyjny
+wcześniejszego środowiska; po przypięciu 26.3 build 169-beta wymagany jest test regresyjny
 rzeczywistym klientem na tej konkretnej wersji. Standalone LOGIN
 wykonuje teraz `ConnectionFloodGate`, walidację `AccountUsername`,
 `ConnectionBehaviorGate` oraz `UsernameBurstGate` przed pierwszym
@@ -811,8 +811,19 @@ Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
 
 ## Aktualizacja 2026-10-10 — weryfikacja release
 
-Dev bundle: `26.2.build.129-stable`. Dodano AccountActivationGuard przed ACTIVE,
+Dev bundle: `26.3.build.169-beta`. Dodano AccountActivationGuard przed ACTIVE,
 serializację clear/activate rejestru sesji, zakończenie queued futures przy forced shutdown,
 zerowanie hasła przy błędzie odczytu storage i wygaszanie IP ConnectionFloodGate.
 Testy współbieżności i awarii, kontrakt czterech backendów oraz benchmarki opisuje
 [walidacja wydania](13-release-validation.md). Wyniki lokalne nie zamykają Folia/Velocity.
+
+
+## Aktualizacja — diagnostyka i Paper 26.3 (2026-10-10)
+
+Aktualny cel to przypięty `26.3.build.169-beta`, API 26.3 i Java 25. Wzmianki o
+startach/testach 26.2 build 121 są historyczne. NMS skompilowano i przetestowano na
+26.3; rzeczywiste testy klientem oraz Folia/Purpur/Velocity pozostają odrębnymi bramkami.
+Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy etapów,
+zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
+na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
+Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).

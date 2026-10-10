@@ -6,7 +6,7 @@ version: '${version}'
 main: pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
 loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
-api-version: '26.2'
+api-version: '26.3'
 load: STARTUP
 has-open-classloader: false
 

@@ -18,6 +18,11 @@ premium:
     # expensive authentication work to accumulate.
     # Increase only when the server has enough CPU/network capacity and legitimate login bursts require it.
     maximum-concurrent-handshakes: 32
+    # Opt-in handshake traces and aggregate counters. Requires restart.
+    # No usernames, addresses, UUIDs or authentication secrets are logged.
+    diagnostics:
+      enabled: false
+      maximum-lines-per-minute: 120
 
   lookup:
     # Maximum time, in milliseconds, AuthGatewayX waits for Minecraft Services/Mojang

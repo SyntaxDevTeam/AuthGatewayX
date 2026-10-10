@@ -392,7 +392,7 @@ Docelowy kierunek:
 name: AuthGatewayX
 version: ${version}
 main: pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
-api-version: '26.2'
+api-version: '26.3'
 folia-supported: true
 
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
@@ -1017,7 +1017,7 @@ usuwa snapshot oraz sesję, więc reconnect nie dziedziczy starego stanu.
 Listener blokuje wszystkie komendy PRE_AUTH. Natywne dialogi nie wymagają komend z
 hasłem, a pełna blokada eliminuje obejścia przez aliasy i namespace.
 
-Klasy kwarantanny kompilują się przeciw Paper 26.2 i są rejestrowane w composition
+Klasy kwarantanny kompilują się przeciw Paper 26.3 i są rejestrowane w composition
 root przed przejściem runtime do `READY`. Test regresyjny pilnuje obecności wymaganych
 handlerów i ich priorytetów. Checkboxy ochrony świata i Folia pozostają otwarte do
 testów serwerowych oraz audytu plugin messaging na granicy proxy/backend.
@@ -1052,8 +1052,19 @@ Szczegóły i aktualne ograniczenia: [kontrole na proxy](09-proxy-risk-admission
 
 ## Weryfikacja 2026-10-10
 
-Build używa przypiętego Paper dev bundle `26.2.build.129-stable`. Zmiany guarda admission,
+Build używa przypiętego Paper dev bundle `26.3.build.169-beta`. Zmiany guarda admission,
 rejestru sesji i executora nie dodają platformowego API do kodu wspólnego ani JDBC/HTTP/Argon2
 do ownership threadów. UI pozostaje na EntityScheduler; rzeczywiste testy Folia są otwarte.
 Forced shutdown kończy futures z kolejki zamiast je porzucać. Benchmarki, procedury
 platformowe i zakres wykonanych testów: [walidacja wydania](13-release-validation.md).
+
+
+## Aktualizacja — diagnostyka i Paper 26.3 (2026-10-10)
+
+Aktualny cel to przypięty `26.3.build.169-beta`, API 26.3 i Java 25. Wzmianki o
+startach/testach 26.2 build 121 są historyczne. NMS skompilowano i przetestowano na
+26.3; rzeczywiste testy klientem oraz Folia/Purpur/Velocity pozostają odrębnymi bramkami.
+Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy etapów,
+zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
+na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
+Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).

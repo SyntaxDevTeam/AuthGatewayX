@@ -8,7 +8,7 @@ WIKI opisuje **AuthGatewayX 1.0.0-WIP**. WIP oznacza wersję w rozwoju. Zachęca
 
 | Platforma | Stan obecnej wersji |
 | --- | --- |
-| Paper | Główna wersja pluginu; przygotowana dla 26.2, z buildem 121 jako punktem odniesienia |
+| Paper | Główna wersja pluginu; kompilacja i testy JVM dla 26.3 build 169-beta; test serwerowy tej wersji pozostaje otwarty |
 | Purpur | Ten sam wariant pluginu co Paper; testuj na pasującej wersji serwera |
 | Folia | Zgodność jest rozwijana; nie jest jeszcze zatwierdzona do użycia |
 | Velocity | Osobny wariant testowy; pełna weryfikacja sieci pozostaje otwarta |

@@ -12,6 +12,7 @@ import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileIdentityLo
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookupResult
 import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
 import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginGuardDecision
+import pl.syntaxdevteam.authgatewayx.paper.premium.PremiumHandshakeDiagnostics.Event
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.function.Consumer
@@ -28,24 +29,31 @@ internal class StandalonePremiumLoginListener(
     private val rateLimitedMessage: Component,
     private val overloadedMessage: Component,
     private val invalidSessionMessage: Component,
+    private val diagnostics: PremiumHandshakeDiagnostics.Trace?,
     private val onFailure: Consumer<Throwable>,
 ) : ServerLoginPacketListenerImpl(minecraftServer, connection, transferred) {
     private val lookupStarted = AtomicBoolean()
     private val capacityHeld = AtomicBoolean()
     private val premiumAuthenticationAttempted = AtomicBoolean()
 
+    private var previousState: State? = null
+
     override fun handleHello(packet: ServerboundHelloPacket) {
         if (!lookupStarted.compareAndSet(false, true)) {
+            diagnostics?.record(Event.INVALID_HELLO)
             disconnect(PaperAdventure.asVanilla(unavailableMessage))
             return
         }
+        diagnostics?.record(Event.START)
         val sourceAddress = (connection.channel.remoteAddress() as? InetSocketAddress)?.address
         if (sourceAddress == null) {
+            diagnostics?.record(Event.INVALID_HELLO)
             disconnect(PaperAdventure.asVanilla(unavailableMessage))
             return
         }
         val guardResult = cheapGuard.evaluateProtocol(sourceAddress, packet.name())
         if (guardResult.decision != PaperLoginGuardDecision.ALLOW) {
+            diagnostics?.record(Event.GUARD_DENIED, guard = guardResult.decision)
             val message = if (guardResult.decision == PaperLoginGuardDecision.DENY_INVALID_USERNAME) {
                 unavailableMessage
             } else {
@@ -58,16 +66,24 @@ internal class StandalonePremiumLoginListener(
             disconnect(PaperAdventure.asVanilla(unavailableMessage))
             return
         }
+        diagnostics?.record(Event.LOOKUP_START)
         premiumLookup.lookupProfile(username).whenComplete { result, failure ->
             connection.channel.eventLoop().execute {
-                if (!connection.isConnected || connection.packetListener !== this) return@execute
+                if (!connection.isConnected || connection.packetListener !== this) {
+                    diagnostics?.record(Event.LATE_LOOKUP)
+                    return@execute
+                }
                 if (failure != null || result == null || result == MojangProfileLookupResult.Unavailable) {
+                    diagnostics?.record(Event.LOOKUP_UNAVAILABLE)
                     failure?.let(onFailure::accept)
                     disconnect(PaperAdventure.asVanilla(unavailableMessage))
                     return@execute
                 }
                 when (result) {
-                    MojangProfileLookupResult.NotPremium -> super.handleHello(packet)
+                    MojangProfileLookupResult.NotPremium -> {
+                        diagnostics?.record(Event.LOOKUP_OFFLINE, terminalEvent = true)
+                        super.handleHello(packet)
+                    }
                     is MojangProfileLookupResult.Premium -> beginPremiumAuthentication(packet)
                     MojangProfileLookupResult.Unavailable -> disconnect(PaperAdventure.asVanilla(unavailableMessage))
                 }
@@ -76,12 +92,15 @@ internal class StandalonePremiumLoginListener(
     }
 
     private fun beginPremiumAuthentication(packet: ServerboundHelloPacket) {
+        diagnostics?.record(Event.LOOKUP_PREMIUM)
         premiumAuthenticationAttempted.set(true)
         if (!capacity.tryAcquire()) {
+            diagnostics?.record(Event.CAPACITY_DENIED)
             disconnect(PaperAdventure.asVanilla(overloadedMessage))
             return
         }
         capacityHeld.set(true)
+        diagnostics?.record(Event.SLOT_ACQUIRED)
         requestedUuid = packet.profileId()
         requestedUsername = packet.name()
         state = State.KEY
@@ -97,21 +116,36 @@ internal class StandalonePremiumLoginListener(
 
     override fun tick() {
         super.tick()
-        if (state != State.KEY && state != State.AUTHENTICATING) releaseCapacity()
+        if (state != previousState) {
+            // Only an enum transition is counted, never arbitrary packet or exception content.
+            diagnostics?.record(Event.NATIVE_STATE, state = PremiumHandshakeDiagnostics.NativeState.valueOf(state.name))
+            previousState = state
+        }
+        if (capacityHeld.get() && state != State.KEY && state != State.AUTHENTICATING) {
+            releaseCapacity()
+            diagnostics?.record(Event.NATIVE_VERIFIED, terminalEvent = true)
+        }
         if (!connection.isConnected) releaseCapacity()
     }
 
     override fun onDisconnect(details: net.minecraft.network.DisconnectionDetails) {
         releaseCapacity()
+        diagnostics?.record(Event.DISCONNECTED, terminalEvent = true)
         super.onDisconnect(details)
     }
 
     private fun releaseCapacity() {
-        if (capacityHeld.compareAndSet(true, false)) capacity.release()
+        if (capacityHeld.compareAndSet(true, false)) {
+            capacity.release()
+            diagnostics?.record(Event.SLOT_RELEASED)
+        }
     }
 
     internal fun rewriteDisconnect(packet: ClientboundLoginDisconnectPacket): ClientboundLoginDisconnectPacket {
+        val key = (packet.reason().contents as? net.minecraft.network.chat.contents.TranslatableContents)?.key
+        if (key == "multiplayer.disconnect.slow_login") diagnostics?.record(Event.TIMEOUT)
         if (!premiumAuthenticationAttempted.get()) return packet
+        if (key == "multiplayer.disconnect.unverified_username") diagnostics?.record(Event.NATIVE_DENIED)
         val reason = replaceInvalidPremiumSessionReason(packet.reason(), invalidSessionMessage)
         return if (reason === packet.reason()) packet else ClientboundLoginDisconnectPacket(reason)
     }

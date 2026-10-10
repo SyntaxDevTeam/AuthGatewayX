@@ -28,9 +28,16 @@ internal class StandalonePremiumProtocolInterceptor(
     private val rateLimitedMessage: Component,
     private val overloadedMessage: Component,
     private val invalidSessionMessage: Component,
+    diagnosticsEnabled: Boolean,
+    diagnosticsMaximumLinesPerMinute: Int,
+    diagnosticSink: (String) -> Unit,
     private val onFailure: Consumer<Throwable>,
 ) : AutoCloseable {
     private val capacity = PremiumHandshakeCapacity(maximumConcurrentHandshakes)
+    private val diagnostics = PremiumHandshakeDiagnostics(
+        diagnosticsEnabled, diagnosticsMaximumLinesPerMinute, capacity::active,
+        maximumConcurrentHandshakes, diagnosticSink,
+    )
     private val parentHandlerName = "authgatewayx-standalone-premium-acceptor"
     private val childBootstrapHandlerName = "authgatewayx-standalone-premium-bootstrap"
     private val childHandlerName = "authgatewayx-standalone-premium-login"
@@ -46,6 +53,7 @@ internal class StandalonePremiumProtocolInterceptor(
             server.connection.connections.forEach { installChildHandler(it.channel) }
         } catch (failure: Throwable) {
             cheapGuard.deactivateStandaloneProtocolOwnership()
+            diagnostics.close()
             throw failure
         }
     }
@@ -116,7 +124,7 @@ internal class StandalonePremiumProtocolInterceptor(
             connection,
             StandalonePremiumLoginListener(
                 server, connection, original.transferred, premiumLookup, cheapGuard, capacity,
-                unavailableMessage, rateLimitedMessage, overloadedMessage, invalidSessionMessage, onFailure,
+                unavailableMessage, rateLimitedMessage, overloadedMessage, invalidSessionMessage, diagnostics.newTrace(), onFailure,
             ),
         )
     }
@@ -151,5 +159,6 @@ internal class StandalonePremiumProtocolInterceptor(
             }
         }
         installedParents.clear()
+        diagnostics.close()
     }
 }

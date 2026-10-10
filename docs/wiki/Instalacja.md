@@ -4,7 +4,7 @@
 
 ## Zanim zaczniesz
 
-Przygotuj serwer testowy Minecraft Java Edition, dostęp do jego plików i konsoli oraz Javę 25. Obecny plugin jest przygotowany dla Paper 26.2; punktem odniesienia jest build 121. Informacje o Purpur, Folia i Velocity znajdziesz w [zgodności](Zgodnosc.md).
+Przygotuj serwer testowy Minecraft Java Edition, dostęp do jego plików i konsoli oraz Javę 25. Obecny plugin jest przygotowany dla Paper 26.3 build 169-beta; wymagane są nowe testy klientem i platformowe. Informacje o Purpur, Folia i Velocity znajdziesz w [zgodności](Zgodnosc.md).
 
 Serwer potrzebuje dostępu do internetu, aby pobrać wymagane biblioteki i sprawdzać konta premium. Gracze potrzebują klienta obsługującego okna logowania Minecrafta. Na pierwszą próbę użyj wersji gry zgodnej z serwerem.
 

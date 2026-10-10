@@ -18,8 +18,11 @@ internal class PremiumHandshakeCapacity(private val maximum: Int) {
     }
 
     fun release() {
-        val remaining = active.decrementAndGet()
-        check(remaining >= 0) { "premium handshake capacity released more than once" }
+        while (true) {
+            val current = active.get()
+            check(current > 0) { "premium handshake capacity released more than once" }
+            if (active.compareAndSet(current, current - 1)) return
+        }
     }
 
     fun active(): Int = active.get()

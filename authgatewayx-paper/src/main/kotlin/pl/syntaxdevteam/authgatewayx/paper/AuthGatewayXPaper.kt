@@ -578,6 +578,11 @@ class AuthGatewayXPaper : JavaPlugin() {
                     messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
                     messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_overloaded"),
                     messages.stringMessageToComponentNoPrefix("auth", "premium_session_invalid"),
+                    config.getBoolean("premium.authentication.diagnostics.enabled", false),
+                    config.getInt("premium.authentication.diagnostics.maximum-lines-per-minute", 120).also {
+                        require(it > 0) { "premium.authentication.diagnostics.maximum-lines-per-minute must be positive" }
+                    },
+                    { line -> SyntaxCore.logger.info(line) },
                 ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
                 premiumProtocol.install()
                 runtime?.premiumProtocol = premiumProtocol

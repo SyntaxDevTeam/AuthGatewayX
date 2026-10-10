@@ -2329,7 +2329,7 @@ Docelowy kierunek:
 name: AuthGatewayX
 version: ${version}
 main: pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
-api-version: '26.2'
+api-version: '26.3'
 folia-supported: true
 
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
@@ -2868,7 +2868,7 @@ weryfikacje kryptograficzne. Implementacja kompiluje się, testy jednostkowe prz
 a runtime osiąga `READY` na Paper 26.2 build 121. Usunięto wyścig instalacji handlera
 Netty przez synchroniczną instalację w `channelActive`; test LOGIN dla `WieszczY`
 potwierdził zwrócenie `0x01 Encryption Request`. Roadmapa odnotowuje późniejszy test pełnego premium loginu dla wcześniejszego
-środowiska. Po przypięciu build 129 wymagany jest test regresyjny rzeczywistym
+środowiska. Po przypięciu 26.3 build 169-beta wymagany jest test regresyjny rzeczywistym
 klientem na tej wersji oraz test Folia.
 
 Dla połączenia skierowanego do premium handshake adapter zastępuje dokładnie vanilla
@@ -2967,7 +2967,7 @@ sesję offline, usuwa ją wraz z indeksami concurrent-login, zapisuje zdarzenie
 Ponowne wejście wymaga pełnego logowania. Kanoniczna lista prac pozostałych do wydania
 znajduje się w `08-roadmap-do-1.0.0.md`.
 
-Paper dev bundle jest obecnie przypięty do zweryfikowanego buildem `26.2.build.129-stable`; usunięto
+Paper dev bundle jest obecnie przypięty do zweryfikowanego buildem `26.3.build.169-beta`; usunięto
 dynamiczne `26.2.build.+`, aby konfiguracja i build nie zależały od bieżących metadanych
 repozytorium.
 
@@ -3167,7 +3167,7 @@ Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
 
 ## Aktualizacja 2026-10-10 — testy i benchmarki wydania
 
-Obowiązuje przypięty Paper dev bundle `26.2.build.129-stable`; stare wzmianki build 121
+Obowiązuje przypięty Paper dev bundle `26.3.build.169-beta`; stare wzmianki build 121
 opisują historyczne testy, a nie aktualną zależność. Runtime używa końcowego
 AccountActivationGuard po kosztownej pracy offline/premium i przed ACTIVE, z tą samą
 polityką CleanerX/PunisherX, audytem i neutralnym MessageHandler feedbackiem.
@@ -3181,3 +3181,14 @@ Uruchomiono bounded benchmark realnego Argon2 i guardów, przygotowano loopback-
 harness LOGIN oraz macierz ręcznych testów. Nie zamknięto niewykonanych testów
 Folia/Velocity, zdalnych kontraktów ani pełnego stress testu. Portable Velocity nadal
 przekracza limit publikacji 20 MiB. Szczegóły: [walidacja wydania](13-release-validation.md).
+
+
+## Aktualizacja — diagnostyka i Paper 26.3 (2026-10-10)
+
+Aktualny cel to przypięty `26.3.build.169-beta`, API 26.3 i Java 25. Wzmianki o
+startach/testach 26.2 build 121 są historyczne. NMS skompilowano i przetestowano na
+26.3; rzeczywiste testy klientem oraz Folia/Purpur/Velocity pozostają odrębnymi bramkami.
+Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy etapów,
+zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
+na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
+Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).
