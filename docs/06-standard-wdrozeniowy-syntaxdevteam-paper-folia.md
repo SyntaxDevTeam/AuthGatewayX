@@ -1068,3 +1068,17 @@ Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy et
 zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
 na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
 Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).
+
+
+## Naprawa pakietu wejściowego CI — 2026-10-10
+
+Przebieg [38077964789](https://github.com/SyntaxDevTeam/AuthGatewayX/actions/runs/38077964789)
+przeszedł `clean check` i budowę obu JAR-ów, ale zatrzymał się na harnessie Python:
+`ImportError: Start directory is not importable: 'tools'`. Skrypty istniały lokalnie,
+lecz nie były śledzone w commicie. Pakiet zmiany zawiera teraz
+`tools/benchmark_local_login.py`, `tools/test_benchmark_local_login.py` oraz brakujący
+`13-release-validation.md`. Workflow po checkout sprawdza `git ls-files --error-unmatch`
+dla tych plików; krok unittest odmawia sukcesu przy zerowej liczbie testów.
+Weryfikacja naprawy musi używać kopii plików śledzonych (indeks Git), a nie całego
+katalogu roboczego z lokalnymi nieśledzonymi plikami. Nie zmienia to auth, schedulerów
+ani limitów harnessu. Zdalny przebieg nowego commita i publikacja pozostają do potwierdzenia.

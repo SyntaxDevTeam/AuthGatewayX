@@ -3192,3 +3192,13 @@ Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy et
 zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
 na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
 Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).
+
+
+## Naprawa CI — pliki lokalne a commit (2026-10-10)
+
+Build/test Gradle na 26.3 przechodził w CI, ale harness Python nie był w commicie.
+Skrypty `tools/benchmark_local_login.py` i `tools/test_benchmark_local_login.py` oraz
+instrukcje/raporty pomiarów są częścią pakietu Git. Workflow sprawdza wymagane pliki
+śledzone po checkout, a unittest musi odkryć co najmniej jeden test. Weryfikacja z kopii
+indeksu zapobiega zależności od nieśledzonych lokalnych plików.
+Szczegóły: [walidacja wydania](13-release-validation.md#naprawa-brakujacych-plikow-harnessu-w-ci).

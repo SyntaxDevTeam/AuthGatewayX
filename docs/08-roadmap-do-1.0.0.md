@@ -25,6 +25,8 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - [x] PunisherX przez kontraktowy `PunishmentProvider` oraz kompatybilny fallback
   obecnego publicznego API aktywnych kar po UUID.
 
+- [x] Skrypty harnessu i instrukcje w pakiecie Git; CI kontroluje brak plików i zero odkrytych testów, zweryfikowano kopię indeksu.
+
 ## Blokery wydania 1.0.0
 
 ### Uwierzytelnianie i bezpieczeństwo kont
@@ -95,8 +97,9 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
   migracji tożsamości: v8, UPGRADE, RECOVERY i równoległa idempotentna finalizacja.
 - [ ] Zapewnić i zweryfikować pełną równoważność atomowości rejestracji, limitów IP, lockoutu
   i compare-and-set hasła na każdym backendzie; migracja tożsamości ma już osobne testy multi-DB.
-  Wspólny StorageAtomicityContractTest przechodzi lokalnie dla SQLite; trzy zdalne warianty
-  są przygotowane, lecz wymagają wykonania w CI. Brak konfiguracji jest widocznym skip,
+  Wspólny StorageAtomicityContractTest przeszedł lokalnie dla SQLite i w CI 38077964789
+  dla trzech zdalnych wariantów. Pełna równoważność pozostaje wymaganiem szerszym niż ten
+  zestaw scenariuszy. Brak konfiguracji jest widocznym skip,
   a AGX_REQUIRE_REMOTE_DATABASES=true w CI zamienia brak dowolnego silnika w błąd.
 - [ ] Dodać test awarii połączenia/puli w trakcie migracji; recovery po przerwaniu procesu,
   trwały retry oraz blokada logowania przy niedokończonym rollbacku są już pokryte.

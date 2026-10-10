@@ -1,0 +1,88 @@
+{
+  "generated_at": "2026-10-10T18:11:46.811212804Z",
+  "java": "25.0.4.1",
+  "os": "Linux",
+  "arch": "amd64",
+  "processors": 16,
+  "max_heap_bytes": 536870912,
+  "argon2": {
+    "iterations": 3,
+    "memory_kib": 65536,
+    "parallelism": 1
+  },
+  "queue": {
+    "workers": 2,
+    "capacity": 4,
+    "submitted": 32,
+    "accepted": 6,
+    "rejected": 26,
+    "maximum_worker_argon2_memory_kib": 131072
+  },
+  "pipeline_expensive_calls": 128,
+  "measurements": [
+    {
+      "name": "argon2_hash",
+      "samples": 20,
+      "p50_ms": 108.012496,
+      "p95_ms": 123.997063,
+      "p99_ms": 137.059576,
+      "operations_per_second": 9.207730514419293
+    },
+    {
+      "name": "argon2_verify_valid",
+      "samples": 20,
+      "p50_ms": 99.202289,
+      "p95_ms": 103.105195,
+      "p99_ms": 104.004423,
+      "operations_per_second": 10.055020175503559
+    },
+    {
+      "name": "argon2_verify_invalid",
+      "samples": 20,
+      "p50_ms": 99.486842,
+      "p95_ms": 103.675316,
+      "p99_ms": 104.234211,
+      "operations_per_second": 9.97855483335449
+    },
+    {
+      "name": "cheap_guard_pipeline_mixed_addresses",
+      "samples": 100000,
+      "p50_ms": 0.000131,
+      "p95_ms": 0.000284,
+      "p99_ms": 0.000767,
+      "operations_per_second": 4208448.494019331
+    },
+    {
+      "name": "username_burst_and_reconnect",
+      "samples": 100000,
+      "p50_ms": 0.001643,
+      "p95_ms": 0.003108,
+      "p99_ms": 0.004869,
+      "operations_per_second": 813658.4548702426
+    },
+    {
+      "name": "behavior_failed_auth_and_disconnect",
+      "samples": 100000,
+      "p50_ms": 0.001928,
+      "p95_ms": 0.003123,
+      "p99_ms": 0.010352,
+      "operations_per_second": 759954.0337242978
+    },
+    {
+      "name": "registration_gate",
+      "samples": 100000,
+      "p50_ms": 0.000362,
+      "p95_ms": 0.001785,
+      "p99_ms": 0.00329,
+      "operations_per_second": 1889634.9629633436
+    },
+    {
+      "name": "argon2_bounded_queue_end_to_end",
+      "samples": 6,
+      "p50_ms": 204.748512,
+      "p95_ms": 314.356845,
+      "p99_ms": 314.356845,
+      "operations_per_second": 18.840704805143403
+    }
+  ]
+}

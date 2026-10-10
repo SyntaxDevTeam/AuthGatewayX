@@ -64,6 +64,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      - name: Verify required CI inputs are tracked
+        run: |
+          git ls-files --error-unmatch \
+            tools/benchmark_local_login.py \
+            tools/test_benchmark_local_login.py \
+            docs/13-release-validation.md > /dev/null
+
       - name: Set up Java
         uses: actions/setup-java@v6
         with:
@@ -90,7 +97,16 @@ jobs:
           ./gradlew clean check :authgatewayx-paper:shadowJar :authgatewayx-velocity:shadowJar --console=plain --no-daemon
 
       - name: Verify bounded local protocol harness
-        run: python3 -m unittest discover -s tools -p 'test_*.py'
+        run: |
+          python3 - <<'PY'
+          import unittest
+
+          suite = unittest.defaultTestLoader.discover("tools", pattern="test_*.py")
+          if suite.countTestCases() == 0:
+              raise SystemExit("No local protocol harness tests discovered")
+          result = unittest.TextTestRunner(verbosity=2).run(suite)
+          raise SystemExit(0 if result.wasSuccessful() else 1)
+          PY
 
       - name: Measure bounded in-process security workloads
         run: |
