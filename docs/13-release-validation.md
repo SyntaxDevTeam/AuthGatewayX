@@ -1,5 +1,10 @@
 # Weryfikacja wydania i benchmarki — 2026-10-10
 
+Aktualizacja build/lifecycle 2026-10-10: obowiązuje [standard SyntaxDevTeam](14-standaryzacja-syntaxdevteam.md).
+Obecny katalog zachowuje robocze `26.3.build.+`; wcześniejsze przypięcie 169-beta i jego
+wyniki testów opisują poprzednią walidację. Composition root jest w platformowych
+`PluginInitializer.kt`, a loader Paper nazywa się `SyntaxLoader`.
+
 Ten dokument opisuje wykonane poprawki, automatyczne testy i procedury pomiaru.
 Kanoniczne bramki pełnego wydania pozostają w `08-roadmap-do-1.0.0.md`.
 Wynik jednostkowy lub lokalny benchmark nie zamyka testu serwerowego Folia/Velocity.
@@ -245,7 +250,7 @@ Nie zastępują próby protokołowej rzeczywistym klientem.
 Końcowa weryfikacja po zmianach diagnostyki i wersji: `./gradlew check build --console=plain`
 — sukces; raporty JUnit: 218 przypadków, 214 przeszło, 4 pominięte (zdalne bazy),
 0 failures/errors. Nowe testy diagnostyki: 5; dodatkowe testy capacity: 2.
-Artefakt Paper: `authgatewayx-paper/build/libs/AuthGatewayX-1.0.0-WIP.jar`.
+Artefakt Paper: `authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-WIP.jar`.
 Nie uruchamiano serwera 26.3 ani klienta; potwierdzono kompilację i testy JVM.
 
 

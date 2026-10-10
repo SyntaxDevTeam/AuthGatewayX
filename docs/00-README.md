@@ -27,6 +27,7 @@ sekcje stanu implementacji muszą być aktualizowane razem z kodem. W razie rozb
 obowiązuje nowsza, bardziej szczegółowa i jawnie uzasadniona decyzja.
 
 Procedury testowe i pomiary lokalne: [walidacja wydania i benchmarki](13-release-validation.md).
+Aktualny build, lifecycle i biblioteki: [standaryzacja SyntaxDevTeam](14-standaryzacja-syntaxdevteam.md).
 
 ## Stan ogólny
 

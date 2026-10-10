@@ -1,5 +1,10 @@
 # AuthGatewayX 1.0.0 — kompletna dokumentacja koncepcyjna
 
+Aktualizacja build/lifecycle 2026-10-10: obowiązuje [standard SyntaxDevTeam](14-standaryzacja-syntaxdevteam.md).
+Obecny katalog zachowuje robocze `26.3.build.+`; wcześniejsze przypięcie 169-beta i jego
+wyniki testów opisują poprzednią walidację. Composition root jest w platformowych
+`PluginInitializer.kt`, a loader Paper nazywa się `SyntaxLoader`.
+
 Dokument zbiorczy obejmujący koncepcję ogólną, założenia praktyczne, techniczne,
 bezpieczeństwo, wydajność, integracje, standard wdrożeniowy SyntaxDevTeam oraz zakres 1.0.0.
 
@@ -1092,7 +1097,7 @@ Przykład:
 
 ```yaml
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
-loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 folia-supported: true
 ```
 
@@ -2202,7 +2207,7 @@ authgatewayx-paper/src/main/resources/
 Należy utworzyć klasę np.:
 
 ```text
-pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 ```
 
 implementującą:
@@ -2226,7 +2231,7 @@ Schemat:
 Paper starts
    |
    v
-AuthGatewayXLoader
+SyntaxLoader
    |
    v
 read paper-libraries.yml
@@ -2254,7 +2259,7 @@ MavenLibraryResolver
 Przykład wpisu:
 
 ```yaml
-loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 ```
 
 ---
@@ -2333,7 +2338,7 @@ api-version: '26.3'
 folia-supported: true
 
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
-loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 has-open-classloader: false
 ```
 

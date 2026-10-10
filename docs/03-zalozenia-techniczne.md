@@ -1,5 +1,10 @@
 # AuthGatewayX 1.0.0 — założenia techniczne
 
+Aktualizacja build/lifecycle 2026-10-10: obowiązuje [standard SyntaxDevTeam](14-standaryzacja-syntaxdevteam.md).
+Obecny katalog zachowuje robocze `26.3.build.+`; wcześniejsze przypięcie 169-beta i jego
+wyniki testów opisują poprzednią walidację. Composition root jest w platformowych
+`PluginInitializer.kt`, a loader Paper nazywa się `SyntaxLoader`.
+
 ## 1. Proponowana architektura modułów
 
 ```text
@@ -456,7 +461,7 @@ Przykład:
 
 ```yaml
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
-loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 folia-supported: true
 ```
 

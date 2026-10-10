@@ -1,13 +1,12 @@
 plugins {
-    kotlin("jvm") version libs.versions.kotlin.get()
+    kotlin("jvm")
 }
 
 repositories { mavenCentral() }
 
 dependencies {
     api(project(":authgatewayx-domain"))
-    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlin.test)
 }
 
-kotlin { jvmToolchain(25) }
 tasks.test { useJUnitPlatform() }

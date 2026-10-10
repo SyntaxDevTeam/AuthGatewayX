@@ -1,4 +1,4 @@
-plugins { kotlin("jvm") version libs.versions.kotlin.get() }
+plugins { kotlin("jvm") }
 repositories { mavenCentral() }
 dependencies {
     implementation(project(":authgatewayx-storage-api"))
@@ -14,7 +14,6 @@ dependencies {
     testRuntimeOnly(libs.mariadb.jdbc)
     testRuntimeOnly(libs.postgresql.jdbc)
     testImplementation(libs.sqlite.jdbc)
-    testImplementation(kotlin("test"))
+    testImplementation(libs.kotlin.test)
 }
-kotlin { jvmToolchain(25) }
 tasks.test { useJUnitPlatform() }

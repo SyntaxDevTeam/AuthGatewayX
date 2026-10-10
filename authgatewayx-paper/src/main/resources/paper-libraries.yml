@@ -1,10 +1,15 @@
+repositories:
+  syntaxdevteam-snapshots: https://nexus.syntaxdevteam.pl/repository/maven-snapshots/
+  syntaxdevteam-releases: https://nexus.syntaxdevteam.pl/repository/maven-releases/
+  central: https://repo.papermc.io/repository/maven-central/
+
 libraries:
-  - pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT
-  - pl.syntaxdevteam:messageHandler-paper:1.2.2-R0.4-SNAPSHOT
-  - com.zaxxer:HikariCP:7.1.0
-  - org.xerial:sqlite-jdbc:3.53.2.1
-  - com.mysql:mysql-connector-j:9.4.0
-  - org.mariadb.jdbc:mariadb-java-client:3.5.6
-  - org.postgresql:postgresql:42.7.8
-  - de.mkammerer:argon2-jvm:2.12
-  - com.google.code.gson:gson:2.14.0
+  - ${syntaxcore}
+  - ${messagehandler}
+  - ${hikari}
+  - ${sqlite}
+  - ${mysql}
+  - ${mariadb}
+  - ${postgresql}
+  - ${argon2}
+  - ${gson}

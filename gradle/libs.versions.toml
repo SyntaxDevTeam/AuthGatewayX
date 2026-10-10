@@ -1,7 +1,13 @@
 [versions]
-kotlin = "2.4.20-RC2"
+kotlin = "2.4.20"
+java = "25"
+syntaxcore = "1.4.1-R0.1-SNAPSHOT"
+messagehandler = "1.2.2-R0.4-SNAPSHOT"
+luckperms = "5.5"
+gson = "2.14.0"
+snakeyaml = "2.5"
 
-paper-api = "26.3.build.169-beta"
+paper-api = "26.3.build.+"
 minecraft = "26.3"
 
 paperweight-userdev = "2.0.0-beta.23"
@@ -26,8 +32,16 @@ postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgre
 argon2-jvm = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
 jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }
+syntaxcore = { module = "pl.syntaxdevteam:syntaxcore", version.ref = "syntaxcore" }
+messagehandler-paper = { module = "pl.syntaxdevteam:messageHandler-paper", version.ref = "messagehandler" }
+messagehandler-velocity = { module = "pl.syntaxdevteam:messageHandler-velocity", version.ref = "messagehandler" }
+luckperms-api = { module = "net.luckperms:api", version.ref = "luckperms" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 
 [plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight-userdev" }
 shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
 run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-task" }

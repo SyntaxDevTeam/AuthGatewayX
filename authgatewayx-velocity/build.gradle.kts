@@ -1,13 +1,22 @@
 plugins {
-    kotlin("jvm") version libs.versions.kotlin.get()
+    kotlin("jvm")
     alias(libs.plugins.shadow)
 }
 
 repositories {
     mavenCentral()
-    maven("https://repo.papermc.io/repository/maven-public/")
-    maven("https://nexus.syntaxdevteam.pl/repository/maven-snapshots/")
-    maven("https://nexus.syntaxdevteam.pl/repository/maven-releases/")
+    maven("https://repo.papermc.io/repository/maven-public/") {
+        name = "paperPublic"
+        content { includeGroup("com.velocitypowered") }
+    }
+    maven("https://nexus.syntaxdevteam.pl/repository/maven-snapshots/") {
+        name = "syntaxSnapshots"
+        content { includeGroup("pl.syntaxdevteam") }
+    }
+    maven("https://nexus.syntaxdevteam.pl/repository/maven-releases/") {
+        name = "syntaxReleases"
+        content { includeGroup("pl.syntaxdevteam") }
+    }
 }
 
 dependencies {
@@ -20,19 +29,17 @@ dependencies {
     implementation(libs.mysql.jdbc)
     implementation(libs.mariadb.jdbc)
     implementation(libs.postgresql.jdbc)
-    implementation("com.google.code.gson:gson:2.14.0")
-    testImplementation(kotlin("test"))
+    implementation(libs.gson)
+    testImplementation(libs.kotlin.test)
     testImplementation(libs.velocity.api)
     implementation(project(":authgatewayx-security"))
     implementation(project(":authgatewayx-integrations"))
-    implementation("pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT")
-    implementation("pl.syntaxdevteam:messageHandler-velocity:1.2.2-R0.4-SNAPSHOT")
-    implementation("org.yaml:snakeyaml:2.5")
+    implementation(libs.syntaxcore)
+    implementation(libs.messagehandler.velocity)
+    implementation(libs.snakeyaml)
 
     implementation(libs.kotlin.stdlib)
 }
-
-kotlin { jvmToolchain(25) }
 
 tasks {
     jar {
@@ -47,8 +54,10 @@ tasks {
         filesMatching("velocity-plugin.json") { expand(props) }
     }
     shadowJar {
+        archiveBaseName.set("AuthGatewayX-Velocity")
         archiveClassifier.set("")
         mergeServiceFiles()
+        filesMatching("META-INF/*.kotlin_module") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }
         filesMatching("META-INF/services/**") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     }

@@ -94,7 +94,7 @@ jobs:
           AGX_TEST_POSTGRESQL_PASSWORD: authgatewayx
         run: |
           chmod +x ./gradlew
-          ./gradlew clean check :authgatewayx-paper:shadowJar :authgatewayx-velocity:shadowJar --console=plain --no-daemon
+          ./gradlew clean buildAll --console=plain --no-daemon
 
       - name: Verify bounded local protocol harness
         run: |
@@ -115,10 +115,10 @@ jobs:
 
       - name: Verify Paper distributable JAR
         run: |
-          jar="$(find authgatewayx-paper/build/libs -maxdepth 1 -name 'AuthGatewayX-*.jar' ! -name '*-plain.jar' | head -n 1)"
+          jar="$(find authgatewayx-paper/build/libs -maxdepth 1 -name 'AuthGatewayX-Paper-*.jar' ! -name '*-plain.jar' | head -n 1)"
           test -n "${jar}"
           unzip -p "${jar}" paper-plugin.yml > paper-plugin-check.yml
-          grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader$' paper-plugin-check.yml
+          grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader$' paper-plugin-check.yml
           unzip -Z1 "${jar}" > paper-jar-entries.txt
           grep -Fxq 'pl/syntaxdevteam/authgatewayx/storage/jdbc/JdbcAccountStorage.class' paper-jar-entries.txt
 

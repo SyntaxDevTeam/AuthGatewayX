@@ -1,5 +1,10 @@
 # AuthGatewayX 1.0.0 — standard wdrożeniowy SyntaxDevTeam, Paper i Folia
 
+Aktualizacja build/lifecycle 2026-10-10: obowiązuje [standard SyntaxDevTeam](14-standaryzacja-syntaxdevteam.md).
+Obecny katalog zachowuje robocze `26.3.build.+`; wcześniejsze przypięcie 169-beta i jego
+wyniki testów opisują poprzednią walidację. Composition root jest w platformowych
+`PluginInitializer.kt`, a loader Paper nazywa się `SyntaxLoader`.
+
 ## 1. Cel
 
 Implementacja AuthGatewayX 1.0.0 powinna wzorować się na strukturze i dobrych praktykach rozwijanych w `SyntaxDevTeam/PunisherX`, jednocześnie eliminując rozwiązania, które nie są optymalne dla krytycznego systemu uwierzytelniania.
@@ -265,7 +270,7 @@ authgatewayx-paper/src/main/resources/
 Należy utworzyć klasę np.:
 
 ```text
-pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 ```
 
 implementującą:
@@ -289,7 +294,7 @@ Schemat:
 Paper starts
    |
    v
-AuthGatewayXLoader
+SyntaxLoader
    |
    v
 read paper-libraries.yml
@@ -317,7 +322,7 @@ MavenLibraryResolver
 Przykład wpisu:
 
 ```yaml
-loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 ```
 
 ---
@@ -396,7 +401,7 @@ api-version: '26.3'
 folia-supported: true
 
 bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
-loader: pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 has-open-classloader: false
 ```
 
@@ -898,7 +903,7 @@ Klasy modułu Paper używają docelowej przestrzeni nazw:
 ```text
 pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
 pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap
-pl.syntaxdevteam.authgatewayx.paper.loader.AuthGatewayXLoader
+pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader
 ```
 
 `PaperPlatformScheduler` posiada osobne operacje async, global, entity i region.

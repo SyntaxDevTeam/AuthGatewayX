@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version libs.versions.kotlin.get()
+    kotlin("jvm")
     alias(libs.plugins.paperweight.userdev)
     alias(libs.plugins.shadow)
     alias(libs.plugins.run.paper)
@@ -7,8 +7,14 @@ plugins {
 
 repositories {
     mavenCentral()
-    maven("https://nexus.syntaxdevteam.pl/repository/maven-snapshots/")
-    maven("https://nexus.syntaxdevteam.pl/repository/maven-releases/")
+    maven("https://nexus.syntaxdevteam.pl/repository/maven-snapshots/") {
+        name = "syntaxSnapshots"
+        content { includeGroup("pl.syntaxdevteam") }
+    }
+    maven("https://nexus.syntaxdevteam.pl/repository/maven-releases/") {
+        name = "syntaxReleases"
+        content { includeGroup("pl.syntaxdevteam") }
+    }
 }
 
 dependencies {
@@ -21,13 +27,25 @@ dependencies {
     implementation(project(":authgatewayx-storage-api"))
     implementation(project(":authgatewayx-integrations"))
     implementation(libs.kotlin.stdlib)
-    compileOnly("pl.syntaxdevteam:syntaxcore:1.4.1-R0.1-SNAPSHOT")
-    compileOnly("pl.syntaxdevteam:messageHandler-paper:1.2.2-R0.4-SNAPSHOT")
-    compileOnly("net.luckperms:api:5.5")
-    testImplementation(kotlin("test"))
+    compileOnly(libs.syntaxcore)
+    compileOnly(libs.messagehandler.paper)
+    compileOnly(libs.luckperms.api)
+    compileOnly(libs.snakeyaml)
+    testImplementation(libs.kotlin.test)
 }
 
-kotlin { jvmToolchain(25) }
+val runtimeLibraries = mapOf(
+    "syntaxcore" to libs.syntaxcore.get().toString(),
+    "messagehandler" to libs.messagehandler.paper.get().toString(),
+    "hikari" to libs.hikari.get().toString(),
+    "sqlite" to libs.sqlite.jdbc.get().toString(),
+    "mysql" to libs.mysql.jdbc.get().toString(),
+    "mariadb" to libs.mariadb.jdbc.get().toString(),
+    "postgresql" to libs.postgresql.jdbc.get().toString(),
+    "argon2" to libs.argon2.jvm.get().toString(),
+    "gson" to libs.gson.get().toString(),
+)
+val pluginVersion = project.version.toString()
 
 tasks {
     build { dependsOn(shadowJar) }
@@ -39,14 +57,32 @@ tasks {
     }
 
     processResources {
-        val props = mapOf("version" to version)
+        val libraries = runtimeLibraries
+        val props = mapOf("version" to pluginVersion)
+        inputs.properties(props + libraries)
         filesMatching("paper-plugin.yml") { expand(props) }
+        filesMatching("paper-libraries.yml") { expand(libraries) }
     }
 
     shadowJar {
-        archiveBaseName.set("AuthGatewayX")
-        duplicatesStrategy = DuplicatesStrategy.INCLUDE
+        archiveBaseName.set("AuthGatewayX-Paper")
+        duplicatesStrategy = DuplicatesStrategy.EXCLUDE
         archiveClassifier.set("")
+        mergeServiceFiles()
+        filesMatching("META-INF/services/**") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }
+        filesMatching("META-INF/*.kotlin_module") { duplicatesStrategy = DuplicatesStrategy.INCLUDE }
+        dependencies {
+            // Paper PluginLoader supplies these libraries, including native JDBC/Argon2 resources.
+            exclude(dependency("pl.syntaxdevteam:syntaxcore"))
+            exclude(dependency("pl.syntaxdevteam:messageHandler-paper"))
+            exclude(dependency("com.zaxxer:HikariCP"))
+            exclude(dependency("org.xerial:sqlite-jdbc"))
+            exclude(dependency("com.mysql:mysql-connector-j"))
+            exclude(dependency("org.mariadb.jdbc:mariadb-java-client"))
+            exclude(dependency("org.postgresql:postgresql"))
+            exclude(dependency("de.mkammerer:.*"))
+            exclude(dependency("com.google.code.gson:gson"))
+        }
     }
 
     test { useJUnitPlatform() }
