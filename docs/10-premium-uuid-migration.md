@@ -188,3 +188,60 @@ Dla providerów z licznikami (PlotsX, HorseManagerX, PunisherX) kody są rozbija
 liczby rekordów. Skan niezarządzanych pluginów raportuje przykładową względną ścieżkę pliku,
 który przekroczył budżet lub zawiera stare UUID. Dzięki temu administrator widzi zarówno
 przyczynę blokady, jak i sposób jej usunięcia bez zgadywania znaczenia kodu.
+
+## Przygotowanie istniejącego konta OFFLINE do testu klientem
+
+Blokada wejścia klientem offline pod nickiem premium pozostaje włączona. Historyczne
+konto OFFLINE o tym samym nicku jest poprawnym stanem wejściowym migracji. Po natywnej
+weryfikacji właściciela premium `AuthenticationDialogRouter` wybiera `MigrationRequired`,
+a dialog wymaga starego hasła. Stan wejściowy można przygotować poza działającym serwerem.
+
+Generator działa wyłącznie na test classpath; nie jest komendą pluginu ani częścią
+artefaktów Paper/Velocity. Nie dodaje bypassu lookupu, Mojang authentication ani PRE_AUTH.
+Używa rzeczywistego `JdbcAccountStorage.registerOffline`, migracji schematu i produkcyjnych
+parametrów Argon2id. Nie wykonuje HTTP/DNS ani weryfikacji, czy podany nick jest premium.
+
+```bash
+./gradlew :authgatewayx-storage-jdbc:createOfflineMigrationFixture \
+  -PfixtureUsername=TwojNickPremium --console=plain
+```
+
+Wskazać nick własnego konta premium z zachowaniem wielkości liter. Task tworzy nowy
+losowy podkatalog w `build/test-fixtures/premium-migration/`; nie przyjmuje istniejącego
+JDBC URL ani ścieżki docelowej bazy serwera. Każda próba ma nowy account_id i hasło.
+Zawartość:
+
+- `authgatewayx.db` — konto OFFLINE ze starym UUID obliczonym przez `OfflineIdentity`,
+  hashem Argon2id i syntetycznym adresem dokumentacyjnym 192.0.2.1;
+- `test-password.txt` — losowe hasło testowe do wpisania w dialog migracji;
+- `fixture.json` — nick, account_id, source UUID i nazwy plików, bez hasła i jego hasha.
+
+Hasło nie trafia do argumentów, zmiennych środowiskowych ani stdout. Na POSIX katalog
+ma uprawnienia 700, baza i plik hasła 600; na innych systemach obowiązują lokalne ACL.
+Katalog `build` jest ignorowany przez Git. Hasło służy wyłącznie temu fixture.
+
+Procedura:
+
+1. Przy zatrzymanym, osobnym serwerze testowym ustawić `storage.type: SQLITE` oraz
+   `storage.sqlite-file: authgatewayx.db`. Skopiować bazę fixture do jego katalogu
+   `plugins/AuthGatewayX/`. Plik musi być czytelny dla użytkownika uruchamiającego serwer.
+2. Do pełnego testu danych świata/pluginów przygotować także dane poprzedniego gracza
+   pod `source_minecraft_uuid` z `fixture.json`, zachowując ten sam nick i case.
+   Można użyć osobnego wcześniejszego środowiska offline lub kontrolowanego backupu
+   testowego. Generator nie tworzy NBT, ekwipunku ani danych zewnętrznych pluginów.
+3. Włączyć diagnostykę handshake, uruchomić serwer z ochroną premium i wejść prawdziwym
+   klientem premium. Oczekiwane: natywna weryfikacja Mojang, PRE_AUTH oraz dialog
+   starego hasła; brak automatycznej aktywacji konta przed migracją.
+4. Sprawdzić odmowę błędnego starego hasła, następnie podać poprawne hasło testowe.
+   Oczekiwane: PREPARED, rozłączenie, migracja providerów i COMPLETED. W razie konfliktu
+   dane mają pozostać chronione; użyć istniejącego inspect/recovery.
+5. Po ponownym wejściu sprawdzić MOJANG, official UUID, ACTIVE, usunięcie hasha offline,
+   historię tożsamości i audit. Sprawdzić także zachowanie przygotowanego ekwipunku,
+   danych świata i obsługiwanych pluginów oraz rollback w osobnej próbie awarii.
+6. Próba klientem offline pod tym samym nickiem ma nadal zakończyć się DENY.
+
+Testy generatora sprawdzają ponowne otwarcie bazy, hasło/Argon2, OFFLINE UUID,
+`MigrationRequired` bez zmiany starej tożsamości i hasha, prywatność pliku hasła,
+brak nadpisania istniejącej bazy i odrzucenie niepoprawnego nicku. Symulowana verified
+identity w teście storage nie stanowi dowodu natywnego Mojang authentication.
+Pełny test serwerowy pozostaje otwarty do wykonania i zapisania wyników powyższej procedury.

@@ -832,3 +832,14 @@ Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy et
 zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
 na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
 Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).
+
+
+## Fixture migracji OFFLINE → MOJANG — 2026-10-11
+
+Task `:authgatewayx-storage-jdbc:createOfflineMigrationFixture` przygotowuje wyłącznie
+nową bazę SQLite w losowym katalogu `build/test-fixtures/premium-migration`. Używa
+produkcyjnego Argon2id i registerOffline, zapisuje hasło testowe poza logami. Kod znajduje
+się w test source set; nie trafia do JAR pluginu ani nie zmienia auth/API/konfiguracji
+runtime. Ochrona nicków premium i weryfikacja natywna pozostają obowiązkowe.
+Testy generatora nie zamykają testów klientem/providerów/Folia/Velocity.
+[Procedura przygotowania i testu](10-premium-uuid-migration.md#przygotowanie-istniejacego-konta-offline-do-testu-klientem).

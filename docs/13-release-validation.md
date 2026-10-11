@@ -269,3 +269,17 @@ Weryfikacja poprawki lokalnie: cztery testy Python z kopii plików indeksu Git �
 pusta suite — oczekiwana odmowa; `securityBenchmark` — sukces; dokładne kroki kontroli
 zawartości JAR-ów Paper i Velocity z workflow — sukces. Nie uruchamiano uploadu ani
 zdalnego przebiegu dla poprawki; wymaga on nowego commita i push.
+
+
+## Stan początkowy migracji — 2026-10-11
+
+Przygotowano generator świeżej bazy SQLite z kontem OFFLINE, offline UUID i prawdziwym
+hashem Argon2id, bez wyłączania ochrony nicków premium. Narzędzie działa na test classpath,
+poza dystrybucją pluginów. Pełna próba wymaga własnego klienta premium oraz danych
+świata/pluginów pod source UUID. [Instrukcja](10-premium-uuid-migration.md#przygotowanie-istniejacego-konta-offline-do-testu-klientem).
+
+Weryfikacja tego etapu: trzy nowe testy generatora przeszły, `buildAll` zakończył się
+sukcesem (217 zaliczonych, 4 pominięte zdalne bazy, 0 błędów). Task generatora uruchomiono
+na syntetycznym nicku FixtureUser; utworzył nowy katalog i osobną bazę. Sprawdzono brak
+klas fixture w obu JAR-ach dystrybucyjnych. Nie wykonywano logowania klientem premium
+ani nie modyfikowano serwerów/katalogu run; pełny test migracji nadal pozostaje otwarty.

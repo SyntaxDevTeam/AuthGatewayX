@@ -34,6 +34,8 @@ Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktuali
 - [X] Wykonać pełny login premium rzeczywistym klientem i potwierdzić official UUID,
   profil oraz brak fallbacku offline na każdej ścieżce błędu — wcześniejsze środowisko.
 - [ ] Powtórzyć test premium rzeczywistym klientem na przypiętym Paper 26.3 build 169-beta.
+- [x] Generator osobnej bazy OFFLINE do testu właścicielem premium, bez wyłączania
+  ochrony nicków; walidacja hasła/UUID, MigrationRequired i braku nadpisania bazy.
 - [ ] Dokończyć i przetestować migrację konta `OFFLINE -> MOJANG`, w tym konflikt nazwy,
   konflikt UUID, równoległe logowania oraz audit migracji.
   - Gate migracyjny, weryfikacja starego hasła, trwałe tickety UPGRADE/RECOVERY, historia UUID,
