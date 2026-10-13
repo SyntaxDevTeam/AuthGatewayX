@@ -53,15 +53,21 @@ class PremiumHandshakeDiagnosticsTest {
     fun `rate limit preserves counters and resets after a minute`() {
         val time = AtomicLong()
         val lines = CopyOnWriteArrayList<String>()
+        val tracesWritten = CountDownLatch(2)
         val finished = CountDownLatch(1)
         val diagnostics = PremiumHandshakeDiagnostics(true, 1, { 0 }, 2, {
             lines += it
-            if (it.contains("summary")) finished.countDown()
+            if ("trace=" in it) tracesWritten.countDown()
+            // Advancing the clock also triggers periodic summaries before the queue drains.
+            if ("summary" in it && "START=1" in it && "CAPACITY_DENIED=20" in it && "suppressed=19" in it) {
+                finished.countDown()
+            }
         }, time::get)
         repeat(20) { diagnostics.newTrace()!!.record(Event.CAPACITY_DENIED) }
         time.set(TimeUnit.MINUTES.toNanos(1))
         diagnostics.newTrace()!!.record(Event.START)
         diagnostics.close()
+        assertTrue(tracesWritten.await(3, TimeUnit.SECONDS), "Both permitted traces must reach the sink")
         assertTrue(finished.await(3, TimeUnit.SECONDS))
         assertEquals(2, lines.count { "trace=" in it })
         assertTrue(lines.last().contains("CAPACITY_DENIED=20"))

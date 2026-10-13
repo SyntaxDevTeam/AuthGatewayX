@@ -253,6 +253,25 @@ Końcowa weryfikacja po zmianach diagnostyki i wersji: `./gradlew check build --
 Artefakt Paper: `authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-WIP.jar`.
 Nie uruchamiano serwera 26.3 ani klienta; potwierdzono kompilację i testy JVM.
 
+### Naprawa wyścigu w teście limitu diagnostyki — 2026-10-13
+
+`PremiumHandshakeDiagnosticsTest` oczekiwał na dowolne podsumowanie loggera.
+Przesunięcie kontrolowanego zegara o minutę uruchamia również podsumowanie okresowe,
+które może zostać zapisane przed opróżnieniem kolejki. Wtedy asercja liczby trace
+widziała tylko jeden z dwóch dozwolonych wpisów i losowo zatrzymywała CI.
+
+Test czeka teraz osobno na zapis obu trace i na podsumowanie zawierające końcowe
+liczniki `START=1`, `CAPACITY_DENIED=20`, `suppressed=19`. Zachowano asercję dokładnie
+dwóch wpisów oraz bounded timeout, bez sleep ani uzależnienia od kolejności threadów.
+Zmiana dotyczy wyłącznie testu; auth, limity runtime, kolejka i shutdown są niezmienione.
+Nie dodano I/O na threadach gry ani zależności platformowych; brak wpływu na ochronę
+premium/PRE_AUTH oraz runtime Paper/Purpur/Folia/Velocity.
+
+- [x] `./gradlew clean buildAll --console=plain` — sukces; raporty JUnit: 221 przypadków,
+  0 failures/errors, 4 pominięte kontrakty zdalnych baz bez lokalnej konfiguracji.
+- [x] Pięć testów diagnostyki w 10 wymuszonych przebiegach — 50 wykonań, wszystkie
+  przeszły (task `test` z `outputs.upToDateWhen { false }` przez tymczasowy init script).
+
 
 ## Naprawa brakujących plików harnessu w CI
 
