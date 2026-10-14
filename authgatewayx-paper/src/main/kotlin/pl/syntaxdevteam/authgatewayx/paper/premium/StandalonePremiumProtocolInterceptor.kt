@@ -18,6 +18,9 @@ import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
 import java.lang.reflect.Field
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.function.Consumer
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.listeningChannels
 
 internal class StandalonePremiumProtocolInterceptor(
     private val server: MinecraftServer,
@@ -41,6 +44,8 @@ internal class StandalonePremiumProtocolInterceptor(
     private val parentHandlerName = "authgatewayx-standalone-premium-acceptor"
     private val childBootstrapHandlerName = "authgatewayx-standalone-premium-bootstrap"
     private val childHandlerName = "authgatewayx-standalone-premium-login"
+    private val closed = AtomicBoolean(false)
+    private val ownedHandlers = ConcurrentHashMap<Channel, MutableMap<String, io.netty.channel.ChannelHandler>>()
     private val installedParents = CopyOnWriteArrayList<Channel>()
     private val packetListenerFields: List<Field> = Connection::class.java.declaredFields
         .filter { PacketListener::class.java.isAssignableFrom(it.type) }
@@ -49,44 +54,53 @@ internal class StandalonePremiumProtocolInterceptor(
     fun install() {
         cheapGuard.activateStandaloneProtocolOwnership()
         try {
-            listeningChannels().forEach(::installParentHandler)
+            listeningChannels(server).forEach(::installParentHandler)
             server.connection.connections.forEach { installChildHandler(it.channel) }
         } catch (failure: Throwable) {
             cheapGuard.deactivateStandaloneProtocolOwnership()
-            diagnostics.close()
+            close()
             throw failure
         }
     }
 
     private fun installParentHandler(channel: Channel) {
         channel.eventLoop().submit {
+            if (closed.get()) return@submit
             if (channel.pipeline().get(parentHandlerName) == null) {
                 val acceptor = channel.pipeline().names().firstOrNull { name ->
                     channel.pipeline().get(name)?.javaClass?.name?.contains("ServerBootstrapAcceptor") == true
                 } ?: error("Cannot locate Netty server acceptor")
-                channel.pipeline().addBefore(acceptor, parentHandlerName, object : ChannelInboundHandlerAdapter() {
+                val handler = object : ChannelInboundHandlerAdapter() {
                     override fun channelRead(context: ChannelHandlerContext, message: Any) {
                         if (message is Channel) prepareAcceptedChannel(message)
                         context.fireChannelRead(message)
                     }
-                })
+                }
+                channel.pipeline().addBefore(acceptor, parentHandlerName, handler)
+                own(channel, parentHandlerName, handler)
                 installedParents += channel
             }
         }.syncUninterruptibly()
     }
 
     private fun prepareAcceptedChannel(channel: Channel) {
-        channel.pipeline().addFirst(object : ChannelInitializer<Channel>() {
+        if (closed.get()) { channel.close(); return }
+        val initializer = object : ChannelInitializer<Channel>() {
             override fun initChannel(initialized: Channel) {
-                initialized.pipeline().addLast(childBootstrapHandlerName, object : ChannelInboundHandlerAdapter() {
+                if (closed.get()) { initialized.close(); return }
+                val handler = object : ChannelInboundHandlerAdapter() {
                     override fun channelActive(context: ChannelHandlerContext) {
                         context.pipeline().remove(this)
                         installChildHandler(context.channel())
                         context.fireChannelActive()
                     }
-                })
+                }
+                initialized.pipeline().addLast(childBootstrapHandlerName, handler)
+                own(initialized, childBootstrapHandlerName, handler)
             }
-        })
+        }
+        channel.pipeline().addFirst("authgatewayx-standalone-premium-initializer", initializer)
+        own(channel, "authgatewayx-standalone-premium-initializer", initializer)
     }
 
     private fun installChildHandler(channel: Channel) {
@@ -94,10 +108,11 @@ internal class StandalonePremiumProtocolInterceptor(
             channel.eventLoop().execute { installChildHandler(channel) }
             return
         }
+        if (closed.get()) return
         if (channel.pipeline().get(childHandlerName) != null) return
         val packetHandler = channel.pipeline().names().firstOrNull { channel.pipeline().get(it) is Connection } ?: return
         val connection = channel.pipeline().get(packetHandler) as Connection
-        channel.pipeline().addBefore(packetHandler, childHandlerName, object : ChannelDuplexHandler() {
+        val handler = object : ChannelDuplexHandler() {
             override fun channelRead(context: ChannelHandlerContext, message: Any) {
                 if (message is ServerboundHelloPacket) replaceLoginListener(connection)
                 context.fireChannelRead(message)
@@ -111,7 +126,9 @@ internal class StandalonePremiumProtocolInterceptor(
                 }
                 context.write(rewritten, promise)
             }
-        })
+        }
+        channel.pipeline().addBefore(packetHandler, childHandlerName, handler)
+        own(channel, childHandlerName, handler)
     }
 
     private fun replaceLoginListener(connection: Connection) {
@@ -129,34 +146,32 @@ internal class StandalonePremiumProtocolInterceptor(
         )
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun listeningChannels(): List<Channel> {
-        val channelFutures = server.connection.javaClass.declaredFields
-            .asSequence()
-            .filter { List::class.java.isAssignableFrom(it.type) }
-            .mapNotNull { field ->
-                field.isAccessible = true
-                (field.get(server.connection) as? List<*>)
-                    ?.takeIf { list -> list.isNotEmpty() && list.all { it is io.netty.channel.ChannelFuture } }
-            }
-            .firstOrNull()
-            ?: error("Cannot locate Paper listening channels")
-        return channelFutures.map { (it as io.netty.channel.ChannelFuture).channel() }
+    // Called on the channel event loop. Cleanup only removes the exact objects installed here.
+    private fun own(channel: Channel, name: String, handler: io.netty.channel.ChannelHandler) {
+        ownedHandlers.computeIfAbsent(channel) {
+            channel.closeFuture().addListener { ownedHandlers.remove(channel) }
+            mutableMapOf()
+        }[name] = handler
+        if (closed.get()) removeOwned(channel)
     }
 
-    override fun close() {
-        cheapGuard.deactivateStandaloneProtocolOwnership()
-        installedParents.forEach { channel ->
-            channel.eventLoop().execute {
-                if (channel.pipeline().get(parentHandlerName) != null) channel.pipeline().remove(parentHandlerName)
-            }
+    private fun removeOwned(channel: Channel) {
+        ownedHandlers.remove(channel)?.forEach { (name, handler) ->
+            if (channel.pipeline().get(name) === handler) channel.pipeline().remove(handler)
         }
-        server.connection.connections.forEach { connection ->
-            connection.channel.eventLoop().execute {
-                if (connection.channel.pipeline().get(childHandlerName) != null) {
-                    connection.channel.pipeline().remove(childHandlerName)
-                }
-            }
+    }
+
+    fun awaitTermination(timeout: java.time.Duration): Boolean = diagnostics.awaitTermination(timeout)
+
+    override fun close() {
+        if (!closed.compareAndSet(false, true)) return
+        cheapGuard.deactivateStandaloneProtocolOwnership()
+        // Drain parent removals before another generation installs the same names.
+        installedParents.forEach { channel ->
+            channel.eventLoop().submit { removeOwned(channel) }.syncUninterruptibly()
+        }
+        ownedHandlers.keys.toList().forEach { channel ->
+            channel.eventLoop().execute { removeOwned(channel) }
         }
         installedParents.clear()
         diagnostics.close()

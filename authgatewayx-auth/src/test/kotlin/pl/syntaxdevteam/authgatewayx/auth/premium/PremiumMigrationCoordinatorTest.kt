@@ -34,6 +34,9 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
+import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
+import java.util.concurrent.CompletionException
 
 class PremiumMigrationCoordinatorTest {
     private val now = Instant.parse("2026-09-27T20:00:00Z")
@@ -101,6 +104,27 @@ class PremiumMigrationCoordinatorTest {
         assertEquals(1, first.rollbacks)
         assertTrue(!storage.completed)
         assertEquals("WRITE_FAILED", storage.failureReason)
+    }
+
+    @Test
+    fun `retirement waits for external provider and rejects new inspections and migrations`() {
+        val storage = FakeStorage(ticket)
+        val base = FakeProvider("external", IdentityMigrationInspectionStatus.READY)
+        val pending = CompletableFuture<IdentityMigrationOperationResult>()
+        val provider = object : IdentityMigrationProvider by base {
+            override fun migrate(context: IdentityMigrationContext): CompletionStage<IdentityMigrationOperationResult> = pending
+        }
+        val coordinator = PremiumMigrationCoordinator(storage, CapturingAudit(), { listOf(provider) }, clock)
+        val migration = coordinator.migrate(ticket).toCompletableFuture()
+        val drained = coordinator.stopAndDrain()
+        assertFalse(drained.isDone)
+        assertFalse(storage.completed)
+        assertFailsWith<CompletionException> { coordinator.inspect(ticket).toCompletableFuture().join() }
+        assertFailsWith<CompletionException> { coordinator.migrate(ticket).toCompletableFuture().join() }
+        pending.complete(IdentityMigrationOperationResult.Success)
+        assertIs<PremiumMigrationRunResult.Completed>(migration.join())
+        assertTrue(storage.completed)
+        assertTrue(drained.isDone)
     }
 
     private class FakeProvider(

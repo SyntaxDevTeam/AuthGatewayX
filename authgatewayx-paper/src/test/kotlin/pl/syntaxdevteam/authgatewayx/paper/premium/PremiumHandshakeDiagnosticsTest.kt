@@ -69,6 +69,7 @@ class PremiumHandshakeDiagnosticsTest {
         diagnostics.close()
         assertTrue(tracesWritten.await(3, TimeUnit.SECONDS), "Both permitted traces must reach the sink")
         assertTrue(finished.await(3, TimeUnit.SECONDS))
+        assertTrue(diagnostics.awaitTermination(java.time.Duration.ofSeconds(3)))
         assertEquals(2, lines.count { "trace=" in it })
         assertTrue(lines.last().contains("CAPACITY_DENIED=20"))
         assertTrue(lines.last().contains("suppressed=19"))

@@ -780,19 +780,19 @@ Wyłączenie:
 STOP_ACCEPTING_AUTH
     |
     v
-cancel pending verification
+close client transports / invalidate runtime generation
     |
     v
 invalidate pre-auth sessions
     |
     v
-flush audit queue
-    |
-    v
-close storage pools
+ASYNC: drain admitted migrations / audit work
     |
     v
 shutdown owned executors
+    |
+    v
+close storage pools
     |
     v
 clear caches
@@ -1087,3 +1087,24 @@ dla tych plików; krok unittest odmawia sukcesu przy zerowej liczbie testów.
 Weryfikacja naprawy musi używać kopii plików śledzonych (indeks Git), a nie całego
 katalogu roboczego z lokalnymi nieśledzonymi plikami. Nie zmienia to auth, schedulerów
 ani limitów harnessu. Zdalny przebieg nowego commita i publikacja pozostają do potwierdzenia.
+
+
+## PlugManX i powtarzany lifecycle Paper — 2026-10-14
+
+Paper ma teraz osobny initializer/readiness dla każdej generacji enable i wspólne,
+odłączalne gateways komend rejestrowanych raz przez Lifecycle API. Przed bootstrapem
+instalowany jest `PaperConnectionMaintenanceGate`; STARTING/FAILED/STOPPING odrzuca
+połączenia, a unload pozostawia zamknięty guard do kolejnego load. Disable zamyka
+transport wszystkich klientów. Nowy runtime czeka na async cleanup poprzedniego;
+JDBC, executory i UUIDManager są zamykane poza threadem gry, a spóźniona inicjalizacja
+nie publikuje zasobów. SyntaxCore/MessageHandler inicjalizują się na bounded executorze
+bootstrap. Koordynator migracji odrzuca nową pracę po stopie i udostępnia drain
+trwających operacji. Błąd cleanup blokuje kolejne enable. Premium interceptor usuwa
+wyłącznie własne handlery. Komendy i feedback nie korzystają ze starego runtime.
+
+Celowy wyjątek lifecycle: minimalny zamknięty guard Netty i jego classloader pozostają
+po unloadzie dla ochrony serwera offline. Nie oznacza to pełnego zwolnienia
+classloadera; stan połączeń guardu jest czyszczony. Velocity nie zmienia lifecycle.
+Testy JVM i artefaktów przechodzą; rzeczywista macierz PlugManX/Paper/Purpur/Folia
+pozostaje otwarta. Wymagany PlugManX z obsługą natywnego Paper i konkretnego buildu.
+[Szczegóły decyzji, ograniczenia i checklista](15-plugmanx-lifecycle.md).

@@ -1,6 +1,12 @@
 package pl.syntaxdevteam.authgatewayx.paper.loader
 
 import pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.PaperConnectionMaintenanceGate
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.closeTransport
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RetiringResource
+import net.minecraft.server.MinecraftServer
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicBoolean
 
 import io.papermc.paper.configuration.GlobalConfiguration
 import net.kyori.adventure.text.Component
@@ -47,23 +53,16 @@ import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PremiumMigrationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PremiumMigrationDialogText
-import pl.syntaxdevteam.authgatewayx.paper.command.MutablePasswordCommandGateway
-import pl.syntaxdevteam.authgatewayx.paper.command.MutableLogoutCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.LogoutCommandGateway
-import pl.syntaxdevteam.authgatewayx.paper.command.MutableMultiAccountCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandText
-import pl.syntaxdevteam.authgatewayx.paper.command.MutableAccountInfoCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandText
-import pl.syntaxdevteam.authgatewayx.paper.command.MutableMigrationAdminCommandGateway
-import pl.syntaxdevteam.authgatewayx.paper.command.MutableAdminHelpCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
-import pl.syntaxdevteam.authgatewayx.paper.command.MutableReloadCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.ReloadCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -118,33 +117,48 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
     private val description get() = plugin.pluginMeta
     private val isEnabled get() = plugin.isEnabled
     private val readiness = RuntimeReadiness()
-    private val passwordCommandGateway = MutablePasswordCommandGateway()
-    private val logoutCommandGateway = MutableLogoutCommandGateway()
-    private val multiAccountCommandGateway = MutableMultiAccountCommandGateway()
-    private val accountInfoCommandGateway = MutableAccountInfoCommandGateway()
-    private val migrationAdminCommandGateway = MutableMigrationAdminCommandGateway()
-    private val adminHelpCommandGateway = MutableAdminHelpCommandGateway()
-    private val reloadCommandGateway = MutableReloadCommandGateway()
+    private val passwordCommandGateway = plugin.passwordCommandGateway
+    private val logoutCommandGateway = plugin.logoutCommandGateway
+    private val multiAccountCommandGateway = plugin.multiAccountCommandGateway
+    private val accountInfoCommandGateway = plugin.accountInfoCommandGateway
+    private val migrationAdminCommandGateway = plugin.migrationAdminCommandGateway
+    private val adminHelpCommandGateway = plugin.adminHelpCommandGateway
+    private val reloadCommandGateway = plugin.reloadCommandGateway
     private var runtime: RuntimeComponents? = null
+    private var maintenance: PaperConnectionMaintenanceGate? = null
+    private val active = AtomicBoolean(true)
+    private val coreUuidManager = RetiringResource<AutoCloseable>()
+    private val bootstrapExecutor = BoundedTaskExecutor(1, 1, "authgatewayx-bootstrap")
+    private val scheduler by lazy { PaperPlatformScheduler(plugin) { active.get() } }
+
+    internal fun isAuthenticated(player: Player): Boolean = readiness.acceptsAuthentication() &&
+        runtime?.sessions?.getActive(player.uniqueId) != null
 
     fun onEnable() {
+        maintenance = PaperConnectionMaintenanceGate.create(MinecraftServer.getServer())
+        maintenance!!.install()
+        MinecraftServer.getServer().connection.connections.forEach { closeTransport(it.channel) }
         plugin.saveDefaultConfig()
-        PasswordCommandRegistrar(
-            plugin,
-            passwordCommandGateway,
-            logoutCommandGateway,
-            multiAccountCommandGateway,
-            accountInfoCommandGateway,
-            migrationAdminCommandGateway,
-            adminHelpCommandGateway,
-            reloadCommandGateway,
-            canSuggestOnlinePlayers = { sender ->
-                sender is ConsoleCommandSender ||
-                    sender is Player &&
-                    sender.isOnline &&
-                    runtime?.sessions?.get(ConnectionId(sender.uniqueId))?.state == ConnectionState.ACTIVE
-            },
-        ).register()
+        if (!plugin.commandsRegistered) {
+            val commandPlugin = plugin
+            PasswordCommandRegistrar(
+                plugin,
+                passwordCommandGateway,
+                logoutCommandGateway,
+                multiAccountCommandGateway,
+                accountInfoCommandGateway,
+                migrationAdminCommandGateway,
+                adminHelpCommandGateway,
+                reloadCommandGateway,
+                canSuggestOnlinePlayers = { sender ->
+                    sender is ConsoleCommandSender ||
+                        sender is Player &&
+                        sender.isOnline &&
+                        commandPlugin.isAuthenticated(sender)
+                },
+            ).register()
+            plugin.commandsRegistered = true
+        }
         val floodGate = ConnectionFloodGate(
             FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
         )
@@ -181,14 +195,30 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             logger.severe("Paper standalone requires online-mode=false; authentication remains fail-closed")
             return
         }
-        try {
-            SyntaxCore.init(plugin, versionType = "paper")
-            plugin.loggerX = SyntaxCore.logger
-            SyntaxMessages.initialize(plugin)
-            plugin.messageHandler = SyntaxMessages.messages
-            startRuntime(plugin.messageHandler, floodGate, usernameBurstGate, behaviorGate, cheapGuard)
-        } catch (failure: Throwable) {
-            fail("AuthGatewayX bootstrap failed", failure)
+        maintenance!!.previousCleanup.whenComplete { _, cleanupFailure ->
+            if (!active.get()) return@whenComplete
+            if (cleanupFailure != null) {
+                scheduler.global(Runnable { fail("Previous runtime cleanup failed", cleanupFailure) })
+                return@whenComplete
+            }
+            bootstrapExecutor.submit {
+                check(active.get()) { "Runtime stopped before library initialization" }
+                SyntaxCore.init(plugin, versionType = "paper")
+                plugin.loggerX = SyntaxCore.logger
+                coreUuidManager.attach(SyntaxCore.uuidManager)
+                SyntaxMessages.initialize(plugin)
+                plugin.messageHandler = SyntaxMessages.messages
+            }.whenComplete { _, bootstrapFailure ->
+                scheduler.global(Runnable {
+                    if (bootstrapFailure != null) {
+                        fail("AuthGatewayX bootstrap failed", bootstrapFailure)
+                        return@Runnable
+                    }
+                    runCatching {
+                        startRuntime(plugin.messageHandler, floodGate, usernameBurstGate, behaviorGate, cheapGuard)
+                    }.onFailure { fail("AuthGatewayX runtime failed", it) }
+                })
+            }
         }
     }
 
@@ -219,7 +249,6 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             ),
             description.version,
         )
-        val scheduler = PaperPlatformScheduler(plugin)
         val sessions = InMemorySessionRegistry()
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
@@ -254,7 +283,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 jdbcUrl, positive("storage.pool-size"), storageExecutor, databaseType,
                 config.getString("storage.remote.username"),
                 System.getenv("AUTHGATEWAYX_DB_PASSWORD") ?: config.getString("storage.remote.password"),
-            ).also { components.storage = it }
+            ).also { components.attachStorage(it) }
         }.thenCompose { storage -> storage.migrate().thenApply { storage } }
         val dummyHashStage = passwordExecutor.submit { hasher.hash("AuthGatewayX-dummy-password".toCharArray()) }
         storageStage.thenCombine(dummyHashStage) { storage, dummyHash -> storage to dummyHash }.whenComplete { initialized, failure ->
@@ -267,9 +296,11 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                         passwordExecutor, mojangExecutor, migrationExecutor, migrationIgnorePolicy,
                         usernameBurstGate, behaviorGate, cheapGuard,
                     )
-                }
-                    .onSuccess { readiness.force(RuntimeState.READY); logger.info("AuthGatewayX authentication runtime is READY") }
-                    .onFailure { fail("Authentication adapters failed to install", it) }
+                }.onSuccess {
+                    maintenance?.ready()
+                    readiness.force(RuntimeState.READY)
+                    logger.info("AuthGatewayX authentication runtime is READY")
+                }.onFailure { fail("Authentication adapters failed to install", it) }
             })
         }
     }
@@ -549,6 +580,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 }
             },
         )
+        runtime?.migrationCoordinator = migrationCoordinator
         val premiumMigrationDialogs = PremiumMigrationDialogController(
             premiumMigration,
             scheduler,
@@ -591,10 +623,10 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                     config.getInt("premium.authentication.diagnostics.maximum-lines-per-minute", 120).also {
                         require(it > 0) { "premium.authentication.diagnostics.maximum-lines-per-minute must be positive" }
                     },
-                    { line -> SyntaxCore.logger.info(line) },
+                    { line -> plugin.loggerX.info(line) },
                 ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
-                premiumProtocol.install()
                 runtime?.premiumProtocol = premiumProtocol
+                premiumProtocol.install()
                 logger.info("AuthGatewayX premium mode: standalone Paper protocol authentication; cheap guards run before profile lookup")
             }
             PaperPremiumAuthenticationMode.VELOCITY_FORWARDED -> {
@@ -882,10 +914,19 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
 
     private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
     private fun positiveLong(path: String): Long = config.getLong(path).also { require(it > 0L) { "$path must be positive" } }
-    private fun fail(message: String, failure: Throwable) { readiness.force(RuntimeState.FAILED); logger.log(java.util.logging.Level.SEVERE, "$message; authentication remains closed", failure) }
+    private fun fail(message: String, failure: Throwable) {
+        readiness.force(RuntimeState.FAILED)
+        maintenance?.stop(CompletableFuture.completedFuture(null),
+            MinecraftServer.getServer().connection.connections.map { it.channel })
+        logger.log(java.util.logging.Level.SEVERE, "$message; authentication remains closed", failure)
+    }
 
     fun onDisable() {
+        active.set(false)
+        coreUuidManager.stopAccepting()
         readiness.force(RuntimeState.STOPPING)
+        val cleanup = CompletableFuture<Void>()
+        maintenance?.stop(cleanup, MinecraftServer.getServer().connection.connections.map { it.channel })
         server.servicesManager.unregisterAll(plugin)
         passwordCommandGateway.delegate = null
         logoutCommandGateway.delegate = null
@@ -894,8 +935,29 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         migrationAdminCommandGateway.delegate = null
         adminHelpCommandGateway.delegate = null
         reloadCommandGateway.delegate = null
-        runtime?.close()
+        val retiring = runtime
         runtime = null
+        retiring?.markClosing()
+        Thread({
+            try {
+                var cleanupFailure: Throwable? = null
+                try {
+                    check(bootstrapExecutor.shutdown(Duration.ofSeconds(5))) { "Bootstrap executor did not terminate" }
+                } catch (failure: Throwable) { cleanupFailure = failure }
+                try { retiring?.close() } catch (failure: Throwable) {
+                    if (cleanupFailure == null) cleanupFailure = failure else cleanupFailure.addSuppressed(failure)
+                }
+                try { coreUuidManager.close() } catch (failure: Throwable) {
+                    if (cleanupFailure == null) cleanupFailure = failure else cleanupFailure.addSuppressed(failure)
+                }
+                plugin.resetMessages()
+                cleanupFailure?.let { throw it }
+                cleanup.complete(null)
+            } catch (failure: Throwable) {
+                cleanup.completeExceptionally(failure)
+                logger.log(java.util.logging.Level.SEVERE, "AuthGatewayX runtime cleanup failed", failure)
+            }
+        }, "authgatewayx-runtime-cleanup").apply { isDaemon = true }.start()
     }
 }
 
@@ -913,25 +975,46 @@ private class RuntimeComponents(
     @Volatile var staffProof: PaperStaffProof? = null
     @Volatile var riskAlerts: OfflineRiskAlerts? = null
     @Volatile var networkLookup: ProxycheckIpLookup? = null
-    @Volatile var storage: JdbcAccountStorage? = null
+    private val storage = RetiringResource<JdbcAccountStorage>()
+    @Volatile var migrationCoordinator: PremiumMigrationCoordinator? = null
+    private var migrationsDrained: CompletableFuture<Void>? = null
+
+    fun markClosing() {
+        storage.stopAccepting()
+        migrationsDrained = migrationCoordinator?.stopAndDrain()
+    }
+
+    fun attachStorage(value: JdbcAccountStorage) = storage.attach(value)
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
 
     override fun close() {
-        clientChannel?.close()
-        staffProof?.close()
-        riskAlerts?.close()
-        networkLookup?.close()
-        premiumProtocol?.close()
+        var failure: Throwable? = null
+        fun attempt(action: () -> Unit) {
+            try { action() } catch (problem: Throwable) {
+                if (failure == null) failure = problem else failure!!.addSuppressed(problem)
+            }
+        }
+        attempt { clientChannel?.close() }
+        attempt { staffProof?.close() }
+        attempt { riskAlerts?.close() }
+        attempt { networkLookup?.close() }
+        attempt { premiumProtocol?.close() }
+        attempt {
+            check(premiumProtocol?.awaitTermination(Duration.ofSeconds(5)) != false) {
+                "Premium diagnostic writer did not terminate"
+            }
+        }
         sessions.clear()
-        storage?.close()
-        storageExecutor.close()
-        passwordExecutor.close()
-        mojangExecutor.close()
-        migrationExecutor.close()
+        attempt { migrationsDrained?.get(30, java.util.concurrent.TimeUnit.SECONDS) }
+        listOf(migrationExecutor, mojangExecutor, passwordExecutor, storageExecutor).forEach { executor ->
+            attempt { check(executor.shutdown(Duration.ofSeconds(5))) { "Runtime executor did not terminate" } }
+        }
+        attempt { storage.close() }
         floodGate.clear()
         usernameBurstGate.clear()
         behaviorGate.clear()
         registrationAttemptGate?.clear()
+        failure?.let { throw it }
     }
 }

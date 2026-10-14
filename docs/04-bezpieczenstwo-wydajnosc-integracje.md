@@ -817,3 +817,24 @@ Opt-in `premium.authentication.diagnostics` zapewnia ograniczone trace, czasy et
 zajętość slotów i liczniki bez danych graczy/sekretów. Zapis przez SyntaxCore odbywa się
 na osobnym threadzie z kolejką 128; Netty/tick nie wykonują logowania ani blokującego I/O.
 Szczegóły, ograniczenia i procedura: [walidacja wydania](13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).
+
+
+## PlugManX i powtarzany lifecycle Paper — 2026-10-14
+
+Paper ma teraz osobny initializer/readiness dla każdej generacji enable i wspólne,
+odłączalne gateways komend rejestrowanych raz przez Lifecycle API. Przed bootstrapem
+instalowany jest `PaperConnectionMaintenanceGate`; STARTING/FAILED/STOPPING odrzuca
+połączenia, a unload pozostawia zamknięty guard do kolejnego load. Disable zamyka
+transport wszystkich klientów. Nowy runtime czeka na async cleanup poprzedniego;
+JDBC, executory i UUIDManager są zamykane poza threadem gry, a spóźniona inicjalizacja
+nie publikuje zasobów. SyntaxCore/MessageHandler inicjalizują się na bounded executorze
+bootstrap. Koordynator migracji odrzuca nową pracę po stopie i udostępnia drain
+trwających operacji. Błąd cleanup blokuje kolejne enable. Premium interceptor usuwa
+wyłącznie własne handlery. Komendy i feedback nie korzystają ze starego runtime.
+
+Celowy wyjątek lifecycle: minimalny zamknięty guard Netty i jego classloader pozostają
+po unloadzie dla ochrony serwera offline. Nie oznacza to pełnego zwolnienia
+classloadera; stan połączeń guardu jest czyszczony. Velocity nie zmienia lifecycle.
+Testy JVM i artefaktów przechodzą; rzeczywista macierz PlugManX/Paper/Purpur/Folia
+pozostaje otwarta. Wymagany PlugManX z obsługą natywnego Paper i konkretnego buildu.
+[Szczegóły decyzji, ograniczenia i checklista](15-plugmanx-lifecycle.md).

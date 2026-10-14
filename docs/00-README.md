@@ -69,3 +69,5 @@ na backendzie; Velocity przekazuje odpowiedź tylko z bieżącego backendu gracz
 To informacja dla klienta, nie autoryzacja administracyjna ani ochrona ekwipunku.
 Aktualna decyzja rozszerza wcześniejszy zakres integracji proxy.
 Szczegóły: [protokół i ograniczenia](12-client-authentication-channel.md).
+
+Bezpieczny disable/enable i unload/load Paper: [PlugManX — lifecycle i ograniczenia](15-plugmanx-lifecycle.md).

@@ -26,3 +26,19 @@ Rejestrację i logowanie offline przez okno, weryfikację premium, zmianę hasł
 Przed stabilnym 1.0.0 pozostają między innymi testy Folia i całej sieci Velocity, testy dużej liczby połączeń, pełna weryfikacja osobnych baz danych oraz scenariuszy przenoszenia kont i konfliktów. Obecność ustawienia nie jest gwarancją gotowości do każdego zastosowania.
 
 Panel WWW, 2FA, łączenie z Discordem, odzyskiwanie przez e-mail i synchronizacja wielu proxy nie są dostępnymi funkcjami tej wersji.
+
+## PlugManX
+
+Wariant Paper ma obsługę powtarzanego enable/disable i load/unload. Wymaga PlugManX
+obsługującego `paper-plugin.yml`, komendy Brigadier i używany build serwera. Starsze
+wersje bez obsługi natywnego Paper nie są zgodne.
+
+`/plugman restart AuthGatewayX` i `/plugman reload AuthGatewayX` rozłączają wszystkich
+graczy. Plugin przyjmuje nowe połączenia po logu READY; każdy gracz przechodzi auth
+ponownie. Po disable/unload połączenia i ping statusu pozostają odrzucane do
+ponownego enable/load lub restartu procesu. Nie usuwaj ręcznie ochrony Netty.
+
+Testy automatyczne przechodzą. Testy rzeczywistym PlugManX na Paper/Purpur/Folia
+pozostają do wykonania; pełna zgodność tych konfiguracji nie jest jeszcze potwierdzona.
+Błąd sprzątania lub timeout blokuje kolejne przeładowania — wtedy zrestartuj proces.
+[Procedura i zakres weryfikacji](../15-plugmanx-lifecycle.md).

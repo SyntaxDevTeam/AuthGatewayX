@@ -1,6 +1,7 @@
 package pl.syntaxdevteam.authgatewayx.paper.premium
 
 import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginGuardDecision
+import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -115,6 +116,14 @@ internal class PremiumHandshakeDiagnostics(
 
     private fun safelyWrite(line: String) {
         try { sink(line) } catch (_: Exception) { dropped.increment() }
+    }
+
+    /** Only the async lifecycle cleanup may wait for the bounded logging queue. */
+    fun awaitTermination(timeout: Duration): Boolean {
+        require(timeout.toMillis() > 0)
+        val thread = writer ?: return true
+        thread.join(timeout.toMillis())
+        return !thread.isAlive
     }
 
     override fun close() {

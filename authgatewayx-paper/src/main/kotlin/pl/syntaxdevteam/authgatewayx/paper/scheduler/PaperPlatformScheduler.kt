@@ -5,30 +5,47 @@ import org.bukkit.Location
 import org.bukkit.entity.Player
 import org.bukkit.plugin.Plugin
 
-class PaperPlatformScheduler(private val plugin: Plugin) {
+class PaperPlatformScheduler(
+    private val plugin: Plugin,
+    private val isCurrent: () -> Boolean = { true },
+) {
+    private fun guarded(task: Runnable) = currentRuntimeTask(plugin, isCurrent, task)
+
+    private inline fun schedule(action: () -> Unit) {
+        if (!isCurrent() || !plugin.isEnabled) return
+        try {
+            action()
+        } catch (failure: org.bukkit.plugin.IllegalPluginAccessException) {
+            if (isCurrent() && plugin.isEnabled) throw failure
+        }
+    }
     fun async(task: Runnable) {
-        Bukkit.getAsyncScheduler().runNow(plugin) { task.run() }
+        schedule { Bukkit.getAsyncScheduler().runNow(plugin) { guarded(task).run() } }
     }
 
     fun global(task: Runnable) {
-        Bukkit.getGlobalRegionScheduler().execute(plugin, task)
+        schedule { Bukkit.getGlobalRegionScheduler().execute(plugin, guarded(task)) }
     }
 
     fun entity(player: Player, task: Runnable) {
-        player.scheduler.execute(plugin, task, null, 1L)
+        schedule { player.scheduler.execute(plugin, guarded(task), null, 1L) }
     }
 
     fun region(location: Location, task: Runnable) {
-        Bukkit.getRegionScheduler().execute(plugin, location, task)
+        schedule { Bukkit.getRegionScheduler().execute(plugin, location, guarded(task)) }
     }
 
     fun delayedEntity(player: Player, delayTicks: Long, task: Runnable) {
         require(delayTicks > 0) { "Entity delay must be positive" }
-        player.scheduler.execute(plugin, task, null, delayTicks)
+        schedule { player.scheduler.execute(plugin, guarded(task), null, delayTicks) }
     }
 
     fun delayedGlobal(delayTicks: Long, task: Runnable) {
         require(delayTicks > 0) { "Global delay must be positive" }
-        Bukkit.getGlobalRegionScheduler().runDelayed(plugin, { task.run() }, delayTicks)
+        schedule { Bukkit.getGlobalRegionScheduler().runDelayed(plugin, { guarded(task).run() }, delayTicks) }
     }
+}
+
+internal fun currentRuntimeTask(plugin: Plugin, isCurrent: () -> Boolean, task: Runnable) = Runnable {
+    if (isCurrent() && plugin.isEnabled) task.run()
 }

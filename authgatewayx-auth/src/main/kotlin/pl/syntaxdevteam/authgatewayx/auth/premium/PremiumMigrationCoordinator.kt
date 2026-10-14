@@ -14,6 +14,7 @@ import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationKind
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationTicket
 import java.time.Clock
+import pl.syntaxdevteam.authgatewayx.auth.lifecycle.OperationDrain
 import java.util.UUID
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CompletionStage
@@ -39,6 +40,11 @@ class PremiumMigrationCoordinator(
     private val providers: () -> List<IdentityMigrationProvider>,
     private val clock: Clock = Clock.systemUTC(),
 ) {
+    private val operations = OperationDrain()
+
+    /** Called by the platform lifecycle before storage/executors are retired. */
+    fun stopAndDrain(): CompletableFuture<Void> = operations.stop()
+
     private val running = ConcurrentHashMap.newKeySet<UUID>()
 
     fun inspect(ticket: PremiumMigrationTicket): CompletionStage<List<PremiumMigrationProviderInspection>> =
@@ -52,7 +58,10 @@ class PremiumMigrationCoordinator(
             ),
         )
 
-    fun inspect(context: IdentityMigrationContext): CompletionStage<List<PremiumMigrationProviderInspection>> {
+    fun inspect(context: IdentityMigrationContext): CompletionStage<List<PremiumMigrationProviderInspection>> =
+        operations.run { inspectAdmitted(context) }
+
+    private fun inspectAdmitted(context: IdentityMigrationContext): CompletionStage<List<PremiumMigrationProviderInspection>> {
         val providerList = try {
             providers().toList()
         } catch (failure: Throwable) {
@@ -81,7 +90,10 @@ class PremiumMigrationCoordinator(
         }
     }
 
-    fun migrate(ticket: PremiumMigrationTicket): CompletionStage<PremiumMigrationRunResult> {
+    fun migrate(ticket: PremiumMigrationTicket): CompletionStage<PremiumMigrationRunResult> =
+        operations.run { migrateAdmitted(ticket) }
+
+    private fun migrateAdmitted(ticket: PremiumMigrationTicket): CompletionStage<PremiumMigrationRunResult> {
         if (!running.add(ticket.id)) {
             return CompletableFuture.completedFuture(PremiumMigrationRunResult.AlreadyRunning)
         }

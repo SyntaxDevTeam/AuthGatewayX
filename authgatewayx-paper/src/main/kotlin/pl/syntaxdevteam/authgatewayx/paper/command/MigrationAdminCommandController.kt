@@ -107,6 +107,7 @@ class MigrationAdminCommandController(
         val explicit = parseUuid(sender, parsed.value, sourceUuid) ?: if (sourceUuid != null) return else null
 
         safe { storage.findLatestPremiumMigration(parsed) }.whenComplete { ticket, ticketFailure ->
+            if (!isReady()) return@whenComplete
             if (ticketFailure != null) {
                 replyAsync(sender, parsed.value) { listOf(text.unavailable) }
                 return@whenComplete
@@ -523,7 +524,8 @@ class MigrationAdminCommandController(
 
     private fun <T> safe(action: () -> CompletionStage<T>): CompletionStage<T> =
         try {
-            action()
+            if (!isReady()) CompletableFuture.failedFuture(IllegalStateException("Authentication runtime is stopping"))
+            else action()
         } catch (failure: Throwable) {
             CompletableFuture.failedFuture(failure)
         }
