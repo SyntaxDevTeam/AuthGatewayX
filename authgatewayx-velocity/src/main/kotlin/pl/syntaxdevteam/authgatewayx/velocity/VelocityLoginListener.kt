@@ -63,7 +63,7 @@ class VelocityLoginListener(
             }
         } catch (_: Exception) { CompletableFuture.failedFuture<PendingLoginDecision>(IllegalStateException("Admission unavailable")) }
         // Release the concurrency slot even if a third-party lookup never completes.
-        stage.orTimeout(admissionTimeoutMillis, TimeUnit.MILLISECONDS).whenComplete { decision, failure ->
+        stage.toCompletableFuture().orTimeout(admissionTimeoutMillis, TimeUnit.MILLISECONDS).whenComplete { decision, failure ->
             try {
                 if (!ready.get() || !event.connection.isActive) {
                     event.result = PreLoginEvent.PreLoginComponentResult.denied(messages.unavailable)
