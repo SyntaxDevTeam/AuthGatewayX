@@ -7,6 +7,7 @@ import pl.syntaxdevteam.authgatewayx.paper.command.MutableMultiAccountCommandGat
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableAccountInfoCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableMigrationAdminCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableAdminHelpCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MutableConsentCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.command.MutableReloadCommandGateway
 import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.paper.loader.PluginInitializer
@@ -26,6 +27,7 @@ class AuthGatewayXPaper : JavaPlugin() {
     internal val migrationAdminCommandGateway = MutableMigrationAdminCommandGateway()
     internal val adminHelpCommandGateway = MutableAdminHelpCommandGateway()
     internal val reloadCommandGateway = MutableReloadCommandGateway()
+    internal val consentCommandGateway = MutableConsentCommandGateway()
     internal var commandsRegistered = false
     internal fun resetMessages() {
         if (this::messageHandler.isInitialized &&

@@ -7,6 +7,7 @@ import pl.syntaxdevteam.authgatewayx.domain.account.OfflineIdentity
 import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType
+import pl.syntaxdevteam.authgatewayx.storage.ConsentDecision
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
 import pl.syntaxdevteam.authgatewayx.storage.PremiumMigrationCompletionResult
@@ -32,6 +33,22 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SqliteAccountStorageTest {
+    @Test
+    fun consentPersistsByAccountIdAndPolicyVersion() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("PrivacyTest")
+        assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        assertNull(storage.findConsent(registration.accountId).toCompletableFuture().get())
+        val at = Instant.parse("2026-10-20T12:00:00Z")
+        storage.saveConsent(registration.accountId, ConsentDecision.ACCEPTED, "1", at).toCompletableFuture().get()
+        assertEquals(ConsentDecision.ACCEPTED, storage.findConsent(registration.accountId).toCompletableFuture().get()?.decision)
+        assertEquals("1", storage.findConsent(registration.accountId).toCompletableFuture().get()?.policyVersion)
+        storage.saveConsent(registration.accountId, ConsentDecision.REJECTED, "2", at.plusSeconds(20)).toCompletableFuture().get()
+        assertEquals(ConsentDecision.REJECTED, storage.findConsent(registration.accountId).toCompletableFuture().get()?.decision)
+        assertEquals("2", storage.findConsent(registration.accountId).toCompletableFuture().get()?.policyVersion)
+    }
+
     @Test
     fun `account inspection returns only ten newest audit events`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()

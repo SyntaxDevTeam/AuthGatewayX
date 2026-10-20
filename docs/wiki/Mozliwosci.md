@@ -89,3 +89,14 @@ Nie ma panelu WWW, 2FA, odzyskiwania przez e-mail, połączenia konta z Discorde
 komend `/login`, `/register`, `/premium`, `/unregister` ani bezpiecznego hot-reloadu.
 Nie ma też potwierdzonej obsługi Bedrock/Geyser. AuthGatewayX nie jest systemem kar i nie
 uznaje wspólnego IP lub wyniku usługi VPN za niepodważalny dowód nadużycia.
+
+
+## Polityka prywatności / RODO — Paper
+
+Po udanym /register lub /login konta offline oraz po zweryfikowanym logowaniu Mojang gracz pozostaje w izolacji do zaakceptowania aktualnej wersji polityki. Domyślny interfejs to natywny Minecraft Dialog (dla API obsługującego Dialog od 1.21.7); w konfiguracji privacy.dialogs.enabled: false można przełączyć na wiadomość czatu z przyciskami. Aktualny plik Paper AGX ma api-version: 26.3, dlatego starsza wersja Paper wymaga osobnej kompatybilnej kompilacji — samo wyłączenie Dialog nie umożliwia uruchomienia tego JAR-a na Paper 1.21.6.
+
+Decyzje zapisywane są w tabeli account_consent, według **ID konta AuthGatewayX**, niezależnego od Minecraft UUID. Migracja OFFLINE → PREMIUM nie usuwa zgody. Statusy to ACCEPTED i REJECTED ze znacznikiem czasu i wersją polityki. Zwiększenie privacy.policy-version wymaga ponownego zaakceptowania na następnym wejściu. Brak decyzji w privacy.timeout-seconds, błąd odczytu lub błąd zapisu powodują rozłączenie (fail closed). Odmowa i wycofanie nie nakładają automatycznej kary PunisherX.
+
+Polecenie /privacy [show|accept|reject|revoke|status] wymaga uwierzytelnionego konta. W okresie oczekiwania na decyzję wszystkie inne komendy, czat, interakcje ze światem, teleportacje i ekwipunek pozostają chronione przez istniejący mechanizm izolacji. API statusu autoryzacji Paper nie potwierdza gotowości gracza do czasu akceptacji. Integracja dotyczy backendu Paper: samo wdrożenie wersji Velocity AGX bez modułu Paper nie wymusza tych zgód.
+
+**Ważne prawnie:** administrator powinien wprowadzić faktyczny adres HTTPS w privacy.policy-url, własną pełną informację o przetwarzaniu danych oraz poprawne podstawy prawne. Przetwarzania danych niezbędnych do realizacji usługi nie należy automatycznie przedstawiać jako opcjonalnej zgody RODO bez analizy prawnej. Baza ConsentChecker **nie jest importowana automatycznie**.

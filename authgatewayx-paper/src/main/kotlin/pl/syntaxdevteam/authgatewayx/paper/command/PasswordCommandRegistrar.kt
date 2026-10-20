@@ -10,6 +10,15 @@ import org.bukkit.command.ConsoleCommandSender
 import org.bukkit.entity.Player
 import org.bukkit.plugin.java.JavaPlugin
 
+fun interface ConsentCommandGateway {
+    fun execute(player: Player, action: String?)
+}
+
+class MutableConsentCommandGateway : ConsentCommandGateway {
+    @Volatile var delegate: ConsentCommandGateway? = null
+    override fun execute(player: Player, action: String?) = delegate?.execute(player, action) ?: Unit
+}
+
 interface PasswordCommandGateway {
     fun openOwnPasswordChange(player: Player)
     fun openAdminPasswordChange(player: Player, username: String)
@@ -49,6 +58,7 @@ class PasswordCommandRegistrar(
     private val migrationGateway: MigrationAdminCommandGateway,
     private val helpGateway: AdminHelpCommandGateway,
     private val reloadGateway: ReloadCommandGateway,
+    private val consentGateway: ConsentCommandGateway,
     private val canSuggestOnlinePlayers: (CommandSender) -> Boolean,
 ) {
     private fun onlinePlayerArgument(name: String) =
@@ -66,6 +76,28 @@ class PasswordCommandRegistrar(
 
     fun register() {
         plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
+            event.registrar().register(
+                Commands.literal("privacy")
+                    .requires { it.sender.hasPermission("authgatewayx.command.privacy") }
+                    .executes { context ->
+                        (context.source.sender as? Player)?.let { consentGateway.execute(it, null) }
+                        1
+                    }
+                    .then(Commands.argument("action", StringArgumentType.word())
+                        .suggests { _, builder ->
+                            listOf("accept", "reject", "revoke", "status", "show")
+                                .filter { it.startsWith(builder.remaining, ignoreCase = true) }
+                                .forEach(builder::suggest)
+                            builder.buildFuture()
+                        }
+                        .executes { context ->
+                            (context.source.sender as? Player)?.let {
+                                consentGateway.execute(it, StringArgumentType.getString(context, "action"))
+                            }
+                            1
+                        })
+                    .build(),
+            )
             event.registrar().register(
                 Commands.literal("logout")
                     .requires { it.sender.hasPermission("authgatewayx.command.logout") }

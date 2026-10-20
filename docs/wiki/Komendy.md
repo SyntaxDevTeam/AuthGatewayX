@@ -109,3 +109,8 @@ nie ma dowodu danych, recovery nie zostanie utworzone.
 
 Docelowe konto musi być offline podczas `retry` i `recover`. Niedokończone recovery
 blokuje logowanie premium do czasu bezpiecznego zakończenia albo skutecznego rollbacku.
+
+
+### Prywatność
+
+/ privacy (bez spacji) lub /privacy show pokazuje zasady po uwierzytelnieniu. /privacy accept zatwierdza; /privacy reject zapisuje odmowę i rozłącza; /privacy revoke wycofuje wcześniejszą akceptację i rozłącza; /privacy status odczytuje bieżący zapis. Uprawnienie: authgatewayx.command.privacy (domyślnie wszyscy gracze). W trakcie oczekiwania na zgodę dopuszczona jest tylko komenda /privacy.

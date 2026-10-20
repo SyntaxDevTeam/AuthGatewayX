@@ -63,6 +63,10 @@ import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandController
 import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandText
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
+import pl.syntaxdevteam.authgatewayx.paper.command.ConsentCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentController
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentGate
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentText
 import pl.syntaxdevteam.authgatewayx.paper.command.ReloadCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -124,6 +128,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
     private val migrationAdminCommandGateway = plugin.migrationAdminCommandGateway
     private val adminHelpCommandGateway = plugin.adminHelpCommandGateway
     private val reloadCommandGateway = plugin.reloadCommandGateway
+    private val consentCommandGateway = plugin.consentCommandGateway
     private var runtime: RuntimeComponents? = null
     private var maintenance: PaperConnectionMaintenanceGate? = null
     private val active = AtomicBoolean(true)
@@ -132,7 +137,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
     private val scheduler by lazy { PaperPlatformScheduler(plugin) { active.get() } }
 
     internal fun isAuthenticated(player: Player): Boolean = readiness.acceptsAuthentication() &&
-        runtime?.sessions?.getActive(player.uniqueId) != null
+        runtime?.sessions?.getActive(player.uniqueId) != null && runtime?.consentGate?.isPending(player.uniqueId) != true
 
     fun onEnable() {
         maintenance = PaperConnectionMaintenanceGate.create(MinecraftServer.getServer())
@@ -150,6 +155,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 migrationAdminCommandGateway,
                 adminHelpCommandGateway,
                 reloadCommandGateway,
+                consentCommandGateway,
                 canSuggestOnlinePlayers = { sender ->
                     sender is ConsoleCommandSender ||
                         sender is Player &&
@@ -320,7 +326,11 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
-        val authenticationStatus = PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, sessions::getActive)
+        val consentGate = ConsentGate()
+        runtime?.consentGate = consentGate
+        val authenticationStatus = PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, { id ->
+            if (consentGate.isPending(id)) null else sessions.getActive(id)
+        })
         server.servicesManager.register(
             AuthenticationStatusProvider::class.java,
             authenticationStatus,
@@ -344,6 +354,39 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         runtime?.registrationAttemptGate = registrationAttemptGate
         val isolation = PreAuthIsolationManager(plugin, scheduler, access, positive("authentication.timeout-seconds") * 20L,
             messages.stringMessageToComponentNoPrefix("auth", "timeout"))
+        val consent = ConsentController(
+            plugin = plugin,
+            scheduler = scheduler,
+            sessions = sessions,
+            storage = storage,
+            isolation = isolation,
+            gate = consentGate,
+            enabled = config.getBoolean("privacy.enabled", true),
+            dialogsEnabled = config.getBoolean("privacy.dialogs.enabled", true),
+            policyVersion = config.getString("privacy.policy-version", "1")!!,
+            policyUrl = config.getString("privacy.policy-url", "")!!,
+            timeoutTicks = positiveLong("privacy.timeout-seconds") * 20L,
+            text = ConsentText(
+                title = messages.stringMessageToComponentNoPrefix("privacy", "title"),
+                summary = messages.stringMessageToComponentNoPrefix("privacy", "summary"),
+                version = messages.stringMessageToComponentNoPrefix("privacy", "version"),
+                link = messages.stringMessageToComponentNoPrefix("privacy", "link"),
+                accept = messages.stringMessageToComponentNoPrefix("privacy", "accept_button"),
+                reject = messages.stringMessageToComponentNoPrefix("privacy", "reject_button"),
+                accepted = messages.stringMessageToComponentNoPrefix("privacy", "accepted"),
+                rejected = messages.stringMessageToComponentNoPrefix("privacy", "rejected"),
+                revoked = messages.stringMessageToComponentNoPrefix("privacy", "revoked"),
+                alreadyAccepted = messages.stringMessageToComponentNoPrefix("privacy", "already_accepted"),
+                revokeHint = messages.stringMessageToComponentNoPrefix("privacy", "revoke_hint"),
+                processing = messages.stringMessageToComponentNoPrefix("privacy", "processing"),
+                unavailable = messages.stringMessageToComponentNoPrefix("privacy", "unavailable"),
+                pending = messages.stringMessageToComponentNoPrefix("privacy", "pending"),
+                usage = messages.stringMessageToComponentNoPrefix("privacy", "usage"),
+                timeout = messages.stringMessageToComponentNoPrefix("privacy", "timeout"),
+            ),
+        )
+        consentCommandGateway.delegate = ConsentCommandGateway(consent::command)
+        server.pluginManager.registerEvents(consent, plugin)
         val offlineAuthenticationSuccess = messages.stringMessageToComponentNoPrefix("auth", "offline_authentication_success")
         val premiumAuthenticationSuccess = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_success")
         fun sendAuthenticationSuccess(playerId: UUID, message: Component) {
@@ -553,7 +596,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         }
         val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationGuard = activationGuard, activationListener = { context ->
             admission.release(context.connectionId.value)
-            isolation.activated(context)
+            consent.authenticated(context.connectionId.value)
             sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
             sessions.get(context.connectionId)?.let { session -> runCatching { riskAlerts.observe(session) } }
         })
@@ -655,7 +698,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
             onMojangActivated = { player ->
                 admission.release(player.uniqueId)
-                isolation.release(player)
+                consent.authenticated(player.uniqueId)
                 sendAuthenticationSuccess(player.uniqueId, premiumAuthenticationSuccess)
             },
         ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
@@ -903,12 +946,12 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         }
         server.pluginManager.registerEvents(passwordDialogs, plugin)
         server.pluginManager.registerEvents(
-            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate), plugin,
+            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate, consentGate), plugin,
         )
         server.pluginManager.registerEvents(PreAuthEntryListener(
             sessions, isolation, admission,
             messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
-            onEntered = router::route,
+            onEntered = { player -> consent.prepare(player.uniqueId); router.route(player) },
         ), plugin)
     }
 
@@ -935,6 +978,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         migrationAdminCommandGateway.delegate = null
         adminHelpCommandGateway.delegate = null
         reloadCommandGateway.delegate = null
+        consentCommandGateway.delegate = null
         val retiring = runtime
         runtime = null
         retiring?.markClosing()
@@ -971,6 +1015,7 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
+    @Volatile var consentGate: ConsentGate? = null
     @Volatile var clientChannel: PaperClientAuthenticationChannel? = null
     @Volatile var staffProof: PaperStaffProof? = null
     @Volatile var riskAlerts: OfflineRiskAlerts? = null
@@ -1006,6 +1051,7 @@ private class RuntimeComponents(
             }
         }
         sessions.clear()
+        consentGate?.clear()
         attempt { migrationsDrained?.get(30, java.util.concurrent.TimeUnit.SECONDS) }
         listOf(migrationExecutor, mojangExecutor, passwordExecutor, storageExecutor).forEach { executor ->
             attempt { check(executor.shutdown(Duration.ofSeconds(5))) { "Runtime executor did not terminate" } }

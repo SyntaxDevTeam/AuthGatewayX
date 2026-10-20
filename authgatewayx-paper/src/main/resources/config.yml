@@ -164,6 +164,24 @@ authentication:
     duration-seconds: 600
 
 # /********************************************/
+#    Privacy / RODO: shown only after account authentication
+# /********************************************/
+privacy:
+  # Both verified premium and registered offline accounts must accept the current policy.
+  enabled: true
+  # Increase after changes to the policy to require a new decision from existing players.
+  policy-version: "1"
+  # Enter the actual HTTPS URL of your server's full privacy policy before production.
+  # An empty value hides the link, not the policy text shown in lang/messages_*.yml.
+  policy-url: ""
+  # After login, disconnect a player who does not decide in time.
+  timeout-seconds: 120
+  dialogs:
+    # Minecraft Dialog is the default on supported Paper 1.21.7+.
+    # Set false for clickable chat fallback. AGX currently targets modern Paper API.
+    enabled: true
+
+# /********************************************/
 #    Storage settings
 # /********************************************/
 

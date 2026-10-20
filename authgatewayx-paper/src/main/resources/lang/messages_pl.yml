@@ -203,3 +203,22 @@ risk_alert:
   network_owner: '<gray>Sieć:</gray> <white>{asn}</white><gray> • {owner} • typ {network_type}</gray>'
   operator: '<gray>Operator anonimizujący:</gray> <yellow>{operator}</yellow>'
   hint: '<dark_gray>Sygnały są pomocnicze, nie stanowią dowodu jednej osoby. Szczegóły: /authgatewayx alts {username}</dark_gray>'
+
+
+privacy:
+  title: "<gold><b>Polityka prywatności serwera</b></gold>"
+  summary: "<gray>Serwer przechowuje dane niezbędne do działania konta, w tym nick, UUID, informacje o uwierzytelnieniu i połączeniu. Zapoznaj się z zasadami przetwarzania danych. Bez akceptacji nie uzyskasz dostępu do rozgrywki.</gray>"
+  version: "<gray>Wersja zasad: <white>{version}</white></gray>"
+  link: "<aqua><underlined>Otwórz pełną politykę prywatności</underlined></aqua>"
+  accept_button: "<green>Akceptuję</green>"
+  reject_button: "<red>Odrzucam</red>"
+  accepted: "<green>Zasady zaakceptowane. Dostęp do gry został odblokowany.</green>"
+  rejected: "<red>Odrzuciłeś zasady prywatności. Nie możesz teraz korzystać z serwera.</red>"
+  revoked: "<yellow>Wycofałeś akceptację zasad. Sesja została zakończona.</yellow>"
+  already_accepted: "<green>Aktualna wersja zasad prywatności jest zaakceptowana.</green>"
+  revoke_hint: "<yellow>Aby wycofać akceptację, użyj /privacy revoke.</yellow>"
+  processing: "<yellow>Zapisywanie decyzji dotyczącej prywatności...</yellow>"
+  unavailable: "<red>Nie można zweryfikować lub zapisać decyzji. Spróbuj ponownie później.</red>"
+  pending: "<yellow>Aktualna polityka prywatności wymaga Twojej decyzji. Użyj /privacy.</yellow>"
+  usage: "<yellow>Użycie: /privacy [show|accept|reject|revoke|status]</yellow>"
+  timeout: "<red>Upłynął czas na podjęcie decyzji o zasadach prywatności.</red>"

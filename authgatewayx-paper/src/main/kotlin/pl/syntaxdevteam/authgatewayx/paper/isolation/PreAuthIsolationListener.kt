@@ -24,6 +24,7 @@ import pl.syntaxdevteam.authgatewayx.auth.session.SessionRegistry
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorGate
 import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorSignal
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentGate
 import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
 
 class PreAuthIsolationListener(
@@ -33,8 +34,9 @@ class PreAuthIsolationListener(
     private val admission: PreAuthAdmission,
     private val usernameBurstGate: UsernameBurstGate,
     private val behaviorGate: ConnectionBehaviorGate,
+    private val consentGate: ConsentGate,
 ) : Listener {
-    private fun blocked(player: Player) = access.isPreAuth(player.uniqueId)
+    private fun blocked(player: Player) = access.isPreAuth(player.uniqueId) || consentGate.isPending(player.uniqueId)
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onMove(event: PlayerMoveEvent) { if (blocked(event.player)) event.isCancelled = true }
@@ -125,11 +127,23 @@ class PreAuthIsolationListener(
     fun onChat(event: AsyncChatEvent) { if (blocked(event.player)) event.isCancelled = true }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    fun onCommand(event: PlayerCommandPreprocessEvent) { if (blocked(event.player)) event.isCancelled = true }
+    fun onCommand(event: PlayerCommandPreprocessEvent) {
+        val player = event.player
+        if (!blocked(player)) return
+        val privacyCommand = event.message.substringBefore(' ').equals("/privacy", ignoreCase = true)
+        val authenticated = sessions.getActive(player.uniqueId) != null
+        if (!privacyCommand || !authenticated || access.isPreAuth(player.uniqueId)) event.isCancelled = true
+    }
 
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onCommandSuggestions(event: PlayerCommandSendEvent) {
-        if (blocked(event.player)) event.commands.clear()
+        if (blocked(event.player)) {
+            event.commands.clear()
+            if (consentGate.isPending(event.player.uniqueId) &&
+                sessions.getActive(event.player.uniqueId) != null &&
+                !access.isPreAuth(event.player.uniqueId)
+            ) event.commands.add("privacy")
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -152,12 +166,13 @@ class PreAuthIsolationListener(
 
     @EventHandler
     fun onQuit(event: PlayerQuitEvent) {
-        if (blocked(event.player)) {
+        if (access.isPreAuth(event.player.uniqueId)) {
             event.player.address?.address?.let { address ->
                 usernameBurstGate.recordPreAuthDisconnect(address)
                 behaviorGate.record(address, ConnectionBehaviorSignal.PRE_AUTH_DISCONNECT)
             }
         }
+        consentGate.forget(event.player.uniqueId)
         isolation.forget(event.player.uniqueId)
         admission.release(event.player.uniqueId)
         sessions.disconnect(ConnectionId(event.player.uniqueId))

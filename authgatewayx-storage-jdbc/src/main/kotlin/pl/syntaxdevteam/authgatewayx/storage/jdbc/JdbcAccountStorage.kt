@@ -18,6 +18,9 @@ import pl.syntaxdevteam.authgatewayx.storage.AccountAddressObservation
 import pl.syntaxdevteam.authgatewayx.storage.AccountInspection
 import pl.syntaxdevteam.authgatewayx.storage.AccountInspectionLookup
 import pl.syntaxdevteam.authgatewayx.storage.AccountSecurityObservation
+import pl.syntaxdevteam.authgatewayx.storage.ConsentDecision
+import pl.syntaxdevteam.authgatewayx.storage.ConsentRecord
+import pl.syntaxdevteam.authgatewayx.storage.ConsentStorage
 import pl.syntaxdevteam.authgatewayx.storage.AccountCredentials
 import pl.syntaxdevteam.authgatewayx.storage.FailedLoginUpdate
 import pl.syntaxdevteam.authgatewayx.storage.MojangIdentityBindingResult
@@ -67,7 +70,7 @@ class JdbcAccountStorage(
     private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
     username: String? = null,
     password: String? = null,
-) : AccountStorage, SecurityAuditSink, ConnectionAccountLookup, AccountInspectionLookup {
+) : AccountStorage, ConsentStorage, SecurityAuditSink, ConnectionAccountLookup, AccountInspectionLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
         this.driverClassName = databaseType.driverClassName
@@ -213,12 +216,82 @@ class JdbcAccountStorage(
                     }
                     recordMigration(connection, 8)
                 }
+                if (!hasMigration(connection, 9)) {
+                    connection.createStatement().use { statement ->
+                        statement.executeUpdate("""
+                            CREATE TABLE account_consent (
+                                account_id VARCHAR(36) PRIMARY KEY,
+                                decision VARCHAR(16) NOT NULL,
+                                policy_version VARCHAR(64) NOT NULL,
+                                updated_at VARCHAR(40) NOT NULL,
+                                FOREIGN KEY (account_id) REFERENCES accounts(id) ON DELETE CASCADE
+                            )
+                        """.trimIndent())
+                    }
+                    recordMigration(connection, 9)
+                }
                 connection.commit()
             } catch (failure: Throwable) {
                 connection.rollback()
                 throw failure
             }
         }
+    }
+
+    override fun findConsent(accountId: AccountId): CompletionStage<ConsentRecord?> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(
+                "SELECT decision, policy_version, updated_at FROM account_consent WHERE account_id = ?",
+            ).use { statement ->
+                statement.setString(1, accountId.value.toString())
+                statement.executeQuery().use { rows ->
+                    if (!rows.next()) null else ConsentRecord(
+                        ConsentDecision.valueOf(rows.getString("decision")),
+                        rows.getString("policy_version"),
+                        Instant.parse(rows.getString("updated_at")),
+                    )
+                }
+            }
+        }
+    }
+
+    override fun saveConsent(
+        accountId: AccountId,
+        decision: ConsentDecision,
+        policyVersion: String,
+        at: Instant,
+    ): CompletionStage<Unit> = executor.submit {
+        require(policyVersion.isNotBlank() && policyVersion.length <= 64) { "Invalid policy version" }
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                val updated = connection.prepareStatement(
+                    "UPDATE account_consent SET decision = ?, policy_version = ?, updated_at = ? WHERE account_id = ?",
+                ).use { statement ->
+                    statement.setString(1, decision.name)
+                    statement.setString(2, policyVersion)
+                    statement.setString(3, at.toString())
+                    statement.setString(4, accountId.value.toString())
+                    statement.executeUpdate()
+                }
+                if (updated == 0) {
+                    connection.prepareStatement(
+                        "INSERT INTO account_consent(account_id, decision, policy_version, updated_at) VALUES (?, ?, ?, ?)",
+                    ).use { statement ->
+                        statement.setString(1, accountId.value.toString())
+                        statement.setString(2, decision.name)
+                        statement.setString(3, policyVersion)
+                        statement.setString(4, at.toString())
+                        statement.executeUpdate()
+                    }
+                }
+                connection.commit()
+            } catch (failure: Throwable) {
+                connection.rollback()
+                throw failure
+            }
+        }
+        Unit
     }
 
     override fun registerOffline(registration: OfflineRegistration): CompletionStage<RegistrationResult> = executor.submit {

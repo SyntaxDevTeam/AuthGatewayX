@@ -21,6 +21,9 @@ authors: [ SyntaxDevTeam ]
 website: https://syntaxdevteam.pl
 
 permissions:
+  authgatewayx.command.privacy:
+    description: Allows showing, accepting, rejecting, and revoking the privacy policy after login.
+    default: true
   authgatewayx.command.changepassword:
     description: Allows an authenticated offline player to change their password.
     default: true
