@@ -20,7 +20,7 @@ mariadb = "3.5.6"
 postgresql = "42.7.8"
 argon2 = "2.12"
 jetbrains-annotations = "26.1.0"
-velocity-api = "4.1.0-SNAPSHOT"
+velocity-api = "4.3.0"
 
 [libraries]
 kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }

@@ -1,6 +1,6 @@
 package pl.syntaxdevteam.authgatewayx.velocity
 
-import java.net.InetSocketAddress
+import java.util.UUID
 import java.time.Clock
 import java.time.Duration
 import java.time.Instant
@@ -8,7 +8,8 @@ import java.util.concurrent.ConcurrentHashMap
 
 enum class SelectedAuthenticationMode { MOJANG, OFFLINE }
 data class PendingLoginDecision(val mode: SelectedAuthenticationMode, val risk: ProxyRiskResult)
-data class PendingConnectionKey(val address: InetSocketAddress, val canonicalUsername: String)
+/** Velocity 4.3.0 binds the same UUID to PreLogin and Login, including after backend changes. */
+data class PendingConnectionKey(val sessionId: UUID)
 
 class PendingConnectionRegistry(private val ttl: Duration, private val maximumSize: Int, private val clock: Clock = Clock.systemUTC()) {
     private var closed = false
@@ -20,6 +21,7 @@ class PendingConnectionRegistry(private val ttl: Duration, private val maximumSi
         if (closed) return false
         cleanup()
         if (entries.size >= maximumSize && !entries.containsKey(key)) return false
+        if (entries.containsKey(key)) return false // Never replace an earlier admission for the same connection.
         entries[key] = Entry(decision, clock.instant().plus(ttl))
         return true
     }

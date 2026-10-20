@@ -21,6 +21,7 @@ class VelocityClientAuthenticationChannel(
 ) : AutoCloseable {
     private class Pending(
         val server: ServerConnection,
+        val sessionId: java.util.UUID,
         val nonce: String,
         val channel: MinecraftChannelIdentifier,
         val deadline: Long,
@@ -52,12 +53,12 @@ class VelocityClientAuthenticationChannel(
         val server = player.currentServer.orElse(null) ?: return
         if (!player.isActive || event.target !== server || pending.containsKey(player) || pending.size >= 5_000) return
         val channel = event.identifier as MinecraftChannelIdentifier
-        val request = Pending(server, nonce, channel, clock() + 300_000)
+        val request = Pending(server, player.sessionId, nonce, channel, clock() + 300_000)
         pending[player] = request
         try {
             request.task = proxy.scheduler.buildTask(plugin, Runnable {
                 synchronized(this) {
-                    if (closed || !ready() || !player.isActive || player.currentServer.orElse(null) !== server ||
+                    if (closed || !ready() || !player.isActive || player.sessionId != request.sessionId || player.currentServer.orElse(null) !== server ||
                         clock() >= request.deadline || pending[player] !== request) {
                         if (pending.remove(player, request)) request.task?.cancel()
                     } else if (!request.confirmed) {
@@ -72,7 +73,7 @@ class VelocityClientAuthenticationChannel(
     private fun confirm(server: ServerConnection, event: PluginMessageEvent) {
         val player = server.player
         val request = pending[player] ?: return
-        if (request.confirmed || server !== request.server || event.target !== player ||
+        if (request.confirmed || server !== request.server || event.target !== player || player.sessionId != request.sessionId ||
             player.currentServer.orElse(null) !== server || !player.isActive || clock() >= request.deadline ||
             event.identifier != request.channel || !ClientAuthenticationProtocol.confirms(event.data, request.nonce)) return
         if (player.sendPluginMessage(request.channel, event.data)) {

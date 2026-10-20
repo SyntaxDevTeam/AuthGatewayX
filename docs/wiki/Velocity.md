@@ -58,6 +58,7 @@ W folderze danych AuthGatewayX na proxy znajduje się `authgatewayx.yml`. To oso
 | `premium.lookup.positive-ttl-seconds` | `21600` | Czas pamiętania profilu premium |
 | `premium.lookup.negative-ttl-seconds` | `300` | Czas pamiętania braku profilu premium |
 | `premium.lookup.maximum-cache-size` | `50000` | Limit zapamiętanych wyników |
+| `connections.admission-timeout-millis` | `20000` | Maksymalny czas asynchronicznej weryfikacji przed logowaniem (mniej niż limit Velocity) |
 | `connections.pending-ttl-seconds` | `30` | Jak długo czeka decyzja dotycząca rozpoczętego połączenia |
 | `connections.maximum-pending` | `10000` | Maksymalna liczba oczekujących decyzji |
 | `executors.mojang-threads` | `4` | Liczba jednoczesnych zadań sprawdzania nicków |
@@ -127,3 +128,33 @@ integracji. Edycja pliku `src/main/resources` nie aktualizuje istniejącego plik
 Jeżeli po pełnym restarcie brak znacznika zarówno przy starcie, jak i w odmowie,
 należy sprawdzić, jaki JAR i która instancja proxy rzeczywiście obsługują połączenie.
 Nie omijamy wymaganej inicjalizacji przez wymuszenie READY.
+
+## Velocity 4.3.0: identyfikacja sesji i timeout
+
+Moduł proxy kompiluje się przeciwko `velocity-api:4.3.0` i używa
+`InboundConnection.getSessionId()` (UUID). Decyzja premium/offline i wynik
+kontroli ryzyka są przypisane do **konkretnej sesji**, a nie do IP, portu lub
+nazwy użytkownika. Ponowne połączenie otrzymuje nowy identyfikator. Zmiana
+serwera Paper za tym samym Velocity zachowuje sesję. Identyfikator jest tylko
+kluczem korelacji zdarzeń, **nie tokenem logowania**.
+
+`AuthGatewayXVelocity.session(player)` udostępnia stan sesji dla pluginów
+Velocity: UUID sesji, UUID gracza, nick, tryb proxy `MOJANG/OFFLINE`, czas
+połączenia i ostatni backend. Brak wpisu oznacza brak potwierdzonego admission
+na proxy. Tryb `OFFLINE` **nie** oznacza, że gracz podał prawidłowe hasło
+na Paper. Informacje aktualizuje `ServerConnectedEvent` i usuwa
+`DisconnectEvent`. Rejestr ma limit rozmiaru i jest czyszczony przy shutdown.
+
+Velocity domyślnie rozłącza logowania trwające ponad 30 sekund
+(`-Dvelocity.login-timeout`). AGX ma odrębny, krótszy domyślny deadline
+20 sekund (`connections.admission-timeout-millis`), aby zakończyć własne
+futures i zwolnić slot przed limitem proxy. Nie ustawiaj go większego niż
+limit login-timeout. Powolne zewnętrzne usługi powinny kończyć się odmową,
+a nie bezterminowo blokować przyjęcia kolejnych graczy.
+
+Ochrona Velocity 4.3.0 przed nadmiernymi pakietami i floodem działa **w samym
+proxy**, niezależnie od filtrów AuthGatewayX. AGX utrzymuje swoje limity
+weryfikacji i ryzyka, nie próbuje zastępować mechanizmów Netty ani modyfikować
+limitów pakietów Velocity. Przy aktualizacji zrób test logowania premium,
+offline, reconnect oraz przełączenia backendu; testy jednostkowe nie
+zastępują uruchomienia realnej sieci.

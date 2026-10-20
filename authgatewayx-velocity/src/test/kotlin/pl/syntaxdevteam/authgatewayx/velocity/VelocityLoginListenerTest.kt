@@ -9,6 +9,7 @@ import pl.syntaxdevteam.authgatewayx.integrations.network.*
 import pl.syntaxdevteam.authgatewayx.security.flood.*
 import java.lang.reflect.Proxy
 import java.net.InetSocketAddress
+import java.util.UUID
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicBoolean
@@ -20,9 +21,9 @@ class VelocityLoginListenerTest {
         override fun resume() { count++ }
         override fun resumeWithException(exception: Throwable) { throw AssertionError(exception) }
     }
-    private fun event(port: Int = 20000): PreLoginEvent {
+    private fun event(port: Int = 20000, sessionId: UUID = UUID.randomUUID()): PreLoginEvent {
         val connection = Proxy.newProxyInstance(InboundConnection::class.java.classLoader,arrayOf(InboundConnection::class.java)) { _, method, _ ->
-            when(method.name) { "getRemoteAddress" -> InetSocketAddress("127.0.0.1",port); "isActive" -> true; else -> null }
+            when(method.name) { "getRemoteAddress" -> InetSocketAddress("127.0.0.1",port); "getSessionId" -> sessionId; "isActive" -> true; else -> null }
         } as InboundConnection
         return PreLoginEvent(connection,"NewName",null)
     }
@@ -30,7 +31,7 @@ class VelocityLoginListenerTest {
                          lookup: PremiumUsernameLookup = PremiumUsernameLookup { CompletableFuture.completedFuture(PremiumUsernameStatus.NOT_PREMIUM) },
                          network: IpIntelligenceLookup? = null) = VelocityLoginListener(ready,
         ConnectionFloodGate(FloodLimit(100,100,Duration.ofSeconds(1)),FloodLimit(100,100,Duration.ofSeconds(1)),100),
-        lookup,pending,VelocityLoginMessages(Component.text("unavailable"),Component.text("rate"),Component.text("name"),Component.text("mojang"),Component.text("state"),Component.text("vpn"),Component.text("multi")),
+        lookup,pending,VelocitySessionRegistry(100),VelocityLoginMessages(Component.text("unavailable"),Component.text("rate"),Component.text("name"),Component.text("mojang"),Component.text("state"),Component.text("vpn"),Component.text("multi")),
         VelocityRiskChecks(null,network,RiskAction.ALERT,RiskAction.DENY,true),1,{_,_,_,_->})
 
     @Test fun `VPN denial completes prelogin exactly once and never grants pending backend admission`() {
@@ -39,7 +40,7 @@ class VelocityLoginListenerTest {
         val event = event(); val resume = Resume()
         listener.onPreLogin(event,resume)
         assertFalse(event.result.isAllowed); assertEquals(1,resume.count)
-        assertNull(pending.remove(PendingConnectionKey(event.connection.remoteAddress,"newname")))
+        assertNull(pending.remove(PendingConnectionKey(event.connection.sessionId)))
     }
     @Test fun `capacity rejects before additional expensive lookup and shutdown rejects late allow`() {
         var calls = 0
@@ -52,7 +53,7 @@ class VelocityLoginListenerTest {
         assertFalse(second.result.isAllowed); assertEquals(1,secondResume.count); assertEquals(1,calls)
         ready.set(false); lookup.complete(PremiumUsernameStatus.NOT_PREMIUM)
         assertFalse(first.result.isAllowed); assertEquals(1,resume.count)
-        assertNull(pending.remove(PendingConnectionKey(first.connection.remoteAddress,"newname")))
+        assertNull(pending.remove(PendingConnectionKey(first.connection.sessionId)))
     }
     @Test fun `failed premium lookup never falls back and existing plugin denials are preserved`() {
         val pending = PendingConnectionRegistry(Duration.ofSeconds(30),100)
@@ -62,11 +63,11 @@ class VelocityLoginListenerTest {
         denied.result = PreLoginEvent.PreLoginComponentResult.denied(reason)
         listener.onPreLogin(denied,Resume()); assertEquals(reason,denied.result.reasonComponent.get())
     }
-    @Test fun `same IP and name on different sockets cannot consume each others mode`() {
+    @Test fun `independent sessions behind same NAT cannot consume each others mode`() {
         val pending = PendingConnectionRegistry(Duration.ofSeconds(30),100)
         val risk = ProxyRiskResult(null,null,null,false)
-        val a = PendingConnectionKey(InetSocketAddress("127.0.0.1",1),"player")
-        val b = PendingConnectionKey(InetSocketAddress("127.0.0.1",2),"player")
+        val a = PendingConnectionKey(UUID.randomUUID())
+        val b = PendingConnectionKey(UUID.randomUUID())
         pending.put(a,PendingLoginDecision(SelectedAuthenticationMode.OFFLINE,risk))
         pending.put(b,PendingLoginDecision(SelectedAuthenticationMode.MOJANG,risk))
         assertEquals(SelectedAuthenticationMode.OFFLINE,pending.remove(a)!!.mode)

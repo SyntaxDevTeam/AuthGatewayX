@@ -6,6 +6,7 @@ import com.velocitypowered.api.event.proxy.ProxyInitializeEvent
 import com.velocitypowered.api.event.proxy.ProxyShutdownEvent
 import com.velocitypowered.api.plugin.annotation.DataDirectory
 import com.velocitypowered.api.proxy.ProxyServer
+import com.velocitypowered.api.proxy.Player
 import org.slf4j.Logger
 import pl.syntaxdevteam.authgatewayx.velocity.loader.PluginInitializer
 import pl.syntaxdevteam.message.MessageHandler
@@ -18,6 +19,14 @@ class AuthGatewayXVelocity @Inject constructor(
 ) {
     lateinit var messageHandler: MessageHandler
         internal set
+    @Volatile private var sessionRegistry: VelocitySessionRegistry? = null
+
+    /** Diagnostic proxy session state. OFFLINE means proxy admission, NOT backend password auth. */
+    fun session(player: Player): ProxySessionSnapshot? = sessionRegistry?.find(player.sessionId, player.uniqueId)
+
+    internal fun attachSessions(registry: VelocitySessionRegistry) { sessionRegistry = registry }
+    internal fun detachSessions() { sessionRegistry = null }
+
     private val initializer = PluginInitializer(this, proxy, logger, dataDirectory)
 
     @Subscribe

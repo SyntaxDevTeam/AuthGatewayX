@@ -7,6 +7,8 @@ premium:
     negative-ttl-seconds: 300
     maximum-cache-size: 50000
 connections:
+  # Bound every asynchronous admission; keep lower than Velocity's login-timeout (default 30s).
+  admission-timeout-millis: 20000
   pending-ttl-seconds: 30
   maximum-pending: 10000
 executors:

@@ -30,7 +30,9 @@ class VelocityClientAuthenticationChannelTest {
         val replies = mutableListOf<ByteArray>()
         val forwards = mutableListOf<ByteArray>()
         val ticks = mutableListOf<Runnable>()
+        var sessionId = UUID.randomUUID()
         val player = mock(Player::class.java) { name, args -> when (name) {
+            "getSessionId" -> sessionId
             "isActive" -> true
             "isOnlineMode" -> true // Even Mojang clients wait for backend ACTIVE.
             "getCurrentServer" -> Optional.of(backend)
@@ -103,6 +105,17 @@ class VelocityClientAuthenticationChannelTest {
         f.channel.onDisconnect(DisconnectEvent(f.player, DisconnectEvent.LoginStatus.SUCCESSFUL_LOGIN))
         f.channel.onMessage(f.response())
         assertTrue(f.replies.isEmpty())
+        f.channel.close()
+    }
+
+    @Test fun `changed proxy session cannot receive a previous subscription confirmation`() {
+        val f = Fixture()
+        f.channel.onMessage(f.request())
+        f.sessionId = UUID.randomUUID()
+        f.channel.onMessage(f.response())
+        assertTrue(f.replies.isEmpty())
+        f.ticks.single().run()
+        assertTrue(f.forwards.isEmpty())
         f.channel.close()
     }
 

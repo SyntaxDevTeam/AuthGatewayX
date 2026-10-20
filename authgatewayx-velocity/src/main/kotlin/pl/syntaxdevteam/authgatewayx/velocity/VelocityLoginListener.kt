@@ -13,10 +13,9 @@ import pl.syntaxdevteam.authgatewayx.integrations.mojang.PremiumUsernameStatus
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionDecision
 import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
 import java.net.InetAddress
-import java.net.InetSocketAddress
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.Semaphore
 import java.util.concurrent.CompletableFuture
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 data class VelocityLoginMessages(
@@ -34,13 +33,16 @@ class VelocityLoginListener(
     private val floodGate: ConnectionFloodGate,
     private val lookup: PremiumUsernameLookup,
     private val pending: PendingConnectionRegistry,
+    private val sessions: VelocitySessionRegistry,
     private val messages: VelocityLoginMessages,
     private val riskChecks: VelocityRiskChecks,
     maximumConcurrent: Int,
     private val notify: (String, InetAddress, ProxyRiskResult, Boolean) -> Unit,
+    private val admissionTimeoutMillis: Long = 20_000,
 
 ) {
     private val capacity = Semaphore(maximumConcurrent)
+    init { require(admissionTimeoutMillis > 0) }
     @Subscribe
     fun onPreLogin(event: PreLoginEvent, continuation: Continuation) {
         if (!event.result.isAllowed) { continuation.resume(); return }
@@ -51,7 +53,7 @@ class VelocityLoginListener(
             return deny(event, messages.invalidUsername, continuation)
         }
         if (!capacity.tryAcquire()) return deny(event, messages.rateLimited, continuation)
-        val key = key(event.connection.remoteAddress, username.value)
+        val key = PendingConnectionKey(event.connection.sessionId)
         val stage = try {
             lookup.lookup(username).thenCompose { status ->
                 if (status == PremiumUsernameStatus.UNAVAILABLE) CompletableFuture.failedFuture(IllegalStateException("Premium unavailable"))
@@ -60,7 +62,8 @@ class VelocityLoginListener(
                 }
             }
         } catch (_: Exception) { CompletableFuture.failedFuture<PendingLoginDecision>(IllegalStateException("Admission unavailable")) }
-        stage.whenComplete { decision, failure ->
+        // Release the concurrency slot even if a third-party lookup never completes.
+        stage.orTimeout(admissionTimeoutMillis, TimeUnit.MILLISECONDS).whenComplete { decision, failure ->
             try {
                 if (!ready.get() || !event.connection.isActive) {
                     event.result = PreLoginEvent.PreLoginComponentResult.denied(messages.unavailable)
@@ -68,6 +71,8 @@ class VelocityLoginListener(
                     event.result = PreLoginEvent.PreLoginComponentResult.denied(messages.mojangUnavailable)
                 } else if (!event.result.isAllowed) {
                     // Preserve a denial from another plugin while async work was pending.
+                } else if (decision == null) {
+                    event.result = PreLoginEvent.PreLoginComponentResult.denied(messages.unavailable)
                 } else if (decision.risk.denial != null) {
                     val message = when (decision.risk.denial) {
                         RiskDenial.VPN -> messages.vpnDenied
@@ -89,19 +94,28 @@ class VelocityLoginListener(
     @Subscribe
     fun onLogin(event: LoginEvent) {
         val player = event.player
-        val selected = pending.remove(key(player.remoteAddress, player.username))
+        val sessionId = player.sessionId
+        val selected = pending.remove(PendingConnectionKey(sessionId))
         val valid = when (selected?.mode) {
             SelectedAuthenticationMode.MOJANG -> player.isOnlineMode
             SelectedAuthenticationMode.OFFLINE -> !player.isOnlineMode
             null -> false
         }
-        if (!ready.get() || !valid) event.result = ResultedEvent.ComponentResult.denied(messages.stateMismatch)
-        else if (event.result.isAllowed) runCatching { notify(player.username, player.remoteAddress.address, selected!!.risk, false) }
+        if (!ready.get() || !valid) {
+            event.result = ResultedEvent.ComponentResult.denied(messages.stateMismatch)
+        } else if (event.result.isAllowed) {
+            if (!sessions.record(sessionId, player.uniqueId, player.username, selected!!.mode)) {
+                event.result = ResultedEvent.ComponentResult.denied(messages.rateLimited)
+            } else {
+                runCatching { notify(player.username, player.remoteAddress.address, selected.risk, false) }
+            }
+        }
     }
 
     @Subscribe
     fun onDisconnect(event: DisconnectEvent) {
-        pending.discard(key(event.player.remoteAddress, event.player.username))
+        pending.discard(PendingConnectionKey(event.player.sessionId))
+        sessions.discard(event.player.sessionId)
     }
 
     private fun deny(event: PreLoginEvent, message: Component, continuation: Continuation) {
@@ -109,5 +123,4 @@ class VelocityLoginListener(
         continuation.resume()
     }
 
-    private fun key(address: InetSocketAddress, username: String) = PendingConnectionKey(address, username.lowercase(Locale.ROOT))
 }

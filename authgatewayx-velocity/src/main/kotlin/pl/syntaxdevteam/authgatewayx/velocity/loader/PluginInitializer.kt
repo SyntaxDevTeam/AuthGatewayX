@@ -40,6 +40,7 @@ class PluginInitializer(
     private var admin: VelocityRiskAdmin? = null
     private var executor: BoundedTaskExecutor? = null
     private var pending: PendingConnectionRegistry? = null
+    private var sessions: VelocitySessionRegistry? = null
     private var floodGate: ConnectionFloodGate? = null
 
     fun onEnable() {
@@ -70,6 +71,9 @@ class PluginInitializer(
             )
             executor = work
             pending = connections
+            val sessionState = VelocitySessionRegistry(configuration.maximumPending)
+            sessions = sessionState
+            plugin.attachSessions(sessionState)
             floodGate = flood
             val lookup = MojangProfileLookup(
                 work, Duration.ofMillis(configuration.lookupTimeoutMillis),
@@ -112,7 +116,8 @@ class PluginInitializer(
                         { key -> handler.stringMessageToComponentNoPrefix("risk", key) }, risk.alertCooldownSeconds, risk.consoleAlerts, risk.showGeo, risk.alertsEnabled)
                     admin = commands
                     proxy.commandManager.register(proxy.commandManager.metaBuilder("authgatewayx").plugin(plugin).build(), commands)
-                    proxy.eventManager.register(plugin, VelocityLoginListener(ready, flood, lookup, connections, VelocityLoginMessages(
+                    proxy.eventManager.register(plugin, VelocitySessionListener(sessionState))
+                    proxy.eventManager.register(plugin, VelocityLoginListener(ready, flood, lookup, connections, sessionState, VelocityLoginMessages(
                         handler.stringMessageToComponentNoPrefix("auth", "unavailable"),
                         handler.stringMessageToComponentNoPrefix("auth", "rate_limited"),
                         handler.stringMessageToComponentNoPrefix("auth", "invalid_username"),
@@ -121,7 +126,7 @@ class PluginInitializer(
                         handler.stringMessageToComponentNoPrefix("auth", "vpn_denied"),
                         handler.stringMessageToComponentNoPrefix("auth", "multi_denied"),
                     ), VelocityRiskChecks(db, ip, risk.multiAction, risk.networkAction, risk.failClosed),
-                        risk.maximumConcurrent, commands::notify))
+                        risk.maximumConcurrent, commands::notify, configuration.admissionTimeoutMillis))
                     ready.set(true)
                     logger.info("AuthGatewayX Velocity admission is READY; shared history={}, IP checks={}", risk.storageEnabled, risk.networkEnabled)
                 } catch (problem: Throwable) {
@@ -159,6 +164,8 @@ class PluginInitializer(
         storage?.close()
         storageExecutor?.close()
         pending?.close()
+        sessions?.close()
+        plugin.detachSessions()
         floodGate?.clear()
         executor?.close()
     }
