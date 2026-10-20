@@ -17,3 +17,12 @@ do Velocity 4.3.0, a nie do AuthGatewayX.
 - [x] Dodano chronioną `/authgatewayx session <nick>` (`authgatewayx.admin.session`), dostępną wyłącznie po ponownej weryfikacji administratora.
 - [x] Przy potwierdzeniu staff-proof porównywany jest także UUID sesji proxy; odpowiedź z poprzedniej sesji nie jest akceptowana.
 - [x] Ograniczono koszt czyszczenia wpisów oczekujących przy normalnym ruchu: nie skanujemy całej mapy przy każdym logowaniu.
+
+## Rotacja domyślnego staff-proof (2026-10-20)
+
+- [x] Usunięto publicznie znany sekret z obu wbudowanych przykładów YAML.
+- [ ] Operator musi sprawdzić i wymienić sekret w już wygenerowanych plikach konfiguracji; AGX nie nadpisuje konfiguracji użytkownika.
+
+Brak sekretu oznacza odmowę dowodu uprawnień administratora offline
+na proxy, a nie otwarcie dostępu. Wartości na Velocity i Paper muszą
+być takie same, ale nie mogą być publicznie znanym przykładem.

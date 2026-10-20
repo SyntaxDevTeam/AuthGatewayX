@@ -167,3 +167,16 @@ backendu. Tak jak raport `alts`, wymaga potwierdzonej tożsamości
 administratora: dla konta offline weryfikacji `staff-proof` przez Paper.
 Nie przekazuje hasła ani sekretów; identyfikator sesji nie jest kluczem
 autoryzacyjnym. Działa tylko dla graczy aktualnie połączonych z proxy.
+
+### Ważne: wymiana sekretu staff-proof
+
+Starsze przykładowe pliki konfiguracyjne zawierały ten sam, publicznie
+znany sekret `staff-proof`. **Nie używaj go w produkcji.** Wygeneruj
+własną losową wartość (co najmniej 32 bajty, najlepiej 32 bajty z CSPRNG
+zakodowane hex/base64), ustaw identyczną na Velocity i Paper lub przekaż
+ją obu procesom przez `AUTHGATEWAYX_STAFF_PROOF_SECRET`.
+W nowych instalacjach ustawienie jest domyślnie puste: pracownicy offline
+nie przejdą proof, dopóki administrator świadomie nie włączy bezpiecznej
+integracji. Zmiana szablonu nie modyfikuje istniejącego pliku na serwerze:
+sekret użyty wcześniej należy wymienić ręcznie na każdej instancji.
+Nie utożsamiaj tego sekretu z Velocity forwarding secret.

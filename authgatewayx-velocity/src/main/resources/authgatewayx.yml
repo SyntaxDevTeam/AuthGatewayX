@@ -64,4 +64,4 @@ alerts:
 staff-proof:
   # Match Paper's independent random secret (>=32 bytes), not the forwarding secret.
   # AUTHGATEWAYX_STAFF_PROOF_SECRET overrides this. Empty: console and Mojang staff only.
-  secret: "xTWAffiMRLtBlCX7ylkgAWGjYMXw4xUh"
+  secret: "" # Configure a unique random shared secret for your own network (>=32 bytes).
