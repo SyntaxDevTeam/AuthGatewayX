@@ -359,7 +359,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         val serverMinecraftVersion = org.bukkit.Bukkit.getMinecraftVersion()
         val consentPresentation = ConsentPresentationSelector.select(
             minecraftVersion = serverMinecraftVersion,
-            dialogsEnabled = consentPresentation == ConsentPresentation.MINECRAFT_DIALOG,
+            dialogsEnabled = config.getBoolean("privacy.dialogs.enabled", true),
         )
         if (config.getBoolean("privacy.enabled", true)) {
             logger.info("Privacy UI: ${consentPresentation.name} (Minecraft ${serverMinecraftVersion})")
@@ -372,7 +372,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             isolation = isolation,
             gate = consentGate,
             enabled = config.getBoolean("privacy.enabled", true),
-            dialogsEnabled = config.getBoolean("privacy.dialogs.enabled", true),
+            dialogsEnabled = consentPresentation == ConsentPresentation.MINECRAFT_DIALOG,
             policyVersion = config.getString("privacy.policy-version", "1")!!,
             policyUrl = config.getString("privacy.policy-url", "")!!,
             timeoutTicks = positiveLong("privacy.timeout-seconds") * 20L,
