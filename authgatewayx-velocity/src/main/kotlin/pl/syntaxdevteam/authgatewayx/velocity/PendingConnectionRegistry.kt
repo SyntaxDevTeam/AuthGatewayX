@@ -14,12 +14,17 @@ data class PendingConnectionKey(val sessionId: UUID)
 class PendingConnectionRegistry(private val ttl: Duration, private val maximumSize: Int, private val clock: Clock = Clock.systemUTC()) {
     private var closed = false
     private val entries = ConcurrentHashMap<PendingConnectionKey, Entry>()
+    private var additionsSinceSweep = 0
     init { require(!ttl.isZero && !ttl.isNegative && maximumSize > 0) }
 
     @Synchronized
     fun put(key: PendingConnectionKey, decision: PendingLoginDecision): Boolean {
         if (closed) return false
-        cleanup()
+        // A full map still evicts expired entries; normal logins do not scan the map O(n).
+        if (++additionsSinceSweep >= 256 || entries.size >= maximumSize) {
+            cleanup()
+            additionsSinceSweep = 0
+        }
         if (entries.size >= maximumSize && !entries.containsKey(key)) return false
         if (entries.containsKey(key)) return false // Never replace an earlier admission for the same connection.
         entries[key] = Entry(decision, clock.instant().plus(ttl))

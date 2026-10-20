@@ -113,7 +113,7 @@ class PluginInitializer(
                 try {
                     phase(VelocityReadinessGuard.Phase.LISTENERS)
                     val commands = VelocityRiskAdmin(proxy, db, proof, ready::get,
-                        { key -> handler.stringMessageToComponentNoPrefix("risk", key) }, risk.alertCooldownSeconds, risk.consoleAlerts, risk.showGeo, risk.alertsEnabled)
+                        { key -> handler.stringMessageToComponentNoPrefix("risk", key) }, risk.alertCooldownSeconds, risk.consoleAlerts, risk.showGeo, risk.alertsEnabled, plugin::session)
                     admin = commands
                     proxy.commandManager.register(proxy.commandManager.metaBuilder("authgatewayx").plugin(plugin).build(), commands)
                     proxy.eventManager.register(plugin, VelocitySessionListener(sessionState))

@@ -28,17 +28,23 @@ class VelocityRiskAdmin(
     private val consoleAlerts: Boolean,
     private val showGeo: Boolean,
     private val alertsEnabled: Boolean,
+    private val sessionLookup: (Player) -> ProxySessionSnapshot? = { null },
 ) : SimpleCommand {
     private val busy = AtomicBoolean()
     private val cooldowns = LinkedHashMap<String, Instant>()
     private var nextAlert = Instant.MIN
 
     override fun hasPermission(invocation: SimpleCommand.Invocation): Boolean =
-        invocation.arguments().firstOrNull()?.equals("alts", true) == true
+        invocation.arguments().firstOrNull()?.let { it.equals("alts", true) || it.equals("session", true) } == true
 
     override fun execute(invocation: SimpleCommand.Invocation) {
         val source = invocation.source()
-        if (!ready() || !source.hasPermission("authgatewayx.admin.alts")) return
+        if (!ready()) return
+        if (invocation.arguments().firstOrNull()?.equals("session", true) == true) {
+            showSession(invocation)
+            return
+        }
+        if (!source.hasPermission("authgatewayx.admin.alts")) return
         val name = invocation.arguments().takeIf { it.size == 2 }?.get(1)
             ?.let { runCatching { AccountUsername.parse(it) }.getOrNull() }
         if (name == null) { source.sendMessage(text("usage").fill("argument", "<nick>")); return }
@@ -75,6 +81,34 @@ class VelocityRiskAdmin(
                         }
                     } finally { busy.set(false) }
                 }
+            }
+        }
+    }
+
+    /** Read-only diagnostic; never treats a proxy OFFLINE admission as password verification. */
+    private fun showSession(invocation: SimpleCommand.Invocation) {
+        val source = invocation.source()
+        if (!source.hasPermission("authgatewayx.admin.session")) return
+        val name = invocation.arguments().takeIf { it.size == 2 }?.get(1)
+        if (name.isNullOrBlank()) {
+            source.sendMessage(Component.text("Usage: /authgatewayx session <nick>"))
+            return
+        }
+        authorize(source).whenComplete { authorized, error ->
+            if (!ready() || authorized != true || error != null ||
+                !source.hasPermission("authgatewayx.admin.session")) {
+                if (ready()) source.sendMessage(text("auth_required"))
+                return@whenComplete
+            }
+            val player = proxy.getPlayer(name).orElse(null)
+            val session = player?.takeIf { it.isActive }?.let(sessionLookup)
+            if (session == null) {
+                source.sendMessage(Component.text("AuthGatewayX: no active proxy session for $name"))
+            } else {
+                source.sendMessage(Component.text(
+                    "AGX session: ${session.username} | id=${session.sessionId} | " +
+                        "mode=${session.mode} (proxy only) | backend=${session.backend ?: "connecting"}"
+                ))
             }
         }
     }

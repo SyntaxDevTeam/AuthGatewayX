@@ -18,6 +18,7 @@ class VelocityStaffProofTest {
     private inner class Fixture {
         val secret = "s".repeat(32)
         val id = UUID.randomUUID()
+        var sessionId = UUID.randomUUID()
         var active = true
         var online = false
         lateinit var backend: ServerConnection
@@ -25,7 +26,7 @@ class VelocityStaffProofTest {
         val timeouts = mutableListOf<Runnable>()
         var cancelled = 0
         val player = mock(Player::class.java) { method,_ -> when(method) {
-            "isActive" -> active; "isOnlineMode" -> online; "getUniqueId" -> id; "getCurrentServer" -> Optional.of(backend); else -> null
+            "isActive" -> active; "isOnlineMode" -> online; "getUniqueId" -> id; "getSessionId" -> sessionId; "getCurrentServer" -> Optional.of(backend); else -> null
         } }
         fun server() = mock(ServerConnection::class.java) { method,args -> when(method) {
             "getPlayer" -> player; "sendPluginMessage" -> { challenge = (args!![1] as ByteArray).copyOf(); true }; else -> null
@@ -69,6 +70,16 @@ class VelocityStaffProofTest {
         val next = f.verifier.authorize(f.player).toCompletableFuture()
         f.verifier.close(); assertFalse(next.get())
         assertFalse(f.verifier.authorize(f.player).toCompletableFuture().get())
+    }
+    @Test fun `a signed reply cannot authorize a changed proxy session`() {
+        val f = Fixture()
+        val future = f.verifier.authorize(f.player).toCompletableFuture()
+        val signed = f.response()
+        f.sessionId = UUID.randomUUID()
+        f.verifier.onMessage(f.event(f.backend, signed))
+        assertFalse(future.isDone)
+        f.verifier.close()
+        assertFalse(future.get())
     }
     @Test fun `Mojang staff needs no backend proof and concurrent offline requests are bounded per player`() {
         val f = Fixture(); f.online = true

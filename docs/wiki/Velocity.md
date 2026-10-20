@@ -158,3 +158,12 @@ weryfikacji i ryzyka, nie próbuje zastępować mechanizmów Netty ani modyfikow
 limitów pakietów Velocity. Przy aktualizacji zrób test logowania premium,
 offline, reconnect oraz przełączenia backendu; testy jednostkowe nie
 zastępują uruchomienia realnej sieci.
+
+### Komenda diagnostyczna sesji proxy
+
+`/authgatewayx session <nick>` (uprawnienie Velocity `authgatewayx.admin.session`)
+wyświetla identyfikator bieżącej sesji, tryb weryfikacji proxy oraz nazwę
+backendu. Tak jak raport `alts`, wymaga potwierdzonej tożsamości
+administratora: dla konta offline weryfikacji `staff-proof` przez Paper.
+Nie przekazuje hasła ani sekretów; identyfikator sesji nie jest kluczem
+autoryzacyjnym. Działa tylko dla graczy aktualnie połączonych z proxy.
