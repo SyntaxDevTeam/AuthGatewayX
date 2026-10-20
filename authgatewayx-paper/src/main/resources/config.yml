@@ -177,8 +177,9 @@ privacy:
   # After login, disconnect a player who does not decide in time.
   timeout-seconds: 120
   dialogs:
-    # Minecraft Dialog is the default on supported Paper 1.21.7+.
-    # Set false for clickable chat fallback. AGX currently targets modern Paper API.
+    # Automatically use Minecraft Dialog for server Minecraft 1.21.7+; older versions use chat.
+    # Set false to force the clickable chat fallback even on modern servers.
+    # This setting does not alter the minimum Paper API required by the plugin JAR.
     enabled: true
 
 # /********************************************/

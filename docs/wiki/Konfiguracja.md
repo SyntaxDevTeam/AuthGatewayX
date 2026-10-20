@@ -31,6 +31,18 @@ To fragment do odnalezienia i edycji, a nie cały config. Końcówka `seconds` o
 
 Minimum długości hasła nie może być większe od maksimum. Wiadomości opisano na stronie [Wiadomości](Wiadomosci.md).
 
+## Zgody i polityka prywatności (Paper)
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `privacy.enabled` | `true` | Wymagaj decyzji po uwierzytelnieniu konta premium lub offline |
+| `privacy.policy-version` | `1` | Wersja zasad, zmiana wymusza ponowną akceptację |
+| `privacy.policy-url` | pusty | Adres HTTPS pełnej informacji o prywatności |
+| `privacy.timeout-seconds` | `120` | Czas na decyzję po zalogowaniu |
+| `privacy.dialogs.enabled` | `true` | Automatyczny Dialog od Minecraft 1.21.7; poniżej czat. Ustaw `false`, aby zawsze używać czatu |
+
+Wybór interfejsu wynika z wersji Minecraft uruchomionej na serwerze Paper i nie wymaga ręcznego ustawiania progu. Jest niezależny od wersji klienta gracza. Ten mechanizm dotyczy wyświetlania polityki; obecny plik JAR nadal deklaruje `api-version: 26.3` i nie staje się zgodny ze starszymi Paper przez samo przełączenie na czat.
+
 ## Sprawdzanie premium
 
 | Opcja | Domyślnie | Znaczenie |

@@ -67,6 +67,8 @@ import pl.syntaxdevteam.authgatewayx.paper.command.ConsentCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentController
 import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentGate
 import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentText
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentPresentation
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentPresentationSelector
 import pl.syntaxdevteam.authgatewayx.paper.command.ReloadCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
@@ -354,6 +356,14 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         runtime?.registrationAttemptGate = registrationAttemptGate
         val isolation = PreAuthIsolationManager(plugin, scheduler, access, positive("authentication.timeout-seconds") * 20L,
             messages.stringMessageToComponentNoPrefix("auth", "timeout"))
+        val serverMinecraftVersion = org.bukkit.Bukkit.getMinecraftVersion()
+        val consentPresentation = ConsentPresentationSelector.select(
+            minecraftVersion = serverMinecraftVersion,
+            dialogsEnabled = consentPresentation == ConsentPresentation.MINECRAFT_DIALOG,
+        )
+        if (config.getBoolean("privacy.enabled", true)) {
+            logger.info("Privacy UI: ${consentPresentation.name} (Minecraft ${serverMinecraftVersion})")
+        }
         val consent = ConsentController(
             plugin = plugin,
             scheduler = scheduler,
