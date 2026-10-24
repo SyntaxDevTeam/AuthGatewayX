@@ -3239,3 +3239,15 @@ classloadera; stan połączeń guardu jest czyszczony. Velocity nie zmienia life
 Testy JVM i artefaktów przechodzą; rzeczywista macierz PlugManX/Paper/Purpur/Folia
 pozostaje otwarta. Wymagany PlugManX z obsługą natywnego Paper i konkretnego buildu.
 [Szczegóły decyzji, ograniczenia i checklista](15-plugmanx-lifecycle.md).
+
+## Aktualizacja 2026-10-24 — błędy i deadline lookupu Mojang
+
+Paper/Folia i Velocity stosują jeden limit czasu obejmujący kolejkę i HTTP,
+usuwają wygasłe zadania, respektują `Retry-After` po 429/503 i ograniczają ponowne
+zapytania po błędach usługi. Ważny cache zachowuje dotychczasowe TTL; brak pewnego
+wyniku zawsze oznacza UNAVAILABLE/DENY. Rozdzielone futures chronią współdzielony
+lookup przed anulowaniem przez pojedynczego konsumenta. Spóźnione wyniki i shutdown
+nie mogą przywrócić cache. Zapis przyczyn ma stały zestaw kodów i limit jednej linii
+na kategorię na 30 sekund, bez danych graczy oraz blokującego I/O na Netty/tick.
+Decyzja i limity: [założenia techniczne](03-zalozenia-techniczne.md#decyzja-2026-10-24--odporność-lookupu-mojang).
+Testy nie zastępują rzeczywistej macierzy klientów Paper/Purpur/Folia/Velocity.

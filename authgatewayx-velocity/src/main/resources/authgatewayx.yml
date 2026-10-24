@@ -2,6 +2,9 @@ language: PL
 
 premium:
   lookup:
+    # Total queue + HTTP budget. Unverified usernames remain denied.
+    # HTTP 429 respects Retry-After (max 24h, default 60s); other failures pause for 2s.
+    # Valid cached results remain usable. [mojang-lookup] logs explain failures without player data.
     timeout-millis: 3000
     positive-ttl-seconds: 21600
     negative-ttl-seconds: 300

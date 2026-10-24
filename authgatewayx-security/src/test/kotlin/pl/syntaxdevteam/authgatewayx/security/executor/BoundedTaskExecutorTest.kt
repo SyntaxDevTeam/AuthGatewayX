@@ -53,6 +53,24 @@ class BoundedTaskExecutorTest {
     }
 
     @Test
+    fun `cancelling queued work immediately frees capacity for another task`() {
+        val executor = BoundedTaskExecutor(1, 1, "queue-reclaim-test")
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        try {
+            val running = executor.submit { started.countDown(); release.await() }
+            assertTrue(started.await(2, TimeUnit.SECONDS))
+            val cancelled = executor.submit { error("cancelled work must never run") }
+            cancelled.cancel(false)
+            val replacement = executor.submit { 42 }
+            assertEquals(false, replacement.isCompletedExceptionally)
+            release.countDown()
+            running.get(2, TimeUnit.SECONDS)
+            assertEquals(42, replacement.get(2, TimeUnit.SECONDS))
+        } finally { release.countDown(); executor.close() }
+    }
+
+    @Test
     fun `rejects work after worker and queue capacity are exhausted`() {
         val executor = BoundedTaskExecutor(1, 1, "auth-test")
         val started = CountDownLatch(1)

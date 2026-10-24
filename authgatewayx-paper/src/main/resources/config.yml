@@ -25,10 +25,13 @@ premium:
       maximum-lines-per-minute: 120
 
   lookup:
-    # Maximum time, in milliseconds, AuthGatewayX waits for Minecraft Services/Mojang
-    # while checking whether a username belongs to a premium account.
+    # Total time budget in milliseconds, including waiting for a lookup worker and HTTP.
+    # Expired queued work is removed. Unverified usernames remain denied.
     # A short timeout limits how long external service problems can occupy login workers.
     timeout-millis: 3000
+    # HTTP 429 pauses uncached lookups according to Retry-After (up to 24h; default 60s).
+    # Other service/transport failures pause them for 2s. Valid cached results remain usable.
+    # Rate-limited [mojang-lookup] diagnostics explain the reason without player data.
 
     # How long, in seconds, a successful premium-profile lookup remains cached.
     # Default: 21600 seconds = 6 hours.

@@ -61,3 +61,35 @@ Te funkcje nie są dostępne w obecnym wydaniu. Geyser/Floodgate, 2FA i odzyskiw
 ## Jak zgłosić problem?
 
 Podaj wersję AuthGatewayX, wersję serwera i klienta, informację o Velocity oraz kroki prowadzące do błędu. Dołącz treść komunikatu i potrzebny fragment logu. Usuń hasła bazy, sekret Velocity, adresy IP i inne prywatne dane. Nie wysyłaj całej bazy graczy ani zdjęcia widocznego hasła.
+
+## „Nie można bezpiecznie zweryfikować statusu nicku”
+
+Plugin nie dostał wiarygodnej odpowiedzi pozwalającej ustalić status nicku. To inny
+etap niż potwierdzenie sesji premium. Administrator powinien odszukać w konsoli wpisy
+`[mojang-lookup]`:
+
+| Przyczyna | Znaczenie |
+| --- | --- |
+| `HTTP_ERROR` | Usługa zwróciła błąd; `http_status=429` oznacza ograniczenie liczby zapytań |
+| `DNS_ERROR` / `TLS_ERROR` / `TRANSPORT_ERROR` | Problem połączenia serwera z Minecraft Services |
+| `QUEUE_TIMEOUT` | Upłynął czas oczekiwania na wolny wątek sprawdzania nicków |
+| `HTTP_TIMEOUT` | Upłynął czas sprawdzania po rozpoczęciu żądania |
+| `EXECUTOR_OVERLOADED` | Kolejka jest pełna lub executor został zatrzymany |
+| `INVALID_RESPONSE` | Odpowiedź nie zawiera poprawnego identyfikatora profilu |
+| `BACKOFF` | Trwa przerwa po wcześniejszym błędzie usługi |
+| `INTERRUPTED` | Wątek żądania został przerwany, np. podczas zatrzymywania pluginu |
+
+`retry_after_seconds` wskazuje pozostały czas przerwy. Przy 429 plugin uwzględnia
+`Retry-After` (sekundy lub data; maksymalnie 24 godziny), a przy braku poprawnej
+wartości odczekuje 60 sekund. Po pozostałych błędach usługi/połączenia przerwa wynosi
+2 sekundy. Nie ponawia żądań automatycznie; kolejne wejście po przerwie może ponowić
+sprawdzenie. Ważne wyniki z cache działają także podczas przerwy.
+
+Każda kategoria ma limit jednej linii na 30 sekund. `suppressed` w kolejnej linii tej
+kategorii podaje liczbę pominiętych powtórzeń. Wpisy nie zawierają danych graczy i nie
+wymagają włączenia diagnostyki handshake. Brak odpowiedzi nadal blokuje połączenie;
+plugin nie uznaje błędu usługi za potwierdzenie konta offline.
+
+Angielskie wpisy Paper `Failed to verify username` / `invalid session` dotyczą
+natywnego potwierdzenia sesji. Mogą pozostać angielskie w konsoli mimo polskiego
+komunikatu wyświetlanego graczowi.

@@ -36,8 +36,11 @@ class BoundedTaskExecutor(
 
     fun <T> submit(task: () -> T): CompletableFuture<T> {
         val result = CompletableFuture<T>()
+        val pending = PendingTask(result, task)
         try {
-            executor.execute(PendingTask(result, task))
+            executor.execute(pending)
+            // A cancelled or timed-out task must free its queue slot immediately.
+            result.whenComplete { _, _ -> executor.remove(pending) }
         } catch (rejected: RejectedExecutionException) {
             result.completeExceptionally(rejected)
         }

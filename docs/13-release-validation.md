@@ -302,3 +302,31 @@ sukcesem (217 zaliczonych, 4 pominięte zdalne bazy, 0 błędów). Task generato
 na syntetycznym nicku FixtureUser; utworzył nowy katalog i osobną bazę. Sprawdzono brak
 klas fixture w obu JAR-ach dystrybucyjnych. Nie wykonywano logowania klientem premium
 ani nie modyfikowano serwerów/katalogu run; pełny test migracji nadal pozostaje otwarty.
+
+## Lookup Mojang: kolejka, błędy i cooldown — 2026-10-24
+
+Poprawka obejmuje wspólny `MojangProfileLookup`, usuwanie zakończonych zadań z kolejki
+`BoundedTaskExecutor`, diagnostykę async i zamykanie transportu w composition roots
+Paper/Folia oraz Velocity. Zasady sesji premium, brak fallbacku, UUID i izolacja
+PRE_AUTH pozostają bez zmian. Nie dodano zależności ani operacji HTTP/logowania na
+threadzie gry. Wymagany jest restart po podmianie JAR; istniejący config jest zgodny.
+
+- [x] Testy `MojangProfileLookupResilienceTest`: 429, Retry-After w sekundach i dacie,
+  wadliwy/nadmierny nagłówek, 503/5xx, DNS/TLS/transport/HTTP timeout, nieprawidłowy
+  profil, globalny cooldown i wznowienie po nim, ważny/wygasły cache, TTL/LRU/invalidation.
+- [x] Deadline z kolejką, pozostały budżet przekazany do HTTP i pomijanie wygasłej pracy.
+- [x] Ponowne sprawdzenie cooldownu po kolejce oraz odrzucenie po przepełnieniu.
+- [x] Deduplikacja i niezależne futures: anulowanie lub podmiana wyniku konsumenta nie
+  zmienia współdzielonego lookupu ani cache.
+- [x] Spóźniony sukces, shutdown podczas HTTP, brak odtworzenia cache po zamknięciu.
+- [x] Ograniczanie diagnostyki, licznik pominięć i odporność na wyjątek loggera.
+- [x] Test executora: anulowanie natychmiast zwalnia slot dla kolejnego zadania.
+- [x] `./gradlew buildAll --offline --console=plain`: sukces; 265 przypadków,
+  261 zaliczonych, 0 failures/errors, 4 pominięte kontrakty zdalnych baz bez konfiguracji.
+  Oba JAR-y zbudowane; `verifyDistributions` zakończone sukcesem.
+- [ ] Rzeczywisty login klientem premium/offline na Paper/Purpur/Folia/Velocity
+  oraz sprawdzenie przyczyn dotychczasowych błędów na serwerze administratora.
+
+Symulowane odpowiedzi pochodzą z testowego HttpClient; testy nie wywołują Mojang i nie
+potwierdzają bieżącej dostępności zewnętrznej usługi ani poprawności sesji konkretnego
+gracza. Konsolowe `invalid session` nadal pochodzi z natywnej weryfikacji sesji Paper.

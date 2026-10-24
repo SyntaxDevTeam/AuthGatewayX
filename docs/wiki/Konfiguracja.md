@@ -48,12 +48,18 @@ Wybór interfejsu wynika z wersji Minecraft uruchomionej na serwerze Paper i nie
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
 | `premium.authentication.maximum-concurrent-handshakes` | `32` | Ile kont premium może być jednocześnie weryfikowanych na samodzielnym serwerze |
-| `premium.lookup.timeout-millis` | `3000` | Jak długo czekać na odpowiedź o nicku |
+| `premium.lookup.timeout-millis` | `3000` | Łączny czas oczekiwania na sprawdzenie nicku, razem z kolejką i odpowiedzią usługi |
 | `premium.lookup.positive-ttl-seconds` | `21600` | Jak długo pamiętać, że nick należy do premium: 6 godzin |
 | `premium.lookup.negative-ttl-seconds` | `300` | Jak długo pamiętać brak profilu premium: 5 minut |
 | `premium.lookup.maximum-cache-size` | `50000` | Maksymalna liczba zapamiętanych wyników |
 
 Zapamiętywanie wyniku ogranicza powtarzanie zapytań. Nie zastępuje potwierdzenia, że łączący się gracz jest właścicielem konta. Dłuższy czas pamiętania oznacza wolniejsze zauważanie zmian nazw.
+
+Po przekroczeniu czasu plugin odrzuca niezweryfikowany nick i usuwa oczekujące zadanie.
+Po odpowiedzi HTTP 429 wstrzymuje nowe zapytania zgodnie z `Retry-After` (maksymalnie
+24 godziny; domyślnie 60 sekund). Inne błędy usługi lub połączenia powodują przerwę
+2 sekund. W tym czasie nadal korzysta z ważnych zapamiętanych wyników. Nie wymaga to
+nowych ustawień. Diagnostykę opisano na stronie [Pomoc](Pomoc.md).
 
 ## Podejrzane zachowanie
 

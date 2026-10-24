@@ -39,6 +39,7 @@ class PluginInitializer(
     private var staffProof: VelocityStaffProof? = null
     private var admin: VelocityRiskAdmin? = null
     private var executor: BoundedTaskExecutor? = null
+    private var premiumLookup: MojangProfileLookup? = null
     private var pending: PendingConnectionRegistry? = null
     private var sessions: VelocitySessionRegistry? = null
     private var floodGate: ConnectionFloodGate? = null
@@ -79,7 +80,12 @@ class PluginInitializer(
                 work, Duration.ofMillis(configuration.lookupTimeoutMillis),
                 Duration.ofSeconds(configuration.positiveTtlSeconds), Duration.ofSeconds(configuration.negativeTtlSeconds),
                 configuration.maximumCacheSize,
-            )
+                onDiagnostic = { diagnostic ->
+                    proxy.scheduler.buildTask(plugin, Runnable {
+                        if (!stopping.get()) logger.warn(diagnostic.logLine())
+                    }).schedule()
+                },
+            ).also { premiumLookup = it }
             val risk = configuration.risk
             logger.info("AuthGatewayX configured: shared history={}, IP checks={}", risk.storageEnabled, risk.networkEnabled)
             phase(VelocityReadinessGuard.Phase.STAFF_PROOF)
@@ -167,6 +173,7 @@ class PluginInitializer(
         sessions?.close()
         plugin.detachSessions()
         floodGate?.clear()
+        premiumLookup?.close()
         executor?.close()
     }
 

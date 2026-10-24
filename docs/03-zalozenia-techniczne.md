@@ -864,3 +864,24 @@ classloadera; stan połączeń guardu jest czyszczony. Velocity nie zmienia life
 Testy JVM i artefaktów przechodzą; rzeczywista macierz PlugManX/Paper/Purpur/Folia
 pozostaje otwarta. Wymagany PlugManX z obsługą natywnego Paper i konkretnego buildu.
 [Szczegóły decyzji, ograniczenia i checklista](15-plugmanx-lifecycle.md).
+
+## Decyzja 2026-10-24 — odporność lookupu Mojang
+
+Cache wyników jest ograniczony rozmiarem i TTL oraz usuwa najmniej ostatnio używany wpis (LRU).
+Lookup profilu ma jeden budżet `premium.lookup.timeout-millis`, obejmujący kolejkę
+oraz HTTP. Wygasła praca oczekująca jest usuwana z bounded executora; spóźniony wynik
+nie może zasilić cache. Współdzielony lookup zwraca odrębne futures konsumentom,
+aby timeout lub anulowanie jednego klienta nie unieważniały pozostałych.
+
+HTTP 429 nakłada wspólny dla instancji cooldown: `Retry-After` w sekundach lub dacie
+HTTP, ograniczony do 24 godzin; brak poprawnego nagłówka oznacza 60 sekund.
+Błędy transportu, HTTP 5xx i niepoprawne odpowiedzi nakładają 2 sekundy cooldownu.
+Nie ma automatycznych ponowień. Ważny cache nadal działa podczas cooldownu; brak
+potwierdzonego wpisu oznacza UNAVAILABLE i DENY, nigdy przejście do offline.
+
+Diagnostyka rozróżnia HTTP/status, DNS, TLS, timeout kolejki/HTTP, przeciążenie,
+nieprawidłową odpowiedź i aktywny cooldown. Każda kategoria emituje najwyżej jedną
+linię na 30 sekund wraz z liczbą pominiętych powtórzeń. Zawiera wyłącznie stałe kody,
+status HTTP i czas cooldownu, bez nicku, IP, treści odpowiedzi lub wyjątku. Adaptery
+Paper/Folia i Velocity przekazują zapis na scheduler async. Zamknięcie lookupu
+unieważnia futures, czyści cache i zatrzymuje transport HTTP przed zamknięciem executora.

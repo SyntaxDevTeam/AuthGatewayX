@@ -54,7 +54,7 @@ W folderze danych AuthGatewayX na proxy znajduje się `authgatewayx.yml`. To oso
 
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
-| `premium.lookup.timeout-millis` | `3000` | Czas oczekiwania na sprawdzenie nicku |
+| `premium.lookup.timeout-millis` | `3000` | Łączny czas kolejki i sprawdzenia nicku |
 | `premium.lookup.positive-ttl-seconds` | `21600` | Czas pamiętania profilu premium |
 | `premium.lookup.negative-ttl-seconds` | `300` | Czas pamiętania braku profilu premium |
 | `premium.lookup.maximum-cache-size` | `50000` | Limit zapamiętanych wyników |
@@ -180,3 +180,10 @@ nie przejdą proof, dopóki administrator świadomie nie włączy bezpiecznej
 integracji. Zmiana szablonu nie modyfikuje istniejącego pliku na serwerze:
 sekret użyty wcześniej należy wymienić ręcznie na każdej instancji.
 Nie utożsamiaj tego sekretu z Velocity forwarding secret.
+
+## Problemy ze sprawdzaniem nicków
+
+Proxy korzysta z tej samej ochrony zapytań co Paper: respektuje `Retry-After`, robi
+krótką przerwę po błędach usługi i nadal używa ważnego cache. Czas
+`premium.lookup.timeout-millis` obejmuje kolejkę i HTTP, niezależnie od dłuższego
+limitu całego przyjęcia połączenia. Wpisy `[mojang-lookup]` opisano w [Pomocy](Pomoc.md).

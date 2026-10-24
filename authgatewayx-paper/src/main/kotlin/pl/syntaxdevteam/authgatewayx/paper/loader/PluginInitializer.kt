@@ -660,7 +660,10 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             Duration.ofSeconds(positive("premium.lookup.positive-ttl-seconds").toLong()),
             Duration.ofSeconds(positive("premium.lookup.negative-ttl-seconds").toLong()),
             positive("premium.lookup.maximum-cache-size"),
-        )
+            onDiagnostic = { diagnostic ->
+                scheduler.async(Runnable { plugin.loggerX.info(diagnostic.logLine()) })
+            },
+        ).also { runtime?.premiumLookup = it }
         when (PaperPremiumAuthenticationModeSelector.select(GlobalConfiguration.get().proxies.velocity.enabled)) {
             PaperPremiumAuthenticationMode.STANDALONE_PROTOCOL -> {
                 val premiumProtocol = StandalonePremiumProtocolInterceptor(
@@ -1042,6 +1045,7 @@ private class RuntimeComponents(
     fun attachStorage(value: JdbcAccountStorage) = storage.attach(value)
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
+    @Volatile var premiumLookup: MojangProfileLookup? = null
 
     override fun close() {
         var failure: Throwable? = null
@@ -1055,6 +1059,7 @@ private class RuntimeComponents(
         attempt { riskAlerts?.close() }
         attempt { networkLookup?.close() }
         attempt { premiumProtocol?.close() }
+        attempt { premiumLookup?.close() }
         attempt {
             check(premiumProtocol?.awaitTermination(Duration.ofSeconds(5)) != false) {
                 "Premium diagnostic writer did not terminate"
