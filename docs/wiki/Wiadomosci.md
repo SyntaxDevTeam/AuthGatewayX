@@ -16,6 +16,25 @@ Nadaj oknom logowania styl swojego serwera. Teksty Paper znajdziesz w `plugins/A
 | Pozostałe wpisy `auth` | Sukcesy, blokady i problemy z logowaniem |
 | Wpisy `password` | Okna i wyniki zmiany hasła |
 | Wpisy `risk_alert` | Alerty administracyjne: UUID, IP/GeoIP (z osobnymi permisjami), multi-konta i reputacja |
+| Wpisy `privacy` | Gotowe podsumowanie polityki prywatności, link do pełnej treści i przyciski decyzji |
+
+## Polityka prywatności
+
+`privacy.summary` zawiera gotową skróconą informację o danych konta, bezpieczeństwie,
+zapisie decyzji i skutkach odrzucenia lub wycofania akceptacji. Możesz ją zachować
+albo dostosować do swojego serwera. Wycofanie przez `/privacy revoke` kończy sesję;
+nie oznacza automatycznego usunięcia danych.
+
+W `privacy.link` zastąp `https://example.com/privacy/` adresem HTTPS pełnej polityki
+swojego serwera, zachowując format `<click:open_url:'https://twoj-serwer.pl/privacy/'>…</click>`.
+Link jest wyświetlany w czacie i Dialogu. Niepusty `privacy.policy-url` w `config.yml`
+ma pierwszeństwo przed adresem w wiadomości; pusty zachowuje adres z pliku językowego.
+
+`privacy.accept_button` i `privacy.reject_button` zawierają odpowiednio
+`<click:run_command:'/privacy accept'>…</click>` i
+`<click:run_command:'/privacy reject'>…</click>`. Możesz zmienić ich kolory i tekst.
+W czacie wykonują te komendy, a w Dialogu decyzję zapisują natywne przyciski.
+Po zmianie zasad zwiększ `privacy.policy-version`, aby wymagać ponownej akceptacji.
 
 ## Przykład własnych tekstów
 

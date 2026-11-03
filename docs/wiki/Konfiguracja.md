@@ -37,7 +37,7 @@ Minimum długości hasła nie może być większe od maksimum. Wiadomości opisa
 | --- | --- | --- |
 | `privacy.enabled` | `true` | Wymagaj decyzji po uwierzytelnieniu konta premium lub offline |
 | `privacy.policy-version` | `1` | Wersja zasad, zmiana wymusza ponowną akceptację |
-| `privacy.policy-url` | pusty | Adres HTTPS pełnej informacji o prywatności |
+| `privacy.policy-url` | pusty | Opcjonalny adres HTTPS nadpisujący link z `privacy.link` w pliku językowym; pusty zachowuje link z wiadomości |
 | `privacy.timeout-seconds` | `120` | Czas na decyzję po zalogowaniu |
 | `privacy.dialogs.enabled` | `true` | Automatyczny Dialog od Minecraft 1.21.7; poniżej czat. Ustaw `false`, aby zawsze używać czatu |
 

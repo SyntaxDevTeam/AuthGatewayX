@@ -206,12 +206,15 @@ risk_alert:
 
 
 privacy:
+  # Gotowa skrócona informacja — możesz zachować treść lub dostosować ją do serwera.
   title: "<gold><b>Polityka prywatności serwera</b></gold>"
-  summary: "<gray>Serwer przechowuje dane niezbędne do działania konta, w tym nick, UUID, informacje o uwierzytelnieniu i połączeniu. Zapoznaj się z zasadami przetwarzania danych. Bez akceptacji nie uzyskasz dostępu do rozgrywki.</gray>"
+  summary: "<gray>• Przechowujemy nick, UUID oraz dane uwierzytelnienia i połączeń, w tym adres IP, aby obsługiwać konto i chronić serwer przed nadużyciami.<newline>• Zapisujemy Twoją decyzję oraz wersję zaakceptowanych zasad.<newline>• Akceptację możesz wycofać komendą /privacy revoke — zakończy to sesję, ale nie usunie automatycznie danych konta.<newline>• Bez akceptacji nie uzyskasz dostępu do rozgrywki; odrzucenie zasad rozłączy Cię z serwerem.<newline>• Szczegóły przetwarzania danych znajdziesz w pełnej polityce prywatności poniżej.</gray>"
   version: "<gray>Wersja zasad: <white>{version}</white></gray>"
-  link: "<aqua><underlined>Otwórz pełną politykę prywatności</underlined></aqua>"
-  accept_button: "<green>Akceptuję</green>"
-  reject_button: "<red>Odrzucam</red>"
+  # Zastąp przykładowy adres adresem HTTPS swojej strony. privacy.policy-url w config.yml ma pierwszeństwo.
+  link: "<click:open_url:'https://example.com/privacy/'><aqua><underlined>Otwórz pełną politykę prywatności</underlined></aqua></click>"
+  # Przyciski czatu wykonują komendy; w Dialogu decyzję obsługują natywne przyciski.
+  accept_button: "<click:run_command:'/privacy accept'><green>[Akceptuję]</green></click>"
+  reject_button: "<click:run_command:'/privacy reject'><red>[Odrzucam]</red></click>"
   accepted: "<green>Zasady zaakceptowane. Dostęp do gry został odblokowany.</green>"
   rejected: "<red>Odrzuciłeś zasady prywatności. Nie możesz teraz korzystać z serwera.</red>"
   revoked: "<yellow>Wycofałeś akceptację zasad. Sesja została zakończona.</yellow>"

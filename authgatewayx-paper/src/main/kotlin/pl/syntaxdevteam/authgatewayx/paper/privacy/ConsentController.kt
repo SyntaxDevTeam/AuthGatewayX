@@ -193,7 +193,7 @@ class ConsentController(
             player.sendMessage(text.title)
             player.sendMessage(text.summary)
             player.sendMessage(versionText())
-            if (policyUrl.isNotEmpty()) player.sendMessage(text.link.clickEvent(ClickEvent.openUrl(policyUrl)))
+            player.sendMessage(consentPolicyLink(text.link, policyUrl))
             player.sendMessage(text.accept.clickEvent(ClickEvent.runCommand("/privacy accept"))
                 .append(Component.space())
                 .append(text.reject.clickEvent(ClickEvent.runCommand("/privacy reject"))))
@@ -205,8 +205,8 @@ class ConsentController(
             DialogBody.plainMessage(text.summary, 380),
             DialogBody.plainMessage(versionText(), 380),
         )
-        if (policyUrl.isNotEmpty()) body += DialogBody.plainMessage(
-            text.link.clickEvent(ClickEvent.openUrl(policyUrl)), 380,
+        body += DialogBody.plainMessage(
+            consentPolicyLink(text.link, policyUrl), 380,
         )
         builder.empty().base(DialogBase.builder(text.title)
             .canCloseWithEscape(false)
