@@ -36,6 +36,7 @@ internal class StandalonePremiumProtocolInterceptor(
     diagnosticSink: (String) -> Unit,
     private val onFailure: Consumer<Throwable>,
 ) : AutoCloseable {
+    private val sessionWorkers = premiumSessionWorkers(maximumConcurrentHandshakes)
     private val capacity = PremiumHandshakeCapacity(maximumConcurrentHandshakes)
     private val diagnostics = PremiumHandshakeDiagnostics(
         diagnosticsEnabled, diagnosticsMaximumLinesPerMinute, capacity::active,
@@ -52,6 +53,7 @@ internal class StandalonePremiumProtocolInterceptor(
         .onEach { it.isAccessible = true }
 
     fun install() {
+        StandalonePremiumLoginListener.verifyNativeCompatibility()
         cheapGuard.activateStandaloneProtocolOwnership()
         try {
             listeningChannels(server).forEach(::installParentHandler)
@@ -140,7 +142,7 @@ internal class StandalonePremiumProtocolInterceptor(
         packetListenerField.set(
             connection,
             StandalonePremiumLoginListener(
-                server, connection, original.transferred, premiumLookup, cheapGuard, capacity,
+                server, connection, original.transferred, premiumLookup, cheapGuard, capacity, sessionWorkers,
                 unavailableMessage, rateLimitedMessage, overloadedMessage, invalidSessionMessage, diagnostics.newTrace(), onFailure,
             ),
         )
@@ -161,10 +163,17 @@ internal class StandalonePremiumProtocolInterceptor(
         }
     }
 
-    fun awaitTermination(timeout: java.time.Duration): Boolean = diagnostics.awaitTermination(timeout)
+    fun awaitTermination(timeout: java.time.Duration): Boolean {
+        val started = System.nanoTime()
+        if (!sessionWorkers.awaitTermination(timeout.toNanos(), java.util.concurrent.TimeUnit.NANOSECONDS)) return false
+        return diagnostics.awaitTermination(java.time.Duration.ofNanos(
+            (timeout.toNanos() - (System.nanoTime() - started)).coerceAtLeast(0),
+        ))
+    }
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
+        sessionWorkers.shutdownNow()
         cheapGuard.deactivateStandaloneProtocolOwnership()
         // Drain parent removals before another generation installs the same names.
         installedParents.forEach { channel ->

@@ -25,6 +25,7 @@ internal class StandalonePremiumLoginListener(
     private val premiumLookup: MojangProfileIdentityLookup,
     private val cheapGuard: PaperLoginCheapGuard,
     private val capacity: PremiumHandshakeCapacity,
+    private val sessionWorkers: java.util.concurrent.ExecutorService,
     private val unavailableMessage: Component,
     private val rateLimitedMessage: Component,
     private val overloadedMessage: Component,
@@ -114,6 +115,106 @@ internal class StandalonePremiumLoginListener(
         )
     }
 
+    override fun handleKey(packet: net.minecraft.network.protocol.login.ServerboundKeyPacket) {
+        check(state == State.KEY && premiumAuthenticationAttempted.get()) { "Unexpected key packet" }
+        val digest: String
+        try {
+            val privateKey = minecraftServer.keyPair.private
+            check(packet.isChallengeValid(challengeBytes(), privateKey)) { "Protocol error" }
+            val secret = packet.getSecretKey(privateKey)
+            digest = java.math.BigInteger(net.minecraft.util.Crypt.digestData("", minecraftServer.keyPair.public, secret)).toString(16)
+            state = State.AUTHENTICATING
+            connection.setEncryptionKey(secret)
+        } catch (failure: net.minecraft.util.CryptException) {
+            throw IllegalStateException("Protocol error", failure)
+        }
+        val started = System.nanoTime()
+        val finished = AtomicBoolean()
+        val deadlineRef = java.util.concurrent.atomic.AtomicReference<java.util.concurrent.ScheduledFuture<*>?>()
+        val taskRef = java.util.concurrent.atomic.AtomicReference<java.util.concurrent.Future<*>?>()
+        val closeListener = io.netty.channel.ChannelFutureListener {
+            finished.set(true)
+            deadlineRef.getAndSet(null)?.cancel(false)
+            taskRef.getAndSet(null)?.cancel(true)
+        }
+        fun cleanup() {
+            deadlineRef.getAndSet(null)?.cancel(false)
+            connection.channel.closeFuture().removeListener(closeListener)
+            taskRef.set(null)
+        }
+        val task = java.util.concurrent.FutureTask<Unit> {
+            fun active() = !finished.get() && connection.isConnected &&
+                connection.packetListener === this && state == State.AUTHENTICATING && !sessionWorkers.isShutdown
+            fun fail(reason: Component) {
+                connection.channel.eventLoop().execute {
+                    if (finished.compareAndSet(false, true)) {
+                        cleanup()
+                        if (connection.isConnected && connection.packetListener === this && state == State.AUTHENTICATING) {
+                            disconnect(PaperAdventure.asVanilla(reason))
+                        }
+                    }
+                }
+            }
+            try {
+                val address = if (minecraftServer.preventProxyConnections) {
+                    (connection.remoteAddress as? InetSocketAddress)?.address
+                } else null
+                val result = PremiumSessionVerification().verify(started, ::active,
+                    onRetry = { diagnostics?.record(Event.SESSION_RETRY) },
+                ) {
+                    minecraftServer.services().sessionService().hasJoinedServer(requestedUsername!!, digest, address)
+                }
+                if (result == null) {
+                    diagnostics?.record(Event.NATIVE_DENIED)
+                    fail(invalidSessionMessage)
+                } else {
+                    // Keep Paper's async/sync pre-login events and profile transformations.
+                    // Never replay these events when retrying a service request.
+                    if (active()) {
+                        val profile = PRE_LOGIN_EVENTS.invoke(this, result.profile()) as com.mojang.authlib.GameProfile
+                        connection.channel.eventLoop().execute {
+                            if (active() && System.nanoTime() - started < PremiumSessionVerification.TIMEOUT_NANOS &&
+                                finished.compareAndSet(false, true)) {
+                                cleanup()
+                                minecraftServer.serverActivityMonitor.reportLoginActivity()
+                                authenticatedProfile = profile
+                                state = State.VERIFYING
+                            }
+                        }
+                    }
+                }
+            } catch (_: java.util.concurrent.CancellationException) {
+                // Disconnect, deadline or shutdown owns the terminal result.
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            } catch (_: Exception) {
+                // Includes exhausted service failures, deadline and pre-login errors: fail closed.
+                fail(unavailableMessage)
+            }
+        }
+        taskRef.set(task)
+        val deadline = connection.channel.eventLoop().schedule({
+            if (finished.compareAndSet(false, true)) {
+                diagnostics?.record(Event.TIMEOUT)
+                task.cancel(true)
+                cleanup()
+                if (connection.isConnected && connection.packetListener === this && state == State.AUTHENTICATING) {
+                    disconnect(PaperAdventure.asVanilla(unavailableMessage))
+                }
+            }
+        }, PremiumSessionVerification.TIMEOUT_SECONDS, java.util.concurrent.TimeUnit.SECONDS)
+        deadlineRef.set(deadline)
+        connection.channel.closeFuture().addListener(closeListener)
+        try {
+            sessionWorkers.execute(task)
+        } catch (_: java.util.concurrent.RejectedExecutionException) {
+            finished.set(true)
+            cleanup()
+            task.cancel(false)
+            disconnect(PaperAdventure.asVanilla(overloadedMessage))
+        }
+    }
+
     override fun tick() {
         super.tick()
         if (state != previousState) {
@@ -152,7 +253,15 @@ internal class StandalonePremiumLoginListener(
 
     private fun challengeBytes(): ByteArray = CHALLENGE_FIELD.get(this) as ByteArray
 
-    private companion object {
+    internal companion object {
+        fun verifyNativeCompatibility() {
+            check(PRE_LOGIN_EVENTS.returnType == com.mojang.authlib.GameProfile::class.java)
+            check(CHALLENGE_FIELD.type == ByteArray::class.java)
+        }
+        // Resolve eagerly: incompatible Paper builds must fail initialization, never skip events.
+        val PRE_LOGIN_EVENTS = ServerLoginPacketListenerImpl::class.java
+            .getDeclaredMethod("callPlayerPreLoginEvents", com.mojang.authlib.GameProfile::class.java)
+            .also { it.isAccessible = true }
         val CHALLENGE_FIELD = ServerLoginPacketListenerImpl::class.java.declaredFields
             .single { it.type == ByteArray::class.java }
             .also { it.isAccessible = true }

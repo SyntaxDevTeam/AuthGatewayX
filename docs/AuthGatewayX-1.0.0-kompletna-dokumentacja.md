@@ -3251,3 +3251,13 @@ nie mogą przywrócić cache. Zapis przyczyn ma stały zestaw kodów i limit jed
 na kategorię na 30 sekund, bez danych graczy oraz blokującego I/O na Netty/tick.
 Decyzja i limity: [założenia techniczne](03-zalozenia-techniczne.md#decyzja-2026-10-24--odporność-lookupu-mojang).
 Testy nie zastępują rzeczywistej macierzy klientów Paper/Purpur/Folia/Velocity.
+
+## Aktualizacja 2026-11-03 — ponowienia sesji premium standalone
+
+Paper/Purpur/Folia standalone ponawia wyłącznie `AuthenticationUnavailableException`
+podczas `hasJoinedServer`: najwyżej 3 próby, przerwy 1 s i 2 s, wspólny deadline 12 s.
+Niepoprawna sesja jest odrzucana bez ponowienia i bez fallbacku offline. Zachowane są
+challenge/szyfrowanie i jednorazowe natywne eventy pre-login. Ograniczona pula bez
+kolejki, disconnect/shutdown i odrzucanie spóźnionych wyników chronią przed floodem.
+Velocity bez zmian. Szczegóły i ograniczenia NMS:
+[decyzja techniczna](03-zalozenia-techniczne.md#decyzja-2026-11-03--ponowienia-weryfikacji-sesji-premium-na-paper-standalone).

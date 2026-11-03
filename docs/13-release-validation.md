@@ -330,3 +330,39 @@ threadzie gry. Wymagany jest restart po podmianie JAR; istniejący config jest z
 Symulowane odpowiedzi pochodzą z testowego HttpClient; testy nie wywołują Mojang i nie
 potwierdzają bieżącej dostępności zewnętrznej usługi ani poprawności sesji konkretnego
 gracza. Konsolowe `invalid session` nadal pochodzi z natywnej weryfikacji sesji Paper.
+
+## Ponowienia sesji premium Paper standalone — 2026-11-03
+
+Implementacja: `PremiumSessionVerification`, bounded `premiumSessionWorkers`,
+`StandalonePremiumLoginListener.handleKey` i lifecycle puli w
+`StandalonePremiumProtocolInterceptor`. `PremiumHandshakeDiagnostics` dodaje
+`SESSION_RETRY`. Natywne eventy i challenge zachowano na podstawie aktualnego lokalnego
+Paper dev bundle i [patcha Paper](https://github.com/PaperMC/Paper/blob/main/paper-server/patches/sources/net/minecraft/server/network/ServerLoginPacketListenerImpl.java.patch).
+Prywatny hook pre-login jest sprawdzany przed instalacją interceptora.
+
+`PremiumSessionVerificationTest` obejmuje recovery po dwóch błędach dostępności,
+wyczerpanie prób, negatywną sesję przed/po awarii, pozostałe błędy, disconnect w backoffie
+i podczas lookupu, wspólny deadline i spóźniony sukces, brak budżetu na kolejną próbę,
+przerwanie czekania, ograniczenie workerów mimo anulowania nieprzerywalnego żądania,
+shutdown oraz zgodność hooka natywnego.
+
+Przy kompilacji naprawiono również istniejące lokalne `ConsentPolicyLink.kt` i test:
+niedostępne `mapChildrenDeep` zastępuje rekursja `children`, a test uwzględnia generyczny
+`ClickEvent<*>` i treść komponentu niezależnie od rozłożenia na children. Bez zmiany
+URL, polityki zgód ani plików językowych.
+
+Weryfikacja: `./gradlew check verifyDistributions --offline` — sukces.
+281 testów: 277 bez błędów, 4 jawnie pominięte kontrakty niezdefiniowanych zdalnych baz.
+Paper: 97 testów bez błędów, w tym 13 testów nowego mechanizmu.
+
+- [x] Implementacja, kompilacja i testy JVM ponowień oraz ograniczenia zasobów.
+- [x] Weryfikacja dystrybucji Paper i Velocity.
+- [x] Przegląd bezpieczeństwa: brak offline fallback, terminalna błędna sesja, bounded workers i odrzucanie spóźnionych wyników.
+- [x] Przegląd threading: HTTP/opóźnienia/pre-login na workerze, publikacja stanu na event loop; brak nowych operacji world/player.
+- [x] Aktualizacja konfiguracji opisowej, dokumentacji technicznej, bezpieczeństwa i WIKI.
+- [ ] Rzeczywisty klient na Paper/Purpur/Folia: poprawny premium, błędna sesja i dwa przejściowe błędy usług.
+- [ ] Rzeczywisty klient: disconnect podczas backoffu, timeout HTTP i shutdown/reload podczas ponowień; brak późnego wejścia.
+- [ ] Rzeczywisty test reconnect/flood podczas awarii usług oraz regresja Velocity modern forwarding.
+
+Testy JVM nie potwierdzają jeszcze macierzy serwerowej ani zachowania aktualnych usług
+Mojang w warunkach rzeczywistej awarii. Te pozycje pozostają otwarte.

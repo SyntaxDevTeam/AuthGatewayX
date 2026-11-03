@@ -885,3 +885,39 @@ linię na 30 sekund wraz z liczbą pominiętych powtórzeń. Zawiera wyłącznie
 status HTTP i czas cooldownu, bez nicku, IP, treści odpowiedzi lub wyjątku. Adaptery
 Paper/Folia i Velocity przekazują zapis na scheduler async. Zamknięcie lookupu
 unieważnia futures, czyści cache i zatrzymuje transport HTTP przed zamknięciem executora.
+
+## Decyzja 2026-11-03 — ponowienia weryfikacji sesji premium na Paper standalone
+
+Przejściowy `AuthenticationUnavailableException` z natywnego `SessionService.hasJoinedServer`
+nie musi natychmiast zamykać połączenia. `PremiumSessionVerification` dopuszcza najwyżej
+trzy żądania dla tego samego nicku i digestu handshake, z przerwami 1 s i 2 s.
+Wynik `null` (niepotwierdzona sesja), inny wyjątek i błąd kryptograficzny są ostateczne.
+Nie ma fallbacku offline, cache potwierdzeń sesji ani ponawiania wymiany kluczy.
+
+`StandalonePremiumLoginListener.handleKey` zachowuje natywną walidację challenge,
+RSA/AES i obliczenie digestu. Zastępuje wyłącznie wykonanie pracy authenticatora:
+HTTP i opóźnienia działają na osobnej puli `agx-session-verification-*`, bez kolejki,
+z liczbą workerów ograniczoną przez `premium.authentication.maximum-concurrent-handshakes`.
+Wcześniejsze cheap guards i limit handshake obejmują cały proces, także przerwy.
+Anulowane żądanie ignorujące przerwanie nadal zajmuje worker, więc reconnect nie
+powoduje nieograniczonego tworzenia tasków/threadów. Przepełnienie kończy się odmową.
+
+Wspólny deadline 12 s od odebrania odpowiedzi klucza obejmuje HTTP, przerwy i pre-login.
+Timer Netty zamyka połączenie i przerywa task; trwające wywołanie biblioteki może zakończyć
+się później, ale jego wynik jest odrzucany. Disconnect i shutdown również unieważniają
+pracę. Sprawdzane są aktywność transportu, ownership listenera, stan AUTHENTICATING,
+deadline i stan puli. Timer i listener zamknięcia są usuwane po wyniku końcowym.
+
+Po potwierdzeniu sesji wywoływane jest dokładnie raz natywne prywatne
+`callPlayerPreLoginEvents(GameProfile)` z zachowaniem odmów i transformacji profilu;
+eventy nie są powtarzane po błędach usługi. Hook jest sprawdzany przy instalacji
+interceptora: niezgodny build nie może pomijać eventów. Wynik trafia przez event loop
+do natywnego stanu VERIFYING; dalszy pipeline, admission i aktywacja sesji pozostają
+bez zmian. Nie dodano operacji Bukkit player/world na Netty ani I/O na threadzie gry.
+Rozwiązanie jest zależne od NMS Paper, jak istniejący adapter standalone.
+
+Polityka jest stała, bez nowych kluczy konfiguracji. `premium.lookup.timeout-millis`
+nadal dotyczy odrębnego lookupu nazwy. Diagnostyka opt-in dodaje `SESSION_RETRY` bez
+nicków, IP, digestu i kluczy. Końcowe błędy korzystają z istniejących wiadomości
+MessageHandler. Velocity i Paper za Velocity nie używają tego mechanizmu.
+Testy klientem na Paper/Purpur/Folia pozostają osobną bramką wydania.

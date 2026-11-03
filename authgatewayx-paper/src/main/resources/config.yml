@@ -17,6 +17,9 @@ premium:
     # Connections above this limit are rejected instead of allowing an unbounded amount of
     # expensive authentication work to accumulate.
     # Increase only when the server has enough CPU/network capacity and legitimate login bursts require it.
+    # Includes session-service retries: at most 3 attempts, backoff 1s/2s, total deadline 12s.
+    # Only temporary service unavailability is retried; invalid sessions are denied immediately.
+    # This fixed policy applies to standalone Paper/Purpur/Folia, not Velocity forwarding.
     maximum-concurrent-handshakes: 32
     # Opt-in handshake traces and aggregate counters. Requires restart.
     # No usernames, addresses, UUIDs or authentication secrets are logged.

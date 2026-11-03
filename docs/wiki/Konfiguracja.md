@@ -208,3 +208,14 @@ i zrestartuj serwer. `maximum-lines-per-minute` domyślnie wynosi 120. Linie
 `[premium-diag]` pokazują trace, czasy lookup/handshake, stany NMS, sloty i odmowy,
 bez nicków, IP, UUID i sekretów. Podsumowania co 30 s zawierają także suppressed/dropped.
 Próba klientem i weryfikacja ACTIVE/UUID są nadal wymagane. [Procedura i ograniczenia](../13-release-validation.md#diagnostyka-handshake-standalone-i-migracja-do-263).
+
+### Krótkie awarie uwierzytelniania na samodzielnym Paper
+
+AuthGatewayX utrzymuje połączenie premium i ponawia weryfikację sesji przy błędzie
+dostępności usługi: maksymalnie 3 próby, przerwy 1 s i 2 s. Cały etap ma limit 12 s.
+Niepoprawna sesja jest odrzucana od razu, bez przejścia na offline. Dłuższa awaria
+nadal kończy się odmową. Mechanizm działa automatycznie na Paper/Purpur/Folia
+standalone; nie ma osobnej opcji i nie obejmuje Velocity. Limit równoległych handshake
+obejmuje również oczekiwanie na ponowienie. `premium.lookup.timeout-millis` steruje
+osobnym sprawdzaniem nicku i nie zmienia limitu weryfikacji sesji.
+W diagnostyce opt-in `SESSION_RETRY` oznacza zaplanowanie ponownej próby.

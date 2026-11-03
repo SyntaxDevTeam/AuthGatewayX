@@ -850,3 +850,18 @@ nie mogą przywrócić cache. Zapis przyczyn ma stały zestaw kodów i limit jed
 na kategorię na 30 sekund, bez danych graczy oraz blokującego I/O na Netty/tick.
 Decyzja i limity: [założenia techniczne](03-zalozenia-techniczne.md#decyzja-2026-10-24--odporność-lookupu-mojang).
 Testy nie zastępują rzeczywistej macierzy klientów Paper/Purpur/Folia/Velocity.
+
+## Ponowienia natywnej sesji premium standalone — 2026-11-03
+
+Dopuszczono ograniczone ponowienia `hasJoinedServer` tylko po
+`AuthenticationUnavailableException`: 3 żądania łącznie, przerwy 1 s i 2 s,
+deadline 12 s. Nie jest to fallback offline ani cache udanych sesji.
+`null`, błędny challenge i pozostałe błędy nie uruchamiają ponowienia.
+Cheap guards, limit handshake oraz weryfikacja finalnej tożsamości pozostają obowiązkowe.
+Osobna pula bez kolejki ma najwyżej tyle workerów, ile wynosi limit handshake;
+trwający HTTP ignorujący przerwanie nie zwalnia miejsca dla kolejnego workera.
+Disconnect/deadline/shutdown unieważniają wynik i uniemożliwiają późną aktywację.
+Nie powtarza się eventów pre-login ani kryptograficznej wymiany kluczy. Brak nowego
+I/O na Netty lub threadzie gry. Ponowienia nie obejmują Velocity ani Paper z forwardingiem.
+Szczegóły integracji NMS i zachowania po odmowie:
+[decyzja techniczna](03-zalozenia-techniczne.md#decyzja-2026-11-03--ponowienia-weryfikacji-sesji-premium-na-paper-standalone).
