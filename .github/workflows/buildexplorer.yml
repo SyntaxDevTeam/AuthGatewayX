@@ -73,7 +73,11 @@ jobs:
           git ls-files --error-unmatch \
             tools/benchmark_local_login.py \
             tools/test_benchmark_local_login.py \
-            docs/13-release-validation.md > /dev/null
+            docs/13-release-validation.md \
+            authgatewayx-paper/src/main/kotlin/pl/syntaxdevteam/authgatewayx/paper/premium/PremiumSessionVerification.kt \
+            authgatewayx-paper/src/main/kotlin/pl/syntaxdevteam/authgatewayx/paper/privacy/ConsentPolicyLink.kt \
+            authgatewayx-paper/src/test/kotlin/pl/syntaxdevteam/authgatewayx/paper/premium/PremiumSessionVerificationTest.kt \
+            authgatewayx-paper/src/test/kotlin/pl/syntaxdevteam/authgatewayx/paper/privacy/ConsentPolicyLinkTest.kt > /dev/null
 
       - name: Set up Java
         uses: actions/setup-java@v6

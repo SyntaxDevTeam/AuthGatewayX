@@ -366,3 +366,24 @@ Paper: 97 testów bez błędów, w tym 13 testów nowego mechanizmu.
 
 Testy JVM nie potwierdzają jeszcze macierzy serwerowej ani zachowania aktualnych usług
 Mojang w warunkach rzeczywistej awarii. Te pozycje pozostają otwarte.
+
+## Naprawa kompletności checkoutu CI — 2026-11-04
+
+Run 41702744362 zatrzymał się na kompilacji Paper: poprzednie commity odwoływały
+się do lokalnych, nieśledzonych `PremiumSessionVerification.kt` (również
+`premiumSessionWorkers`) i `ConsentPolicyLink.kt`. Do repozytorium dołączono oba
+pliki i odpowiadające im testy. Guard wejściowy CI sprawdza teraz także ich obecność
+w Git. Katalog `gradle/libs.versions.toml` nie wymaga zmiany: rozwiązywanie zależności
+w tym runie zakończyło się poprawnie. Nie zmieniono auth flow, schedulingu, API ani
+polityki bezpieczeństwa; uzupełniono zawartość checkoutu do opisanej implementacji.
+
+- [x] Potwierdzono przyczynę na podstawie logu GitHub Actions.
+- [x] Dołączono brakujące źródła i testy regresyjne.
+- [x] Build i testy z izolowanej zawartości indeksu Git bez build cache.
+  Java 25, `clean buildAll :authgatewayx-security:securityBenchmark --no-build-cache`:
+  281 testów JVM, 0 błędów, 4 pominięte kontrakty zdalnych baz; kontrola obu
+  dystrybucji i benchmark zaliczone. Dodatkowo 4 testy Python protokołu zaliczone.
+- [ ] Potwierdzenie pełnego workflow CI ze zdalnymi bazami po pushu.
+
+Macierz rzeczywistych serwerów Paper/Purpur/Folia/Velocity pozostaje osobną
+bramką opisaną wyżej; naprawa checkoutu nie stanowi jej zatwierdzenia.
