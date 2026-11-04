@@ -1,11 +1,11 @@
 [versions]
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 java = "25"
 syntaxcore = "1.4.1-R0.2-SNAPSHOT"
 messagehandler = "1.2.2-R0.4-SNAPSHOT"
 luckperms = "5.5"
 gson = "2.14.0"
-snakeyaml = "2.5"
+snakeyaml = "2.7"
 
 paper-api = "26.3.build.+"
 minecraft = "26.3"
