@@ -383,7 +383,10 @@ polityki bezpieczeństwa; uzupełniono zawartość checkoutu do opisanej impleme
   Java 25, `clean buildAll :authgatewayx-security:securityBenchmark --no-build-cache`:
   281 testów JVM, 0 błędów, 4 pominięte kontrakty zdalnych baz; kontrola obu
   dystrybucji i benchmark zaliczone. Dodatkowo 4 testy Python protokołu zaliczone.
-- [ ] Potwierdzenie pełnego workflow CI ze zdalnymi bazami po pushu.
+- [x] Potwierdzenie pełnego workflow CI ze zdalnymi bazami po pushu.
+  [Run 41770832190](https://github.com/SyntaxDevTeam/AuthGatewayX/actions/runs/41770832190)
+  dla `e5491fe`: Verify repository, Publish Paper i Publish Velocity zakończone
+  sukcesem; testy MySQL/MariaDB/PostgreSQL, benchmark i kontrola JAR-ów zaliczone.
 
 Macierz rzeczywistych serwerów Paper/Purpur/Folia/Velocity pozostaje osobną
 bramką opisaną wyżej; naprawa checkoutu nie stanowi jej zatwierdzenia.
