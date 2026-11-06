@@ -12,6 +12,13 @@ language: "PL"
 
 premium:
   authentication:
+  # Experimental: authenticates during Paper's Configuration Phase, before PlayerJoinEvent.
+  # This preview is OFF by default. Do not enable on production until runtime testing,
+  # premium migration handling and cross-version 26.1–26.3 validation are complete.
+  # Premium accounts requiring offline->premium identity migration are currently rejected.
+  prejoin:
+    experimental-enabled: false
+
     # Maximum number of premium authentication handshakes that may be processed at the same time
     # when AuthGatewayX works directly on a standalone Paper server.
     # Connections above this limit are rejected instead of allowing an unbounded amount of
