@@ -79,6 +79,11 @@ class PreJoinConnectionGate(maximumPending: Int) : AutoCloseable {
         }
     }
 
+    /** Used by adapters to reject delayed packets and asynchronous results. */
+    fun isPending(ticket: Ticket): Boolean = synchronized(lock) {
+        !stopped && pending[ticket.connectionId] === ticket
+    }
+
     fun pendingCount(): Int = synchronized(lock) { pending.size }
 
     private fun terminate(ticket: Ticket, outcome: Outcome): Boolean {
