@@ -134,7 +134,7 @@ class PremiumMigrationDialogController(
         submissions.remove(event.player.uniqueId)
     }
 
-    private fun createDialog(
+    internal fun createDialog(
         account: AuthAccount,
         targetMinecraftUuid: UUID,
         feedback: Component?,
