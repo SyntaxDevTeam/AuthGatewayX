@@ -7,7 +7,7 @@ luckperms = "5.5"
 gson = "2.14.0"
 snakeyaml = "2.7"
 
-paper-api = "26.3.build.+"
+paper-api = "26.3.build.241-stable"
 minecraft = "26.3"
 
 paperweight-userdev = "2.0.0-beta.23"
