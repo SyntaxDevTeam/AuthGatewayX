@@ -16,6 +16,10 @@ on:
       - '.github/workflows/paper-26x-compatibility.yml'
   workflow_dispatch:
 
+concurrency:
+  group: authgatewayx-paper-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
