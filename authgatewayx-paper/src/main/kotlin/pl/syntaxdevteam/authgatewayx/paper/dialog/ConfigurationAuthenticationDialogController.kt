@@ -109,7 +109,7 @@ class ConfigurationAuthenticationDialogController(
             return
         }
         if (kind == Kind.REGISTER) {
-            val repeated = response.getText(REPEAT_PASSWORD_KEY)?.toCharArray()
+            val repeated = response?.getText(REPEAT_PASSWORD_KEY)?.toCharArray()
             if (repeated == null || !PasswordConfirmation.matches(password, repeated)) {
                 password.fill('\u0000')
                 repeated?.fill('\u0000')
