@@ -116,7 +116,7 @@ class ConfigurationAuthenticationRouter(
             mojang.authenticate(VerifiedMojangAuthenticationContext(
                 context.connectionId, context.username, context.sourceAddress, officialUuid,
             )).whenComplete { result, failure ->
-                if (!current(connection, ticket, context)) return@whenComplete
+                if (!liveConnection(connection, ticket, context)) return@whenComplete
                 if (failure != null || result == null) {
                     if (failure != null) runCatching { onFailure(failure) }
                     deny(connection, ticket, internalFailureMessage)
@@ -168,12 +168,18 @@ class ConfigurationAuthenticationRouter(
         }
     }
 
-    private fun current(
+    private fun liveConnection(
         connection: PlayerConfigurationConnection,
         ticket: PreJoinConnectionGate.Ticket,
         context: AuthenticationFormContext,
     ) = gate.isPending(ticket) && connection.isConnected &&
-        context.connectionId == ticket.connectionId &&
+        context.connectionId == ticket.connectionId
+
+    private fun current(
+        connection: PlayerConfigurationConnection,
+        ticket: PreJoinConnectionGate.Ticket,
+        context: AuthenticationFormContext,
+    ) = liveConnection(connection, ticket, context) &&
         sessions.get(context.connectionId)?.state == ConnectionState.PRE_AUTH
 
     private fun deny(
