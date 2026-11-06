@@ -23,8 +23,8 @@ Powyższe są **celami zgodności**, nie deklaracją już dostarczonej i przetes
 2. `AuthenticationDialogController` akceptuje `PlayerGameConnection` i korzysta z `Player`. Dla Configuration Phase potrzebuje wariantu opartego o `PlayerConfigurationConnection` oraz `connection.audience`, bez `Player`.
 3. `AuthenticationFormCoordinator`, `LoginService`, `RegistrationService`, `SessionRegistry` i ograniczenia dostępu są w dużej części niezależne od API platformowego — należy je **współdzielić**, nie duplikować autoryzacji.
 4. `AuthenticationDialogRouter` opiera routing offline/premium, lookup Mojang i login admission na `Player`. Trzeba wydzielić principal / kontekst połączenia przedświatowego.
-5. `StandalonePremiumProtocolInterceptor` oraz `PaperConnectionMaintenanceGate` używają NMS i elementów wewnętrznych Paper. Są główną przeszkodą dla jednego artefaktu uruchamianego na całej linii 26.1–26.3. **Nie zmieniać** `api-version: '26.3'` na `26.1` bez zapewnienia kompatybilności kodu wykonywanego.
-6. `libs.versions.toml`: Java 25, Paper dev bundle 26.3.build.+, Velocity API 4.3.0. Wersje te oznaczają punkt kompilacji, nie minimalną wersję testowaną.
+5. `StandalonePremiumProtocolInterceptor` oraz `PaperConnectionMaintenanceGate` używają NMS i elementów wewnętrznych Paper. Są główną przeszkodą dla jednego artefaktu uruchamianego na całej linii 26.1–26.3. Po zielonej macierzy kompilacji źródeł obniżono `api-version` do `26.1` i przygotowano warianty JAR budowane przeciwko konkretnym dev bundle; nadal potrzebne są testy rzeczywistej zgodności NMS.
+6. `libs.versions.toml`: Java 25, przypięty Paper dev bundle `26.3.build.241-stable`, Velocity API 4.3.0. Wersje te oznaczają punkt kompilacji, nie minimalną wersję testowaną.
 7. Obecne procesy premium, migracje UUID, ConsentChecker, anti-bot, cheap guard, ponowne włączenie pluginu i plugin messaging wymagają zachowania obecnych gwarancji fail-closed.
 
 ## 3. Architektura docelowa
@@ -90,11 +90,12 @@ Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
 ### D. Kompatybilność
 - [x] Sprawdzenie aktualnego toolchain Java 25 i zależności Velocity 4.3.0.
 - [ ] Przetestować bezpośrednie odwołania NMS oraz refleksję wobec 26.1.2, 26.2 i 26.3; zastąpić odpowiednimi adapterami/wariantami lub bezpiecznym API.
-- [ ] Dopiero po audycie API/NMS zmienić `api-version` na `26.1` i dodać test deskriptora.
+- [x] Po przejściu macierzy kompilacji Paper 26.1.2/26.2/26.3 zmieniono `api-version` na `26.1` i dodano test deskriptora. Nie kończy to weryfikacji zgodności runtime NMS.
 - [ ] Testy jednostkowe, kompilacja, uruchomienie, premium handshake i przeładowanie na **każdej** wersji Paper/Purpur.
 - [ ] Upewnić się, że podstawowa funkcjonalność Velocity działa z API/runtime 4.0.x, 4.1.x, 4.2.x i 4.3.x.
 - [ ] Zweryfikować Folia (schedulers, stop/reload, routing i połączenia); dopiero potem zatwierdzić wsparcie.
-- [ ] Przepuścić i przeanalizować CI macierzy kompilacji dla Paper 26.1.2 / 26.2 / 26.3 z Java 25. Workflow `paper-26x-compatibility.yml` i `-PpaperDevBundleVersion` są dodane, wyniki wymagają odbioru; kompilacja nie oznacza zgodności jednego JAR z kilkoma wersjami NMS.
+- [x] Macierz kompilacji źródeł z Paper 26.1.2 / 26.2 / 26.3 na Java 25 przeszła w CI `42271286186`.
+- [ ] Macierz **pełnych shaded artefaktów** z wersjonowanym NMS (`paper-26x-compatibility.yml`) wymaga finalnej weryfikacji. Dla beta przygotowano cztery oddzielne wydania (3× Paper + Velocity).
 - [ ] Runtime test na Velocity 4.0–4.2.0: brak `InboundConnection.getSessionId()` (od 4.2.1) obchodzony przez `VelocitySessionIds`, a przy `LoginEvent` wykonywany jest ponowny lookup Mojang i kontrola risk zamiast korelowania PreLogin po IP/porcie/nicku. Testy JVM scenariusza fallback przeszły; testy realnego proxy pozostają otwarte.
 
 ### E. Testy akceptacyjne i wydanie
@@ -138,7 +139,14 @@ Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
 - [x] Kompilacja Java 25 + `clean buildAll` dla dotychczasowej konfiguracji Paper 26.3 / Velocity 4.3.0 (CI `42270854772`).
 - [x] Transport formularza konfiguracji, routing offline/premium, migracja po rozłączeniu, obsługa reconfiguration i odbiór po join — za wyłączoną domyślnie flagą.
 - [x] Testy JVM fallback Velocity bez natywnego session UUID i brak bezpośrednich wywołań `getSessionId()` w adapterach runtime.
-- [ ] CI macierz Paper 26.1.2/26.2/26.3 oraz test źródeł z różnymi NMS, a potem produkcja właściwych adapterów / artefaktów.
+- [x] CI kompilacja kodu przeciwko Paper 26.1.2/26.2/26.3 na Java 25.
+- [ ] CI pakowanie trzech wariantów JAR i pełne testy uruchomieniowe NMS na ich docelowych wersjach.
 - [ ] Testy autoryzacji na rzeczywistym kliencie Minecraft, zarówno w połączeniu bezpośrednim, jak i przez Velocity, przed włączeniem domyślnego pre-join auth.
 - [ ] Kontrola parametrów ochrony (120s timeout, 64 concurrent CONFIG), konfliktów UUID, przychodzącego plugin messaging i odtwarzania po shutdown.
 - [ ] Wersja `1.0.0-beta` dopiero po domknięciu blokad kodowych; beta wymaga testów odbiorowych, nie jest oznaczona jako produkcyjna.
+
+## 9. Przygotowanie dystrybucji beta
+
+W repo dodano `.github/workflows/beta-release.yml`: tag `v*-beta.*` zbuduje osobne artefakty Paper 26.1.2, 26.2, 26.3 i Velocity 4.x z SHA-256. Nie publikowano jeszcze tagu ani prerelease.
+
+[Dokument odbiorowy i lista wydaniowa](17-beta-release-preparation.md).
