@@ -19,9 +19,9 @@ Wersja Paper wymaga Javy 25. Używa okien Minecrafta, dlatego nie zakładaj obs�
 
 ## Planowana zgodność 26.1+ i autoryzacja bez wejścia do świata
 
-Celem rozwoju jest Paper/Purpur **26.1+**, Java **25** i Velocity **4.0+**. Obecny build Paper jest jednak kompilowany przeciwko 26.3 i deklaruje `api-version: '26.3'`; nie wolno traktować tego celu jako bieżącej gwarancji pracy na 26.1/26.2. Velocity jest kompilowany z API 4.3.0; inne wersje 4.x muszą przejść osobne testy uruchomieniowe.
+Celem rozwoju jest Paper/Purpur **26.1+**, Java **25** i Velocity **4.0+**. Obecny build Paper jest jednak kompilowany przeciwko 26.3 i deklaruje `api-version: '26.3'`; nie wolno traktować tego celu jako bieżącej gwarancji pracy na 26.1/26.2. Velocity jest kompilowany z API 4.3.0; inne wersje 4.x muszą przejść osobne testy uruchomieniowe. Istotny blocker dla Velocity 4.0–4.2.0: identyfikator połączenia `getSessionId()` istnieje dopiero od 4.2.1, a bieżący kod wymaga go do bezpiecznej korelacji logowania.
 
-Obecny mechanizm PRE_AUTH izoluje gracza dopiero po `PlayerJoinEvent`. Planowana **Configuration Phase** zatrzyma gracza przed stworzeniem encji w świecie. Implementacja nie jest jeszcze aktywna. Ryzykiem pozostaje zależność od wewnętrznego NMS Paper, w szczególności weryfikacja premium — obniżenie pola `api-version` bez dopasowania NMS byłoby niebezpieczne.
+Dotychczasowy mechanizm PRE_AUTH izoluje gracza dopiero po `PlayerJoinEvent`. Dodano eksperymentalny wariant **Configuration Phase**, który ma zatrzymywać gracza przed utworzeniem encji. Jest on **domyślnie wyłączony** (`authentication.prejoin.experimental-enabled: false`) i nieprzetestowany jeszcze z prawdziwym klientem. Nie włączaj go na serwerze produkcyjnym; konta wymagające migracji OFFLINE -> MOJANG są w tym wariancie rozłączane. Podstawowa ścieżka logowania pozostała bez zmian. Ryzykiem pozostaje zależność od wewnętrznego NMS Paper, w szczególności weryfikacja premium — obniżenie pola `api-version` bez dopasowania NMS byłoby niebezpieczne.
 
 [Plan i kryteria akceptacji](../16-prejoin-authentication-and-26x-compatibility.md).
 
