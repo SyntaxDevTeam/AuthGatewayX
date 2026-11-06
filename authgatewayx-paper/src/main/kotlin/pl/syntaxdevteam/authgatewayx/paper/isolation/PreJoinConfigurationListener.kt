@@ -182,6 +182,8 @@ class PreJoinConfigurationListener(
             return
         }
         if (!record.connection.isConnected ||
+            event.player.connection.address != record.connection.address ||
+            !event.player.name.equals(record.connection.profile.name, ignoreCase = true) ||
             sessions.get(ConnectionId(id))?.state != ConnectionState.ACTIVE
         ) {
             event.player.kick(unavailableMessage)
