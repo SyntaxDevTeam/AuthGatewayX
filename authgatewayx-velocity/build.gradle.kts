@@ -20,7 +20,10 @@ repositories {
 }
 
 dependencies {
-    compileOnly(libs.velocity.api)
+    // Version override lets CI check source compatibility with every Velocity 4.x
+    // release without relying on getSessionId (introduced only in 4.2.1).
+    compileOnly("com.velocitypowered:velocity-api:" +
+        providers.gradleProperty("velocityApiVersion").getOrElse(libs.versions.velocity.api.get()))
     implementation(project(":authgatewayx-domain"))
     implementation(project(":authgatewayx-storage-api"))
     implementation(project(":authgatewayx-storage-jdbc"))
