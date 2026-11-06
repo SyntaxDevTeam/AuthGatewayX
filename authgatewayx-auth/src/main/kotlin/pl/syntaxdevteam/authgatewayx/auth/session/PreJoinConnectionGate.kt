@@ -3,12 +3,9 @@ package pl.syntaxdevteam.authgatewayx.auth.session
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import java.time.Duration
 import java.util.concurrent.CompletableFuture
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutionException
-import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
-import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * A bounded, single-use admission gate for authentication in Minecraft's configuration phase.
@@ -34,28 +31,19 @@ class PreJoinConnectionGate(maximumPending: Int) : AutoCloseable {
         internal val result: CompletableFuture<Outcome> = CompletableFuture(),
     )
 
-    private val capacity = Semaphore(maximumPending)
-    private val pending = ConcurrentHashMap<ConnectionId, Ticket>()
-    private val stopped = AtomicBoolean(false)
+    private val lock = Any()
+    private val capacity = maximumPending
+    private val pending = HashMap<ConnectionId, Ticket>()
+    private var stopped = false
 
     init {
         require(maximumPending > 0) { "maximumPending must be positive" }
     }
 
     /** Returns null when at capacity, stopped, or another connection with this id is pending. */
-    fun tryOpen(connectionId: ConnectionId): Ticket? {
-        if (stopped.get() || !capacity.tryAcquire()) return null
-        val ticket = Ticket(connectionId)
-        if (pending.putIfAbsent(connectionId, ticket) != null) {
-            capacity.release()
-            return null
-        }
-        // A shutdown racing with registration must never leave an untracked connection.
-        if (stopped.get()) {
-            terminate(ticket, Outcome.SHUTDOWN)
-            return null
-        }
-        return ticket
+    fun tryOpen(connectionId: ConnectionId): Ticket? = synchronized(lock) {
+        if (stopped || pending.size >= capacity || pending.containsKey(connectionId)) return@synchronized null
+        Ticket(connectionId).also { pending[connectionId] = it }
     }
 
     /**
@@ -91,20 +79,30 @@ class PreJoinConnectionGate(maximumPending: Int) : AutoCloseable {
         }
     }
 
-    fun pendingCount(): Int = pending.size
+    fun pendingCount(): Int = synchronized(lock) { pending.size }
 
     private fun terminate(ticket: Ticket, outcome: Outcome): Boolean {
-        // Identity check is essential: a late completion must not free a newer connection's slot.
-        if (!pending.remove(ticket.connectionId, ticket)) return false
-        ticket.result.complete(outcome)
-        capacity.release()
-        return true
+        // A shutdown wins over any later "authenticated" callback.
+        val removed = synchronized(lock) {
+            if (stopped || pending[ticket.connectionId] !== ticket) false
+            else {
+                pending.remove(ticket.connectionId)
+                true
+            }
+        }
+        if (removed) ticket.result.complete(outcome)
+        return removed
     }
 
     /** Force all pending connections to fail closed when the plugin is stopping/reloading. */
     override fun close() {
-        if (stopped.compareAndSet(false, true)) {
-            pending.values.toList().forEach { terminate(it, Outcome.SHUTDOWN) }
+        val toReject = synchronized(lock) {
+            if (stopped) emptyList()
+            else {
+                stopped = true
+                pending.values.toList().also { pending.clear() }
+            }
         }
+        toReject.forEach { it.result.complete(Outcome.SHUTDOWN) }
     }
 }
