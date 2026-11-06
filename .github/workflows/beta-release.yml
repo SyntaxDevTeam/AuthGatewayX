@@ -64,7 +64,7 @@ jobs:
             cp "authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-$RELEASE_VERSION.jar" \
               "dist/AuthGatewayX-Velocity-$RELEASE_VERSION-Velocity4.jar"
           fi
-          sha256sum dist/*.jar > "dist/sha256-${PLATFORM}-${MC_VERSION:-4}.txt"
+          (cd dist && sha256sum ./*.jar > "sha256-${PLATFORM}-${MC_VERSION:-4}.txt")
       - uses: actions/upload-artifact@v4
         with:
           name: beta-${{ matrix.id }}
