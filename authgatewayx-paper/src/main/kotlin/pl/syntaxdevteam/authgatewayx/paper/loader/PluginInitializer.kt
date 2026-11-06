@@ -996,22 +996,29 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                     messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
                 ),
                 onPrepared = { ticket ->
-                    // Migrate only after the connection is fully gone, like the PlayerQuitEvent path.
-                    // If another session is present, never touch its world data.
-                    scheduler.delayedGlobal(20L, Runnable {
-                        if (readiness.acceptsAuthentication() &&
-                            server.getPlayer(ticket.targetMinecraftUuid)?.isOnline != true &&
-                            sessions.get(ConnectionId(ticket.targetMinecraftUuid)) == null
-                        ) {
+                    // A short reconnect may overlap the disconnect callback. Keep migration
+                    // pending until neither the source nor target UUID has an in-world player
+                    // or an AuthGatewayX session. Never migrate live player data.
+                    fun attemptAfterDisconnect(attemptsLeft: Int) {
+                        scheduler.delayedGlobal(20L, Runnable {
+                            if (!readiness.acceptsAuthentication()) return@Runnable
+                            val occupied = listOf(ticket.sourceMinecraftUuid, ticket.targetMinecraftUuid).any { id ->
+                                server.getPlayer(id)?.isOnline == true ||
+                                    sessions.get(ConnectionId(id)) != null
+                            }
+                            if (occupied) {
+                                if (attemptsLeft > 0) attemptAfterDisconnect(attemptsLeft - 1)
+                                else logger.warning("Pre-join migration deferred after reconnect collisions; restart recovery can resume ticket")
+                                return@Runnable
+                            }
                             migrationCoordinator.migrate(ticket).whenComplete { result, failure ->
                                 if (failure != null) logger.log(java.util.logging.Level.WARNING,
                                     "Pre-join premium migration failed", failure)
                                 else logger.info("Pre-join migration result: " + result?.javaClass?.simpleName)
                             }
-                        } else {
-                            logger.warning("Pre-join premium migration deferred: player/session still present; startup recovery remains available")
-                        }
-                    })
+                        })
+                    }
+                    attemptAfterDisconnect(30)
                 },
             )
             val preJoinRouter = ConfigurationAuthenticationRouter(
