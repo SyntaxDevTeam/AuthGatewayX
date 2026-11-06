@@ -56,6 +56,14 @@ class AuthenticationDialogController(
     private val expectedForms = ConcurrentHashMap<UUID, FormType>()
     private val submissions = ConcurrentHashMap.newKeySet<UUID>()
 
+    /** Configuration-phase renderer: no Player entity or world access required. */
+    fun loginDialog(username: String, feedback: Component? = null): Dialog =
+        createDialog(FormType.LOGIN, username, feedback)
+
+    /** Configuration-phase renderer: no Player entity or world access required. */
+    fun registrationDialog(username: String, feedback: Component? = null): Dialog =
+        createDialog(FormType.REGISTER, username, feedback)
+
     fun showLogin(player: Player, feedback: Component? = null) {
         expectedForms[player.uniqueId] = FormType.LOGIN
         player.showDialog(createDialog(FormType.LOGIN, player.name, feedback))
