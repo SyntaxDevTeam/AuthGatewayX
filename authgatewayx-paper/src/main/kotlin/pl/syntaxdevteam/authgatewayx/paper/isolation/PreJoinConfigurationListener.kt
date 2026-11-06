@@ -20,6 +20,7 @@ import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
 import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationRouter
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationPremiumMigrationDialogController
 import java.net.InetSocketAddress
 import java.time.Clock
 import java.time.Duration
@@ -38,6 +39,7 @@ class PreJoinConfigurationListener(
     private val sessions: SessionRegistry,
     private val gate: PreJoinConnectionGate,
     private val dialogs: ConfigurationAuthenticationDialogController,
+    private val migrationDialogs: ConfigurationPremiumMigrationDialogController,
     private val router: ConfigurationAuthenticationRouter,
     private val isReady: () -> Boolean,
     private val timeout: Duration,
@@ -188,6 +190,7 @@ class PreJoinConfigurationListener(
     private fun removeRecord(id: UUID, record: ConnectionRecord) {
         if (connections.remove(id, record)) {
             dialogs.forget(record.ticket)
+            migrationDialogs.forget(record.ticket)
             gate.disconnected(record.ticket)
             if (record.ownsSession.get()) sessions.disconnect(record.ticket.connectionId)
         }
@@ -198,6 +201,7 @@ class PreJoinConfigurationListener(
         if (!stopping.compareAndSet(false, true)) return
         gate.close()
         dialogs.shutdown()
+        migrationDialogs.shutdown()
         reconfigurations.clear()
         connections.entries.toList().forEach { (id, record) ->
             disconnectRecord(id, record, unavailableMessage)
