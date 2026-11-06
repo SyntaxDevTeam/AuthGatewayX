@@ -22,7 +22,7 @@ class AuthGatewayXVelocity @Inject constructor(
     @Volatile private var sessionRegistry: VelocitySessionRegistry? = null
 
     /** Diagnostic proxy session state. OFFLINE means proxy admission, NOT backend password auth. */
-    fun session(player: Player): ProxySessionSnapshot? = sessionRegistry?.find(player.sessionId, player.uniqueId)
+    fun session(player: Player): ProxySessionSnapshot? = sessionRegistry?.find(VelocitySessionIds.id(player), player.uniqueId)
 
     internal fun attachSessions(registry: VelocitySessionRegistry) { sessionRegistry = registry }
     internal fun detachSessions() { sessionRegistry = null }
