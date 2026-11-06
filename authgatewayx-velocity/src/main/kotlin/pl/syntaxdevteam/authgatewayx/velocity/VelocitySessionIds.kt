@@ -29,6 +29,9 @@ internal object VelocitySessionIds {
         native(player) ?: legacy.getOrPut(player) { UUID.randomUUID() }
 
     @Synchronized
+    fun existing(player: Player): UUID? = native(player) ?: legacy[player]
+
+    @Synchronized
     fun discard(player: Player): UUID? {
         val id = native(player) ?: legacy[player]
         legacy.remove(player)
