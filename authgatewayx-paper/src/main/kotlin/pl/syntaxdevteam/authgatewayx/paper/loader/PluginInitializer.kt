@@ -51,6 +51,7 @@ import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
 import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationRouter
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationPremiumMigrationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
@@ -976,9 +977,47 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                     }
                 },
             )
+            val preJoinMigrationDialogs = ConfigurationPremiumMigrationDialogController(
+                authorization = premiumMigration,
+                renderer = premiumMigrationDialogs,
+                gate = preJoinGate,
+                text = PremiumMigrationDialogText(
+                    messages.stringMessageToComponentNoPrefix("migration", "title"),
+                    messages.stringMessageToComponentNoPrefix("migration", "prompt"),
+                    messages.stringMessageToComponentNoPrefix("migration", "password_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+                    messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+                    messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                    messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+                    messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+                    messages.stringMessageToComponentNoPrefix("migration", "cancelled"),
+                    messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+                ),
+                onPrepared = { ticket ->
+                    // Migrate only after the connection is fully gone, like the PlayerQuitEvent path.
+                    // If another session is present, never touch its world data.
+                    scheduler.delayedGlobal(20L, Runnable {
+                        if (readiness.acceptsAuthentication() &&
+                            server.getPlayer(ticket.targetMinecraftUuid)?.isOnline != true &&
+                            sessions.get(ConnectionId(ticket.targetMinecraftUuid)) == null
+                        ) {
+                            migrationCoordinator.migrate(ticket).whenComplete { result, failure ->
+                                if (failure != null) logger.log(java.util.logging.Level.WARNING,
+                                    "Pre-join premium migration failed", failure)
+                                else logger.info("Pre-join migration result: " + result?.javaClass?.simpleName)
+                            }
+                        } else {
+                            logger.warning("Pre-join premium migration deferred: player/session still present; startup recovery remains available")
+                        }
+                    })
+                },
+            )
             val preJoinRouter = ConfigurationAuthenticationRouter(
                 storage = storage,
                 dialogs = preJoinDialogs,
+                migrationDialogs = preJoinMigrationDialogs,
                 sessions = sessions,
                 gate = preJoinGate,
                 lookup = premiumLookup,
@@ -1011,6 +1050,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 sessions = sessions,
                 gate = preJoinGate,
                 dialogs = preJoinDialogs,
+                migrationDialogs = preJoinMigrationDialogs,
                 router = preJoinRouter,
                 isReady = readiness::acceptsAuthentication,
                 timeout = Duration.ofSeconds(positiveLong("authentication.timeout-seconds")),
@@ -1028,8 +1068,9 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             )
             runtime?.preJoinListener = preJoinListener
             server.pluginManager.registerEvents(preJoinDialogs, plugin)
+            server.pluginManager.registerEvents(preJoinMigrationDialogs, plugin)
             server.pluginManager.registerEvents(preJoinListener, plugin)
-            logger.warning("EXPERIMENTAL pre-join configuration authentication enabled; premium migration flow and 26.x runtime compatibility remain unverified")
+            logger.warning("EXPERIMENTAL pre-join configuration authentication enabled; real-client, premium migration and 26.x compatibility tests remain open")
         } else {
             server.pluginManager.registerEvents(PreAuthEntryListener(
                 sessions, isolation, admission,
