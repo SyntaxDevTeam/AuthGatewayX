@@ -1,0 +1,121 @@
+# AuthGatewayX — pre-join authentication oraz zgodność Paper 26.1+ / Java 25 / Velocity 4+
+
+Status: **realizacja etapowa; brak aktywnej autoryzacji w Configuration Phase w bieżącym wydaniu**.  
+Data audytu: 2026-11-06.  
+Gałąź robocza: `feature/prejoin-auth-26x-compatibility`.
+
+## 1. Cel i kryterium bezpieczeństwa
+
+Gracz wymagający uwierzytelnienia nie może otrzymać aktywnej encji w świecie Paper/Purpur/Folia przed poprawnym uwierzytelnieniem (oraz weryfikacją polityk wymaganych do wpuszczenia na serwer). Niedopuszczalny jest wariant, w którym gracz wchodzi do świata, a plugin tylko ukrywa go, teleportuje do VOID albo anuluje eventy. Połączenie ma pozostać w **Minecraft Configuration Phase**.
+
+Oczekiwane platformy docelowe:
+- Paper/Purpur: **26.1+** (co najmniej 26.1.2, 26.2, 26.3) — **docelowo, niezweryfikowane**.
+- Folia: 26.x — po osobnej weryfikacji i testach właścicieli wątków; brak deklarowania wsparcia przed testami.
+- Java: **25** (już ustawiona w katalogu wersji Gradle i toolchain).
+- Velocity: **4.0+** (aktualnie kompilacja z API 4.3.0; wsparcie 4.0–4.3 wymaga testów).
+- Spigot: poza zakresem tego rozwiązania (brak Paper Configuration Phase API).
+
+Powyższe są **celami zgodności**, nie deklaracją już dostarczonej i przetestowanej funkcji.
+
+## 2. Audyt bieżącego repozytorium
+
+1. `PreAuthEntryListener` tworzy `AuthSession` i przełącza na `PRE_AUTH` podczas `PlayerJoinEvent`. `PreAuthIsolationManager` ukrywa i ogranicza gracza **po** wejściu do świata. To nie spełnia nowego wymagania.
+2. `AuthenticationDialogController` akceptuje `PlayerGameConnection` i korzysta z `Player`. Dla Configuration Phase potrzebuje wariantu opartego o `PlayerConfigurationConnection` oraz `connection.audience`, bez `Player`.
+3. `AuthenticationFormCoordinator`, `LoginService`, `RegistrationService`, `SessionRegistry` i ograniczenia dostępu są w dużej części niezależne od API platformowego — należy je **współdzielić**, nie duplikować autoryzacji.
+4. `AuthenticationDialogRouter` opiera routing offline/premium, lookup Mojang i login admission na `Player`. Trzeba wydzielić principal / kontekst połączenia przedświatowego.
+5. `StandalonePremiumProtocolInterceptor` oraz `PaperConnectionMaintenanceGate` używają NMS i elementów wewnętrznych Paper. Są główną przeszkodą dla jednego artefaktu uruchamianego na całej linii 26.1–26.3. **Nie zmieniać** `api-version: '26.3'` na `26.1` bez zapewnienia kompatybilności kodu wykonywanego.
+6. `libs.versions.toml`: Java 25, Paper dev bundle 26.3.build.+, Velocity API 4.3.0. Wersje te oznaczają punkt kompilacji, nie minimalną wersję testowaną.
+7. Obecne procesy premium, migracje UUID, ConsentChecker, anti-bot, cheap guard, ponowne włączenie pluginu i plugin messaging wymagają zachowania obecnych gwarancji fail-closed.
+
+## 3. Architektura docelowa
+
+```text
+Minecraft login/handshake
+  -> cheap guard + weryfikacja tożsamości (Mojang / offline, bez downgrade premium)
+  -> AsyncPlayerConnectionConfigureEvent
+     -> bounded pre-join admission (capacity + timeout + session handle)
+     -> AuthSession(CONNECTING -> PRE_AUTH)
+     -> LoginAdmission / punishments / username policy
+     -> routing premium/offline + migracja UUID
+     -> Dialog API na PlayerConfigurationConnection.audience
+     -> PlayerCustomClickEvent dla połączenia konfiguracyjnego
+     -> AuthenticationFormCoordinator (async I/O, Argon2, DB)
+     -> AuthSession(ACTIVE) / odmowa / timeout
+  -> zakończenie Configuration Phase WYŁĄCZNIE przy ACTIVE
+  -> PlayerJoinEvent: sprawdzenie ACTIVE, bez ponownego create()/disconnect()
+  -> ConsentChecker zgodnie z polityką (wymagana zgoda przed wpuszczeniem, jeśli włączona)
+  -> rozgrywka
+```
+
+Stan `ACTIVE` musi być powiązany z bieżącym uchwytem fizycznego połączenia, by opóźniona odpowiedź po disconnect/reconnect nie autoryzowała nowej sesji o tym samym UUID. Przedświatowe odpowiedzi formularza muszą sprawdzać identyfikator połączenia i generację sesji; NIE wystarczy mapowanie tylko po nicku.
+
+Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth`, wspólna, ograniczona pojemnością bramka zakończenia autoryzacji i oczekiwania; **jeszcze niepodłączona do Paper**. Zapewnia dokładnie jedno zakończenie na uchwyt oraz bezpieczne odrzucenie późnych callbacków.
+
+## 4. Etapy implementacji
+
+### A. Projekt i bezpieczeństwo
+- [x] Audyt ścieżki Paper `PlayerJoinEvent`, formularzy, sesji i premium.
+- [x] Potwierdzenie Configuration Phase + Dialog API w dokumentacji Paper.
+- [x] Spisanie planu, ryzyk i kryteriów akceptacji.
+- [ ] Udokumentować granicę zaufania dla identyfikatorów premium w konfiguracji (w tym forwarding Velocity).
+- [ ] Ustalić i przetestować zasady ConsentChecker przed wejściem do świata.
+
+### B. Mechanizm sesji przedświatowej
+- [ ] Dokończyć i zweryfikować testami jednostkowymi bounded gate z uchwytami jednorazowymi, timeout, disconnect, shutdown i ochroną przed reconnect.
+- [ ] Wydzielić niezależny od `Player` `ConnectingPrincipal` i backend wspólny dla auth.
+- [ ] Dodać listener `AsyncPlayerConnectionConfigureEvent`: fail-closed, brak niezabezpieczonego przejścia do gry, poprawna obsługa wyjątków oraz zamykania połączeń.
+- [ ] Dodać obsługę `PlayerCustomClickEvent` dla `PlayerConfigurationConnection`, walidację formularza i obsługę błędów/ponowienia.
+- [ ] Zastosować automatyczne zakończenie sesji przy timeout/disconnect/reload, bez wycieku zasobów.
+- [ ] Zmienić `PlayerJoinEvent` na weryfikację aktywnego pre-join auth (nigdy nie tworzyć nowej sesji dla już autoryzowanego połączenia).
+- [ ] Zapewnić fallback fail-closed, bez cichego uruchamiania starej izolacji po wejściu do świata.
+
+### C. Tożsamość, migracje i integracje
+- [ ] Zintegrować premium online i offline bez fallbacku premium -> offline po błędzie.
+- [ ] Zachować weryfikację stanu premium, IP/risk, CleanerX, PunisherX i limity kont.
+- [ ] Utrzymać migrację OFFLINE -> MOJANG i recovery przed zwolnieniem połączenia; przetestować zmiany UUID.
+- [ ] Unikać plaintext password w logach, komunikatach i trwałej pamięci; wyzerować tablice char.
+- [ ] Zabezpieczyć scenariusz, gdy inny plugin odrzuci połączenie w trakcie zdarzeń login.
+- [ ] Uwzględnić brak natywnego maskowania pola `DialogInput.text` (decyzja UX/security i ostrzeżenie).
+
+### D. Kompatybilność
+- [x] Sprawdzenie aktualnego toolchain Java 25 i zależności Velocity 4.3.0.
+- [ ] Przetestować bezpośrednie odwołania NMS oraz refleksję wobec 26.1.2, 26.2 i 26.3; zastąpić odpowiednimi adapterami/wariantami lub bezpiecznym API.
+- [ ] Dopiero po audycie API/NMS zmienić `api-version` na `26.1` i dodać test deskriptora.
+- [ ] Testy jednostkowe, kompilacja, uruchomienie, premium handshake i przeładowanie na **każdej** wersji Paper/Purpur.
+- [ ] Upewnić się, że podstawowa funkcjonalność Velocity działa z API/runtime 4.0.x, 4.1.x, 4.2.x i 4.3.x.
+- [ ] Zweryfikować Folia (schedulers, stop/reload, routing i połączenia); dopiero potem zatwierdzić wsparcie.
+- [ ] Dodać CI z wersjonowaną macierzą i Java 25; brak fałszywych zielonych testów kompilowanych tylko na 26.3.
+
+### E. Testy akceptacyjne i wydanie
+- [ ] `PlayerJoinEvent` nie występuje przed uwierzytelnieniem offline.
+- [ ] Nieautoryzowany gracz nie pojawia się w `Bukkit.getOnlinePlayers()` i nie jest encją w świecie.
+- [ ] Test login/register, błędne hasło, limit prób, anulowanie, timeout, disconnect i reconnect.
+- [ ] Test premium z oficjalnym UUID, niedostępność Mojang (DENY), migracja i kolizja UUID.
+- [ ] Równoczesne połączenia tego samego konta oraz zalew łączących się użytkowników nie powodują obejścia ani wycieków.
+- [ ] Test shutdown, nieudanej inicjalizacji i PlugManX unload/reload w stanie oczekiwania.
+- [ ] Testy platformowe Paper/Purpur/Folia/Velocity; aktualizacja wiki, README, release checklist i dziennika.
+- [ ] Po potwierdzeniu wszystkich kryteriów uznać implementację za gotową.
+
+## 5. Wymagania niefunkcjonalne i granice
+
+- Zatrzymanie `AsyncPlayerConnectionConfigureEvent` odbywa się na wątku asynchronicznym, ale jest nadal kosztem zasobów serwera: liczba blokowanych połączeń musi być ograniczona, z twardym timeoutem i niezależną od callbacków ścieżką czyszczenia.
+- Żadnego blokującego JDBC, HTTP, Argon2 lub plików na wątku tick/entity.
+- Brak automatycznej zgody/fallbacku przy błędzie, przekroczeniu limitu, reloadzie, wyjątku i stale response.
+- Żaden niezalogowany klient nie uzyskuje standardowego gameplay packet stream.
+- Nie zmieniać semantyki `SessionRegistry` i `ConnectionId` bez testów zgodności i anti-replay.
+- Wersja build dependency nie jest deklaracją minimalnej kompatybilnej wersji runtime.
+
+## 6. Źródła techniczne
+
+- https://docs.papermc.io/paper/dev/dialogs/#requiring-the-player-to-agree-before-allowing-them-to-join
+- https://docs.papermc.io/paper/getting-started/
+- https://docs.papermc.io/paper/dev/project-setup/
+- https://docs.papermc.io/paper/dev/plugin-yml/
+- https://docs.papermc.io/velocity/faq/
+
+## 7. Dziennik decyzji
+
+- **2026-11-06:** wybór natywnej Configuration Phase zamiast świata VOID i symulowania pustki pakietami; wymaganie braku encji w świecie przed auth.
+- **2026-11-06:** Java 25 i Velocity API 4.3.0 już skonfigurowane. Minimalne Velocity 4.0+ i Paper 26.1+ to cele weryfikacyjne.
+- **2026-11-06:** nie obniżać `paper-plugin.yml api-version` bez usunięcia problemów NMS i testów uruchomieniowych; w trakcie prac stary PRE_AUTH pozostaje istniejącą ścieżką.
+- **2026-11-06:** implementację rozpoczyna nieaktywna jeszcze bramka pre-join, niezależna od Paper/NMS. Podłączenie musi nastąpić atomowo wraz z routingiem i warunkami fail-closed; nie włączać częściowego flow.
