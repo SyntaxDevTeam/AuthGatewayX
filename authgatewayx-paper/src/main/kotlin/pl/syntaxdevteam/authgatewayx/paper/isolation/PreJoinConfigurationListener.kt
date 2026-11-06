@@ -19,6 +19,7 @@ import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
 import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationRouter
+import java.net.InetSocketAddress
 import java.time.Clock
 import java.time.Duration
 import java.util.UUID
@@ -70,7 +71,7 @@ class PreJoinConfigurationListener(
         } catch (_: IllegalArgumentException) {
             null
         }
-        val address = connection.address.address
+        val address = (connection.address as? InetSocketAddress)?.address
         if (id == null || username == null || address == null) {
             connection.disconnect(unavailableMessage)
             return
