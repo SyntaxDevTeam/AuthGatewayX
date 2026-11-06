@@ -993,7 +993,6 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
                 onMojangActivated = { id ->
                     admission.release(id)
-                    sendAuthenticationSuccess(id, premiumAuthenticationSuccess)
                 },
                 onAdmissionDenied = { context, reason ->
                     val type = if (reason.startsWith("CLEANER"))
@@ -1019,7 +1018,13 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 capacityMessage = messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
                 timeoutMessage = messages.stringMessageToComponentNoPrefix("auth", "timeout"),
                 onPreAuth = consent::prepare,
-                onWorldJoin = consent::authenticated,
+                onWorldJoin = { id ->
+                    consent.authenticated(id)
+                    val method = sessions.get(ConnectionId(id))?.authenticationMethod
+                    sendAuthenticationSuccess(id, if (method ==
+                        pl.syntaxdevteam.authgatewayx.domain.session.AuthenticationMethod.MOJANG
+                    ) premiumAuthenticationSuccess else offlineAuthenticationSuccess)
+                },
             )
             runtime?.preJoinListener = preJoinListener
             server.pluginManager.registerEvents(preJoinDialogs, plugin)
