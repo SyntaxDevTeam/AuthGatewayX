@@ -62,10 +62,10 @@ class VelocitySessionRegistry(
 /** Backend switch updates the same connection-scoped UUID, without granting Paper authentication. */
 class VelocitySessionListener(private val sessions: VelocitySessionRegistry) {
     @Subscribe fun onServerConnected(event: ServerConnectedEvent) {
-        sessions.backend(event.player.sessionId, event.player.uniqueId, event.server.serverInfo.name)
+        sessions.backend(event.VelocitySessionIds.id(player), event.player.uniqueId, event.server.serverInfo.name)
     }
 
     @Subscribe fun onDisconnect(event: DisconnectEvent) {
-        sessions.discard(event.player.sessionId)
+        sessions.discard(event.VelocitySessionIds.id(player))
     }
 }
