@@ -18,6 +18,9 @@ premium:
   # Premium accounts requiring offline->premium identity migration are currently rejected.
   prejoin:
     experimental-enabled: false
+    # The CONFIG event is held until authentication completes; keep this bounded
+    # separately from the old in-world PRE_AUTH pool to avoid exhausting login workers.
+    maximum-pending: 64
 
     # Maximum number of premium authentication handshakes that may be processed at the same time
     # when AuthGatewayX works directly on a standalone Paper server.
