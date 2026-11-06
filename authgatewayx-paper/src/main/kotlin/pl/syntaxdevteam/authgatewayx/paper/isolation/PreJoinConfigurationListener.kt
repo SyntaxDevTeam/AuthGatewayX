@@ -5,6 +5,7 @@ package pl.syntaxdevteam.authgatewayx.paper.isolation
 import com.destroystokyo.paper.event.player.PlayerConnectionCloseEvent
 import io.papermc.paper.connection.PlayerConfigurationConnection
 import io.papermc.paper.event.connection.configuration.AsyncPlayerConnectionConfigureEvent
+import io.papermc.paper.event.connection.configuration.PlayerConnectionReconfigureEvent
 import net.kyori.adventure.text.Component
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -54,13 +55,36 @@ class PreJoinConfigurationListener(
     )
 
     private val connections = ConcurrentHashMap<UUID, ConnectionRecord>()
+    private val reconfigurations = ConcurrentHashMap<UUID, PlayerConfigurationConnection>()
     private val stopping = AtomicBoolean(false)
 
     init { require(!timeout.isZero && !timeout.isNegative) }
 
     @EventHandler(priority = EventPriority.LOWEST)
+    fun onReconfigure(event: PlayerConnectionReconfigureEvent) {
+        val connection = event.connection
+        val id = connection.profile.id ?: return
+        if (!stopping.get() && isReady() &&
+            sessions.get(ConnectionId(id))?.state == ConnectionState.ACTIVE
+        ) {
+            reconfigurations[id] = connection
+        } else {
+            connection.disconnect(unavailableMessage)
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST)
     fun onConfigure(event: AsyncPlayerConnectionConfigureEvent) {
         val connection = event.connection
+        // Reconfiguration of an already-authenticated player is not a new login.
+        // Match the exact connection object; the same UUID on a second socket cannot bypass auth.
+        val reconfigureId = connection.profile.id
+        if (reconfigureId != null && reconfigurations[reconfigureId] === connection) {
+            if (stopping.get() || !isReady() ||
+                sessions.get(ConnectionId(reconfigureId))?.state != ConnectionState.ACTIVE
+            ) connection.disconnect(unavailableMessage)
+            return
+        }
         if (stopping.get() || !isReady()) {
             connection.disconnect(unavailableMessage)
             return
@@ -132,6 +156,9 @@ class PreJoinConfigurationListener(
     fun onJoin(event: PlayerJoinEvent) {
         val id = event.player.uniqueId
         val record = connections.remove(id)
+        if (record == null && reconfigurations.remove(id) != null &&
+            sessions.get(ConnectionId(id))?.state == ConnectionState.ACTIVE
+        ) return
         if (record == null || !record.connection.isConnected ||
             sessions.get(ConnectionId(id))?.state != ConnectionState.ACTIVE
         ) {
@@ -144,6 +171,9 @@ class PreJoinConfigurationListener(
     @EventHandler
     fun onConnectionClose(event: PlayerConnectionCloseEvent) {
         val id = event.playerUniqueId
+        reconfigurations[id]?.let { connection ->
+            if (!connection.isConnected) reconfigurations.remove(id, connection)
+        }
         val record = connections[id] ?: return
         // Paper's close event only exposes UUID, not a connection reference.
         // A stale close must never invalidate the current, still-connected session.
@@ -168,6 +198,7 @@ class PreJoinConfigurationListener(
         if (!stopping.compareAndSet(false, true)) return
         gate.close()
         dialogs.shutdown()
+        reconfigurations.clear()
         connections.entries.toList().forEach { (id, record) ->
             disconnectRecord(id, record, unavailableMessage)
         }
