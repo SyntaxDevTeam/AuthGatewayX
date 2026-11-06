@@ -30,6 +30,33 @@ class PreJoinConnectionGateTest {
     }
 
     @Test
+    fun `ticket is valid only while held and shutdown cannot authenticate it`() {
+        val gate = PreJoinConnectionGate(2)
+        val ticket = assertNotNull(gate.tryOpen(ConnectionId.random()))
+        assertTrue(gate.isPending(ticket))
+        gate.close()
+        assertFalse(gate.isPending(ticket))
+        assertEquals(Outcome.SHUTDOWN, gate.await(ticket, Duration.ofSeconds(1)))
+        assertFalse(gate.authenticated(ticket))
+        assertNull(gate.tryOpen(ConnectionId.random()))
+    }
+
+    @Test
+    fun `expired previous ticket cannot affect reconnect with the same ID`() {
+        PreJoinConnectionGate(1).use { gate ->
+            val id = ConnectionId.random()
+            val previous = assertNotNull(gate.tryOpen(id))
+            assertEquals(Outcome.TIMED_OUT, gate.await(previous, Duration.ofNanos(1)))
+            val newer = assertNotNull(gate.tryOpen(id))
+            assertFalse(gate.isPending(previous))
+            assertTrue(gate.isPending(newer))
+            assertFalse(gate.authenticated(previous))
+            assertTrue(gate.deny(newer))
+            assertEquals(Outcome.DENIED, gate.await(newer, Duration.ofSeconds(1)))
+        }
+    }
+
+    @Test
     fun `capacity and duplicate connection IDs are rejected`() {
         PreJoinConnectionGate(1).use { gate ->
             val id = ConnectionId.random()
