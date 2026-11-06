@@ -1,0 +1,46 @@
+name: Velocity 4.x source compatibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'authgatewayx-velocity/**'
+      - 'authgatewayx-domain/**'
+      - 'authgatewayx-integrations/**'
+      - 'authgatewayx-security/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - '.github/workflows/velocity-4x-compatibility.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: authgatewayx-velocity-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  compile-velocity:
+    name: Velocity ${{ matrix.api }}
+    runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    strategy:
+      fail-fast: false
+      matrix:
+        api: ['4.0.0', '4.1.1', '4.2.0', '4.3.0']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Compile against Velocity ${{ matrix.api }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :authgatewayx-velocity:compileKotlin \
+            -PvelocityApiVersion='${{ matrix.api }}' \
+            --console=plain --no-daemon
+
+# Only checks compilation, not linking of SyntaxCore/MessageHandler at runtime.
+# Real Velocity 4.0/4.1/4.2/4.3 functional tests are required before beta.
