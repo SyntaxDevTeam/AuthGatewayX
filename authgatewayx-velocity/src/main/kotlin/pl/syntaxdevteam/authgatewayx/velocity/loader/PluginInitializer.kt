@@ -171,6 +171,7 @@ class PluginInitializer(
         storageExecutor?.close()
         pending?.close()
         sessions?.close()
+        VelocitySessionIds.clear()
         plugin.detachSessions()
         floodGate?.clear()
         premiumLookup?.close()
