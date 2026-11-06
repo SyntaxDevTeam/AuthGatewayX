@@ -1,6 +1,6 @@
 # AuthGatewayX — pre-join authentication oraz zgodność Paper 26.1+ / Java 25 / Velocity 4+
 
-Status: **realizacja etapowa; brak aktywnej autoryzacji w Configuration Phase w bieżącym wydaniu**.  
+Status: **eksperymentalna ścieżka Configuration Phase za flagą, domyślnie wyłączona; niezweryfikowana w grze i niedopuszczona do wydania**.  
 Data audytu: 2026-11-06.  
 Gałąź robocza: `feature/prejoin-auth-26x-compatibility`.
 
@@ -49,7 +49,7 @@ Minecraft login/handshake
 
 Stan `ACTIVE` musi być powiązany z bieżącym uchwytem fizycznego połączenia, by opóźniona odpowiedź po disconnect/reconnect nie autoryzowała nowej sesji o tym samym UUID. Przedświatowe odpowiedzi formularza muszą sprawdzać identyfikator połączenia i generację sesji; NIE wystarczy mapowanie tylko po nicku.
 
-Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth`, wspólna, ograniczona pojemnością bramka zakończenia autoryzacji i oczekiwania; **jeszcze niepodłączona do Paper**. Zapewnia dokładnie jedno zakończenie na uchwyt oraz bezpieczne odrzucenie późnych callbacków.
+Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth`, wspólna ograniczona pojemnością bramka zakończenia autoryzacji. Jest już podłączona do **eksperymentalnego** Paper adaptera, włączanego wyłącznie przez `authentication.prejoin.experimental-enabled: true` (domyślnie `false`). Ścieżka pozostaje niezweryfikowana w prawdziwym kliencie, a migracja PREMIUM / OFFLINE -> MOJANG jest w tym trybie fail-closed.
 
 ## 4. Etapy implementacji
 
@@ -61,6 +61,14 @@ Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth
 - [ ] Ustalić i przetestować zasady ConsentChecker przed wejściem do świata.
 
 ### B. Mechanizm sesji przedświatowej
+
+Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
+- `PreJoinConnectionGate` z jednorazowym biletem, limitem, shutdown i walidacją generacji połączenia; testy JVM.
+- `ConfigurationAuthenticationDialogController`: formularz i odpowiedzi `PlayerCustomClickEvent` w fazie CONFIG, bez `Player`.
+- `ConfigurationAuthenticationRouter`: admission, premium/online UUID oraz logowanie/rejestracja offline; `MigrationRequired` pozostaje fail-closed.
+- `PreJoinConfigurationListener`: `AsyncPlayerConnectionConfigureEvent`, timeout, fail-closed, tracking reconnect i `PlayerJoinEvent` bez ponownego tworzenia sesji.
+- `PluginInitializer`: flagowane rozłączenie starego `PreAuthEntryListener`, rejestracja nowych eventów i shutdown; consent ponawiany po join.
+- **Nie wdrożono** bezpiecznego formularza migracji premium w Configuration Phase, obsługi ponownego reconfiguration aktywnego gracza ani testów gry.
 - [ ] Dokończyć i zweryfikować testami jednostkowymi bounded gate z uchwytami jednorazowymi, timeout, disconnect, shutdown i ochroną przed reconnect.
 - [ ] Wydzielić niezależny od `Player` `ConnectingPrincipal` i backend wspólny dla auth.
 - [ ] Dodać listener `AsyncPlayerConnectionConfigureEvent`: fail-closed, brak niezabezpieczonego przejścia do gry, poprawna obsługa wyjątków oraz zamykania połączeń.
@@ -85,6 +93,7 @@ Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth
 - [ ] Upewnić się, że podstawowa funkcjonalność Velocity działa z API/runtime 4.0.x, 4.1.x, 4.2.x i 4.3.x.
 - [ ] Zweryfikować Folia (schedulers, stop/reload, routing i połączenia); dopiero potem zatwierdzić wsparcie.
 - [ ] Dodać CI z wersjonowaną macierzą i Java 25; brak fałszywych zielonych testów kompilowanych tylko na 26.3.
+- [ ] Velocity 4.0–4.2.0: rozwiązać brak `InboundConnection.getSessionId()` (według Javadoc `Since: 4.2.1`). Obecne przejście PreLogin->Login i dodatkowe funkcje sesyjne wymagają tego API; **nie** zastępować bez analizy bezpieczną tożsamością IP/nick. Do czasu wdrożenia alternatywnej bezpiecznej korelacji nie deklarować Velocity 4.0+ jako gotowego.
 
 ### E. Testy akceptacyjne i wydanie
 - [ ] `PlayerJoinEvent` nie występuje przed uwierzytelnieniem offline.
@@ -118,4 +127,6 @@ Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth
 - **2026-11-06:** wybór natywnej Configuration Phase zamiast świata VOID i symulowania pustki pakietami; wymaganie braku encji w świecie przed auth.
 - **2026-11-06:** Java 25 i Velocity API 4.3.0 już skonfigurowane. Minimalne Velocity 4.0+ i Paper 26.1+ to cele weryfikacyjne.
 - **2026-11-06:** nie obniżać `paper-plugin.yml api-version` bez usunięcia problemów NMS i testów uruchomieniowych; w trakcie prac stary PRE_AUTH pozostaje istniejącą ścieżką.
-- **2026-11-06:** implementację rozpoczyna nieaktywna jeszcze bramka pre-join, niezależna od Paper/NMS. Podłączenie musi nastąpić atomowo wraz z routingiem i warunkami fail-closed; nie włączać częściowego flow.
+- **2026-11-06:** dodano bramkę pre-join, adapter formularzy bez `Player`, routing premium/offline, listener konfiguracji, wpięcie przez flagę domyślnie `false`; brak testów runtime i obsługi migracji premium. Tryb nie jest gotowy produkcyjnie.
+- **2026-11-06:** `PlayerConnection.getAddress()` jest `SocketAddress`, wymagany bezpieczny rzut na `InetSocketAddress`; wykryto w CI i poprawiono.
+- **2026-11-06:** Velocity `getSessionId()` wymaga API >= 4.2.1; plan 4.0+ jest otwarty i wymaga odrębnego rozwiązania identyfikacji połączeń, a nie tylko zmiany Maven dependency.
