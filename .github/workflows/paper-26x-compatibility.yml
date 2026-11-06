@@ -1,4 +1,4 @@
-name: Paper 26.x compilation compatibility
+name: Paper 26.x artifact compatibility
 
 on:
   pull_request:
@@ -37,10 +37,10 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@v6
-      - name: Compile against Paper ${{ matrix.bundle }}
+      - name: Build against Paper ${{ matrix.bundle }}
         run: |
           chmod +x ./gradlew
-          ./gradlew :authgatewayx-paper:compileKotlin \
+          ./gradlew :authgatewayx-paper:shadowJar \
             -PpaperDevBundleVersion='${{ matrix.bundle }}' \
             --console=plain --no-daemon
 
