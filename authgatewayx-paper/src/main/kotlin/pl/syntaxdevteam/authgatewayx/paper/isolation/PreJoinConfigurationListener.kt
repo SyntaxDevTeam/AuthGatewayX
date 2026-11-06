@@ -11,6 +11,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerJoinEvent
+import org.bukkit.event.player.PlayerQuitEvent
+import org.bukkit.entity.Player
 import pl.syntaxdevteam.authgatewayx.auth.session.PreJoinConnectionGate
 import pl.syntaxdevteam.authgatewayx.auth.session.SessionRegistry
 import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormContext
@@ -58,6 +60,7 @@ class PreJoinConfigurationListener(
 
     private val connections = ConcurrentHashMap<UUID, ConnectionRecord>()
     private val reconfigurations = ConcurrentHashMap<UUID, PlayerConfigurationConnection>()
+    private val admittedPlayers = ConcurrentHashMap<UUID, Player>()
     private val stopping = AtomicBoolean(false)
 
     init { require(!timeout.isZero && !timeout.isNegative) }
@@ -164,16 +167,36 @@ class PreJoinConfigurationListener(
     fun onJoin(event: PlayerJoinEvent) {
         val id = event.player.uniqueId
         val record = connections.remove(id)
-        if (record == null && reconfigurations.remove(id) != null &&
-            sessions.get(ConnectionId(id))?.state == ConnectionState.ACTIVE
-        ) return
-        if (record == null || !record.connection.isConnected ||
+        if (record == null) {
+            // A new socket with a duplicated UUID must not inherit the existing
+            // player's reconfiguration grant. Compare the actual Player entity.
+            val reconfiguration = reconfigurations[id]
+            if (reconfiguration != null && reconfiguration.isConnected &&
+                admittedPlayers[id] === event.player &&
+                sessions.get(ConnectionId(id))?.state == ConnectionState.ACTIVE
+            ) {
+                reconfigurations.remove(id, reconfiguration)
+                return
+            }
+            event.player.kick(unavailableMessage)
+            return
+        }
+        if (!record.connection.isConnected ||
             sessions.get(ConnectionId(id))?.state != ConnectionState.ACTIVE
         ) {
             event.player.kick(unavailableMessage)
             return
         }
+        admittedPlayers[id] = event.player
         onWorldJoin(id)
+    }
+
+    @EventHandler
+    fun onQuit(event: PlayerQuitEvent) {
+        admittedPlayers.remove(event.player.uniqueId, event.player)
+        reconfigurations[event.player.uniqueId]?.let { connection ->
+            if (!connection.isConnected) reconfigurations.remove(event.player.uniqueId, connection)
+        }
     }
 
     @EventHandler
@@ -209,6 +232,7 @@ class PreJoinConfigurationListener(
         dialogs.shutdown()
         migrationDialogs.shutdown()
         reconfigurations.clear()
+        admittedPlayers.clear()
         connections.entries.toList().forEach { (id, record) ->
             disconnectRecord(id, record, unavailableMessage)
         }
