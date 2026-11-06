@@ -1,0 +1,49 @@
+name: Paper 26.x compilation compatibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'authgatewayx-paper/**'
+      - 'authgatewayx-auth/**'
+      - 'authgatewayx-domain/**'
+      - 'authgatewayx-api/**'
+      - 'authgatewayx-integrations/**'
+      - 'authgatewayx-security/**'
+      - 'authgatewayx-storage-*/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - '.github/workflows/paper-26x-compatibility.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile-paper:
+    name: Paper ${{ matrix.bundle }}
+    runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    strategy:
+      fail-fast: false
+      matrix:
+        bundle:
+          - '26.1.2.build.74-stable'
+          - '26.2.build.133-stable'
+          - '26.3.build.241-stable'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Compile against Paper ${{ matrix.bundle }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :authgatewayx-paper:compileKotlin \
+            -PpaperDevBundleVersion='${{ matrix.bundle }}' \
+            --console=plain --no-daemon
+
+# This is a source compatibility probe, NOT proof that a 26.3 shaded distribution
+# can be run on Paper 26.1/26.2. NMS runtime checks and game-client verification
+# remain a release blocker until version-specific adapters or artifacts exist.
