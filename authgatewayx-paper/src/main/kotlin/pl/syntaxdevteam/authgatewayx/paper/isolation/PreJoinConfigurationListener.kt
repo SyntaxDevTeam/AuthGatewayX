@@ -84,7 +84,13 @@ class PreJoinConfigurationListener(
         if (reconfigureId != null && reconfigurations[reconfigureId] === connection) {
             if (stopping.get() || !isReady() ||
                 sessions.get(ConnectionId(reconfigureId))?.state != ConnectionState.ACTIVE
-            ) connection.disconnect(unavailableMessage)
+            ) {
+                connection.disconnect(unavailableMessage)
+                reconfigurations.remove(reconfigureId, connection)
+            } else {
+                // Reconfiguration remains held until explicitly completed by the plugin.
+                connection.completeReconfiguration()
+            }
             return
         }
         if (stopping.get() || !isReady()) {
