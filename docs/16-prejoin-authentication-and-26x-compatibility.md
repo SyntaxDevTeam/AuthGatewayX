@@ -49,7 +49,7 @@ Minecraft login/handshake
 
 Stan `ACTIVE` musi być powiązany z bieżącym uchwytem fizycznego połączenia, by opóźniona odpowiedź po disconnect/reconnect nie autoryzowała nowej sesji o tym samym UUID. Przedświatowe odpowiedzi formularza muszą sprawdzać identyfikator połączenia i generację sesji; NIE wystarczy mapowanie tylko po nicku.
 
-Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth`, wspólna ograniczona pojemnością bramka zakończenia autoryzacji. Jest już podłączona do **eksperymentalnego** Paper adaptera, włączanego wyłącznie przez `authentication.prejoin.experimental-enabled: true` (domyślnie `false`). Ścieżka pozostaje niezweryfikowana w prawdziwym kliencie, a migracja PREMIUM / OFFLINE -> MOJANG jest w tym trybie fail-closed.
+Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth`, wspólna ograniczona pojemnością bramka zakończenia autoryzacji. Jest już podłączona do **eksperymentalnego** Paper adaptera, włączanego wyłącznie przez `authentication.prejoin.experimental-enabled: true` (domyślnie `false`). Ścieżka pozostaje niezweryfikowana w prawdziwym kliencie. Migracja OFFLINE -> MOJANG ma osobny dialog na połączeniu konfiguracyjnym: po zweryfikowaniu starego hasła sesja jest rozłączana, a migrator uruchamia się po zwolnieniu źródłowego i docelowego profilu; konta z kolizją lub błędem są odrzucane (fail-closed).
 
 ## 4. Etapy implementacji
 
@@ -65,10 +65,12 @@ Pierwszy techniczny element: `PreJoinConnectionGate` w module `authgatewayx-auth
 Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
 - `PreJoinConnectionGate` z jednorazowym biletem, limitem, shutdown i walidacją generacji połączenia; testy JVM.
 - `ConfigurationAuthenticationDialogController`: formularz i odpowiedzi `PlayerCustomClickEvent` w fazie CONFIG, bez `Player`.
-- `ConfigurationAuthenticationRouter`: admission, premium/online UUID oraz logowanie/rejestracja offline; `MigrationRequired` pozostaje fail-closed.
+- `ConfigurationAuthenticationRouter`: admission, premium/online UUID, logowanie/rejestracja offline, przekazanie żądania migracji premium do formularza przedświatowego.
 - `PreJoinConfigurationListener`: `AsyncPlayerConnectionConfigureEvent`, timeout, fail-closed, tracking reconnect i `PlayerJoinEvent` bez ponownego tworzenia sesji.
 - `PluginInitializer`: flagowane rozłączenie starego `PreAuthEntryListener`, rejestracja nowych eventów i shutdown; consent ponawiany po join.
-- **Nie wdrożono** bezpiecznego formularza migracji premium w Configuration Phase, obsługi ponownego reconfiguration aktywnego gracza ani testów gry.
+- `ConfigurationPremiumMigrationDialogController`: hasło starego konta + `PremiumMigrationService.authorize`, rozłączenie po PREPARED; migracja tylko po disconnect i stwierdzeniu braku aktywnych sesji źródła/celu (krótkie ponowienia); w razie blokady pozostaje trwały ticket do recovery.
+- Obsługa `PlayerConnectionReconfigureEvent`: aktywna sesja weryfikowana przed `completeReconfiguration()`; nie otwiera się ponownej sesji PRE_AUTH.
+- **Brakuje** testów prawdziwym klientem oraz gwarancji kompatybilności NMS 26.1–26.3.
 - [ ] Dokończyć i zweryfikować testami jednostkowymi bounded gate z uchwytami jednorazowymi, timeout, disconnect, shutdown i ochroną przed reconnect.
 - [ ] Wydzielić niezależny od `Player` `ConnectingPrincipal` i backend wspólny dla auth.
 - [ ] Dodać listener `AsyncPlayerConnectionConfigureEvent`: fail-closed, brak niezabezpieczonego przejścia do gry, poprawna obsługa wyjątków oraz zamykania połączeń.
@@ -92,8 +94,8 @@ Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
 - [ ] Testy jednostkowe, kompilacja, uruchomienie, premium handshake i przeładowanie na **każdej** wersji Paper/Purpur.
 - [ ] Upewnić się, że podstawowa funkcjonalność Velocity działa z API/runtime 4.0.x, 4.1.x, 4.2.x i 4.3.x.
 - [ ] Zweryfikować Folia (schedulers, stop/reload, routing i połączenia); dopiero potem zatwierdzić wsparcie.
-- [ ] Dodać CI z wersjonowaną macierzą i Java 25; brak fałszywych zielonych testów kompilowanych tylko na 26.3.
-- [ ] Velocity 4.0–4.2.0: rozwiązać brak `InboundConnection.getSessionId()` (według Javadoc `Since: 4.2.1`). Obecne przejście PreLogin->Login i dodatkowe funkcje sesyjne wymagają tego API; **nie** zastępować bez analizy bezpieczną tożsamością IP/nick. Do czasu wdrożenia alternatywnej bezpiecznej korelacji nie deklarować Velocity 4.0+ jako gotowego.
+- [ ] Przepuścić i przeanalizować CI macierzy kompilacji dla Paper 26.1.2 / 26.2 / 26.3 z Java 25. Workflow `paper-26x-compatibility.yml` i `-PpaperDevBundleVersion` są dodane, wyniki wymagają odbioru; kompilacja nie oznacza zgodności jednego JAR z kilkoma wersjami NMS.
+- [ ] Runtime test na Velocity 4.0–4.2.0: brak `InboundConnection.getSessionId()` (od 4.2.1) obchodzony przez `VelocitySessionIds`, a przy `LoginEvent` wykonywany jest ponowny lookup Mojang i kontrola risk zamiast korelowania PreLogin po IP/porcie/nicku. Testy JVM scenariusza fallback przeszły; testy realnego proxy pozostają otwarte.
 
 ### E. Testy akceptacyjne i wydanie
 - [ ] `PlayerJoinEvent` nie występuje przed uwierzytelnieniem offline.
@@ -130,3 +132,13 @@ Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
 - **2026-11-06:** dodano bramkę pre-join, adapter formularzy bez `Player`, routing premium/offline, listener konfiguracji, wpięcie przez flagę domyślnie `false`; brak testów runtime i obsługi migracji premium. Tryb nie jest gotowy produkcyjnie.
 - **2026-11-06:** `PlayerConnection.getAddress()` jest `SocketAddress`, wymagany bezpieczny rzut na `InetSocketAddress`; wykryto w CI i poprawiono.
 - **2026-11-06:** Velocity `getSessionId()` wymaga API >= 4.2.1; plan 4.0+ jest otwarty i wymaga odrębnego rozwiązania identyfikacji połączeń, a nie tylko zmiany Maven dependency.
+
+## 8. Przegląd wykonania pod beta (2026-11-06)
+
+- [x] Kompilacja Java 25 + `clean buildAll` dla dotychczasowej konfiguracji Paper 26.3 / Velocity 4.3.0 (CI `42270854772`).
+- [x] Transport formularza konfiguracji, routing offline/premium, migracja po rozłączeniu, obsługa reconfiguration i odbiór po join — za wyłączoną domyślnie flagą.
+- [x] Testy JVM fallback Velocity bez natywnego session UUID i brak bezpośrednich wywołań `getSessionId()` w adapterach runtime.
+- [ ] CI macierz Paper 26.1.2/26.2/26.3 oraz test źródeł z różnymi NMS, a potem produkcja właściwych adapterów / artefaktów.
+- [ ] Testy autoryzacji na rzeczywistym kliencie Minecraft, zarówno w połączeniu bezpośrednim, jak i przez Velocity, przed włączeniem domyślnego pre-join auth.
+- [ ] Kontrola parametrów ochrony (120s timeout, 64 concurrent CONFIG), konfliktów UUID, przychodzącego plugin messaging i odtwarzania po shutdown.
+- [ ] Wersja `1.0.0-beta` dopiero po domknięciu blokad kodowych; beta wymaga testów odbiorowych, nie jest oznaczona jako produkcyjna.
