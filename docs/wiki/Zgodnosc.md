@@ -17,6 +17,14 @@ WIKI opisuje **AuthGatewayX 1.0.0-WIP**. WIP oznacza wersję w rozwoju. Zachęca
 
 Wersja Paper wymaga Javy 25. Używa okien Minecrafta, dlatego nie zakładaj obsługi starszego klienta tylko dlatego, że inny plugin pozwala mu połączyć się z serwerem. Tak samo nie zakładaj zgodności z każdą przyszłą aktualizacją Paper.
 
+## Planowana zgodność 26.1+ i autoryzacja bez wejścia do świata
+
+Celem rozwoju jest Paper/Purpur **26.1+**, Java **25** i Velocity **4.0+**. Obecny build Paper jest jednak kompilowany przeciwko 26.3 i deklaruje `api-version: '26.3'`; nie wolno traktować tego celu jako bieżącej gwarancji pracy na 26.1/26.2. Velocity jest kompilowany z API 4.3.0; inne wersje 4.x muszą przejść osobne testy uruchomieniowe.
+
+Obecny mechanizm PRE_AUTH izoluje gracza dopiero po `PlayerJoinEvent`. Planowana **Configuration Phase** zatrzyma gracza przed stworzeniem encji w świecie. Implementacja nie jest jeszcze aktywna. Ryzykiem pozostaje zależność od wewnętrznego NMS Paper, w szczególności weryfikacja premium — obniżenie pola `api-version` bez dopasowania NMS byłoby niebezpieczne.
+
+[Plan i kryteria akceptacji](../16-prejoin-authentication-and-26x-compatibility.md).
+
 ## Co możesz wypróbować?
 
 Rejestrację i logowanie offline przez okno, weryfikację premium, zmianę hasła, reset hasła przez administratora, wylogowanie, ochronę przed działaniem bez logowania oraz limity nadużyć. Dostępne są też ustawienia baz danych i integracji.
