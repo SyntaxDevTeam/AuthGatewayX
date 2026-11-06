@@ -24,14 +24,13 @@ import pl.syntaxdevteam.authgatewayx.storage.AccountStorage
  *
  * The caller must create an AuthSession in PRE_AUTH before routing, and await the same ticket
  * from AsyncPlayerConnectionConfigureEvent. Never route a migration through an unauthenticated
- * Player object: this adapter currently denies migration-required accounts until a dedicated
- * pre-join migration dialog is implemented.
- *
- * This class is not yet installed in the runtime.
+ * Player object: migration authorization is handled by a configuration-phase dialog,
+ * and the physical migration runs only after disconnect.
  */
 class ConfigurationAuthenticationRouter(
     private val storage: AccountStorage,
     private val dialogs: ConfigurationAuthenticationDialogController,
+    private val migrationDialogs: ConfigurationPremiumMigrationDialogController,
     private val sessions: SessionRegistry,
     private val gate: PreJoinConnectionGate,
     private val lookup: MojangProfileIdentityLookup,
@@ -129,8 +128,12 @@ class ConfigurationAuthenticationRouter(
                             if (gate.authenticated(ticket)) runCatching { onMojangActivated(context.minecraftUuid) }
                         } else deny(connection, ticket, internalFailureMessage)
                     }
-                    is VerifiedMojangAuthenticationResult.MigrationRequired ->
-                        deny(connection, ticket, migrationRequiredMessage)
+                    is VerifiedMojangAuthenticationResult.MigrationRequired -> {
+                        val shown = migrationDialogs.show(
+                            connection, ticket, context, result.account, result.targetMinecraftUuid,
+                        )
+                        if (!shown) deny(connection, ticket, migrationRequiredMessage)
+                    }
                     is VerifiedMojangAuthenticationResult.MigrationInProgress ->
                         deny(connection, ticket, migrationInProgressMessage)
                     VerifiedMojangAuthenticationResult.IdentityConflict ->
