@@ -49,6 +49,7 @@ class PreJoinConfigurationListener(
     private data class ConnectionRecord(
         val connection: PlayerConfigurationConnection,
         val ticket: PreJoinConnectionGate.Ticket,
+        val ownsSession: AtomicBoolean = AtomicBoolean(false),
     )
 
     private val connections = ConcurrentHashMap<UUID, ConnectionRecord>()
@@ -93,6 +94,12 @@ class PreJoinConfigurationListener(
             if (!created) {
                 gate.deny(ticket)
                 connection.disconnect(capacityMessage)
+                return
+            }
+            record.ownsSession.set(true)
+            if (connections[id] !== record) {
+                // Disconnect could have removed the record while create() was in progress.
+                sessions.disconnect(connectionId)
                 return
             }
             sessions.enterPreAuth(connectionId)
@@ -151,7 +158,7 @@ class PreJoinConfigurationListener(
         if (connections.remove(id, record)) {
             dialogs.forget(record.ticket)
             gate.disconnected(record.ticket)
-            sessions.disconnect(record.ticket.connectionId)
+            if (record.ownsSession.get()) sessions.disconnect(record.ticket.connectionId)
         }
     }
 
