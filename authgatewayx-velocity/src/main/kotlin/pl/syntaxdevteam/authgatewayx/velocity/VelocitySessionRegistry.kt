@@ -66,6 +66,6 @@ class VelocitySessionListener(private val sessions: VelocitySessionRegistry) {
     }
 
     @Subscribe fun onDisconnect(event: DisconnectEvent) {
-        sessions.discard(event.VelocitySessionIds.id(player))
+        VelocitySessionIds.existing(event.player)?.let(sessions::discard)
     }
 }
