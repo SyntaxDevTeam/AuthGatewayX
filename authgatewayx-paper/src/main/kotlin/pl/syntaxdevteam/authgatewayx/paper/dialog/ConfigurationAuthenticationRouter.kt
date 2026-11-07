@@ -113,7 +113,7 @@ class ConfigurationAuthenticationRouter(
         }
         try {
             mojang.authenticate(VerifiedMojangAuthenticationContext(
-                context.connectionId, context.username, context.sourceAddress, officialUuid,
+                context.connectionId, context.username, context.sourceAddress, officialUuid, context.sessionNonce,
             )).whenComplete { result, failure ->
                 if (!liveConnection(connection, ticket, context)) return@whenComplete
                 if (failure != null || result == null) {
