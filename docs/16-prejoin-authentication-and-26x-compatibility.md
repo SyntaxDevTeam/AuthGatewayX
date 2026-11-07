@@ -147,6 +147,6 @@ Stan roboczy (nie odhaczać jako zakończone bez testów runtime):
 
 ## 9. Przygotowanie dystrybucji beta
 
-W repo dodano `.github/workflows/beta-release.yml`: tag `v*-beta.*` zbuduje osobne artefakty Paper 26.1.2, 26.2, 26.3 i Velocity 4.x z SHA-256. Nie publikowano jeszcze tagu ani prerelease.
+W repo dodano `.github/workflows/beta-release.yml`: gałąź wydaniowa `beta/v*-beta.*` zbuduje osobne artefakty Paper 26.1.2, 26.2, 26.3 i Velocity 4.x z SHA-256. Tag i prerelease powstaną dopiero po zbudowaniu czterech JAR z gałęzi `beta/v*-beta.*`.
 
 [Dokument odbiorowy i lista wydaniowa](17-beta-release-preparation.md).
