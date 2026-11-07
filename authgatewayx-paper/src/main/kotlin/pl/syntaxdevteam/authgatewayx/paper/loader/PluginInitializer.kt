@@ -965,7 +965,9 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         }
         server.pluginManager.registerEvents(passwordDialogs, plugin)
         server.pluginManager.registerEvents(
-            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate, consentGate), plugin,
+            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate,
+                consentGate, preJoinOwnsSessionCleanup = config.getBoolean("authentication.prejoin.experimental-enabled", false)
+            ), plugin,
         )
         if (config.getBoolean("authentication.prejoin.experimental-enabled", false)) {
             val preJoinGate = PreJoinConnectionGate(positive("authentication.prejoin.maximum-pending"))
