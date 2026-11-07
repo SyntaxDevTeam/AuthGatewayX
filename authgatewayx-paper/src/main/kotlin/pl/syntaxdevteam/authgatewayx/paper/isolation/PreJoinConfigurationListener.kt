@@ -64,7 +64,13 @@ class PreJoinConfigurationListener(
 
     private val connections = ConcurrentHashMap<UUID, ConnectionRecord>()
     private val reconfigurations = ConcurrentHashMap<UUID, PlayerConfigurationConnection>()
-    private val admittedPlayers = ConcurrentHashMap<UUID, Player>()
+    private data class AdmittedPlayer(
+        val player: Player,
+        val sessionNonce: UUID,
+        val consentToken: Any?,
+    )
+
+    private val admittedPlayers = ConcurrentHashMap<UUID, AdmittedPlayer>()
     private val stopping = AtomicBoolean(false)
 
     init { require(!timeout.isZero && !timeout.isNegative) }
@@ -185,7 +191,7 @@ class PreJoinConfigurationListener(
             // player's reconfiguration grant. Compare the actual Player entity.
             val reconfiguration = reconfigurations[id]
             if (reconfiguration != null && reconfiguration.isConnected &&
-                admittedPlayers[id] === event.player &&
+                admittedPlayers[id]?.player === event.player &&
                 sessions.get(ConnectionId(id))?.state == ConnectionState.ACTIVE
             ) {
                 reconfigurations.remove(id, reconfiguration)
@@ -200,18 +206,28 @@ class PreJoinConfigurationListener(
             (sessions.get(ConnectionId(id))?.state != ConnectionState.ACTIVE ||
                 sessions.get(ConnectionId(id))?.sessionNonce != record.sessionNonce)
         ) {
+            // A failed PlayerJoinEvent validation must not retain ACTIVE or a consent token.
+            sessions.disconnect(record.ticket.connectionId, record.sessionNonce)
+            runCatching { onPreAuthEnd(id, record.consentToken.get()) }
             event.player.kick(unavailableMessage)
             return
         }
-        admittedPlayers[id] = event.player
+        admittedPlayers[id] = AdmittedPlayer(event.player, record.sessionNonce, record.consentToken.get())
         onWorldJoin(id)
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.LOWEST)
     fun onQuit(event: PlayerQuitEvent) {
-        admittedPlayers.remove(event.player.uniqueId, event.player)
-        reconfigurations[event.player.uniqueId]?.let { connection ->
-            if (!connection.isConnected) reconfigurations.remove(event.player.uniqueId, connection)
+        val id = event.player.uniqueId
+        val admitted = admittedPlayers[id]
+        if (admitted != null && admitted.player === event.player &&
+            admittedPlayers.remove(id, admitted)
+        ) {
+            sessions.disconnect(ConnectionId(id), admitted.sessionNonce)
+            runCatching { onPreAuthEnd(id, admitted.consentToken) }
+        }
+        reconfigurations[id]?.let { connection ->
+            if (!connection.isConnected) reconfigurations.remove(id, connection)
         }
     }
 
