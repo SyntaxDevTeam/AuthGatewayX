@@ -1,6 +1,8 @@
 name: Paper 26.x artifact compatibility
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
     paths:
@@ -44,23 +46,13 @@ jobs:
       - name: Build against Paper ${{ matrix.bundle }}
         run: |
           chmod +x ./gradlew
-          ./gradlew :authgatewayx-paper:shadowJar \
+          ./gradlew stagePaperCandidate \
             -PpaperDevBundleVersion='${{ matrix.bundle }}' \
-            -PreleaseVersion='1.0.0-beta.1' \
             --console=plain --no-daemon
-      - name: Name beta candidate for target Minecraft build
-        env:
-          MC_BUNDLE: ${{ matrix.bundle }}
-        run: |
-          set -euo pipefail
-          mkdir -p candidate
-          MC_VERSION="${MC_BUNDLE%%.build.*}"
-          cp authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-beta.1.jar \
-            "candidate/AuthGatewayX-Paper-1.0.0-beta.1-MC${MC_VERSION}.jar"
       - uses: actions/upload-artifact@v4
         with:
-          name: authgatewayx-beta-candidate-paper-${{ matrix.bundle }}
-          path: candidate/*.jar
+          name: authgatewayx-snapshot-paper-${{ matrix.bundle }}
+          path: build/compatibility/paper/*.jar
           if-no-files-found: error
           retention-days: 30
 

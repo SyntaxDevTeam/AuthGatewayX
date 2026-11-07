@@ -1,6 +1,8 @@
 name: Velocity 4.x source compatibility
 
 on:
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
     paths:
@@ -8,6 +10,8 @@ on:
       - 'authgatewayx-domain/**'
       - 'authgatewayx-integrations/**'
       - 'authgatewayx-security/**'
+      - 'authgatewayx-storage-*/**'
+      - 'authgatewayx-api/**'
       - 'gradle/**'
       - '*.gradle.kts'
       - '.github/workflows/velocity-4x-compatibility.yml'
@@ -54,18 +58,15 @@ jobs:
           distribution: temurin
           java-version: '25'
       - uses: gradle/actions/setup-gradle@v6
-      - name: Build Velocity beta candidate
+      - name: Build Velocity snapshot candidate
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          ./gradlew :authgatewayx-velocity:shadowJar -PreleaseVersion='1.0.0-beta.1' --console=plain --no-daemon
-          mkdir -p candidate
-          cp authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-1.0.0-beta.1.jar \
-            candidate/AuthGatewayX-Velocity-1.0.0-beta.1-Velocity4.jar
+          ./gradlew stageVelocityCandidate --console=plain --no-daemon
       - uses: actions/upload-artifact@v4
         with:
-          name: authgatewayx-beta-candidate-velocity-4
-          path: candidate/*.jar
+          name: authgatewayx-snapshot-velocity-4
+          path: build/compatibility/velocity/*.jar
           if-no-files-found: error
           retention-days: 30
 

@@ -35,16 +35,26 @@ Do wydania beta przygotowano **cztery** osobne pliki, ponieważ nie przyjmujemy 
 
 **Nie instaluj jednocześnie kilku wersji Paper JAR**. Dobierz artefakt do konkretnej wersji Minecraft uruchomionej na backendzie.
 
-Każdy artefakt będzie kompilowany na Java 25 i posiada osobny plik z SHA-256. Workflow do tworzenia prerelease: `.github/workflows/beta-release.yml`; uruchamia się po utworzeniu gałęzi `beta/v*-beta.*`. Po zbudowaniu wszystkich dystrybucji sam zakłada tag `v*-beta.*` i publikuje GitHub prerelease. Samo utworzenie workflow **nie publikuje wydania**; inicjatorem jest dopiero nowa gałąź `beta/`.
+Aktualna wersja pluginu to **`1.0.0-R0.1-SNAPSHOT`**, zadeklarowana w głównym
+`build.gradle.kts`. Parametr `-PreleaseVersion` nie zmienia wersji. Nazwy JAR,
+deskryptory i kopie kandydatów korzystają z tej samej wartości Gradle.
+`stagePaperCandidate` i `stageVelocityCandidate` składają pliki w
+`build/compatibility/paper` i `build/compatibility/velocity`.
+
+Każdy artefakt jest kompilowany na Java 25. `.github/workflows/beta-release.yml`
+zachowano jako ręcznie uruchamiany (`workflow_dispatch`) pakiet czterech dystrybucji
+SNAPSHOT z SHA-256. Nie tworzy tagów ani prerelease ze starych nazw gałęzi beta.
+Macierze Paper/Velocity działają na PR i push do `main`; zwykłą publikację snapshotów
+do BuildExplorer nadal wykonuje `buildexplorer.yml` po pełnej weryfikacji.
 
 ## Odtworzenie builda lokalnie
 
 ```bash
 ./gradlew clean buildAll --console=plain --no-daemon
-./gradlew :authgatewayx-paper:shadowJar -PpaperDevBundleVersion=26.1.2.build.74-stable -PreleaseVersion=1.0.0-beta.1 --console=plain --no-daemon
-./gradlew :authgatewayx-paper:shadowJar -PpaperDevBundleVersion=26.2.build.133-stable -PreleaseVersion=1.0.0-beta.1 --console=plain --no-daemon
-./gradlew :authgatewayx-paper:shadowJar -PpaperDevBundleVersion=26.3.build.241-stable -PreleaseVersion=1.0.0-beta.1 --console=plain --no-daemon
-./gradlew :authgatewayx-velocity:shadowJar -PreleaseVersion=1.0.0-beta.1 --console=plain --no-daemon
+./gradlew stagePaperCandidate -PpaperDevBundleVersion=26.1.2.build.74-stable --console=plain --no-daemon
+./gradlew stagePaperCandidate -PpaperDevBundleVersion=26.2.build.133-stable --console=plain --no-daemon
+./gradlew stagePaperCandidate -PpaperDevBundleVersion=26.3.build.241-stable --console=plain --no-daemon
+./gradlew stageVelocityCandidate --console=plain --no-daemon
 ```
 
 Uwaga: powyższe polecenia zapisują kolejne warianty Paper pod **tą samą nazwą JAR** w katalogu build/libs; należy skopiować każdy wynik pod odrębną nazwę przed kolejnym buildem. Workflow robi to automatycznie w osobnych zadaniach.
@@ -71,5 +81,5 @@ Uwaga: powyższe polecenia zapisują kolejne warianty Paper pod **tą samą nazw
 
 Po spełnieniu kryteriów:
 1. Uaktualnić changelog i dokumentację, ustalić wersję beta, oznaczyć komit.
-2. Wypchnąć gałąź `beta/v1.0.0-beta.1` od zatwierdzonego commita — workflow zbuduje cztery dystrybucje i utworzy GitHub prerelease.
+2. Uruchomić ręczne pakowanie SNAPSHOT z zatwierdzonego commita. Publikacja nowej bety wymaga osobnej decyzji o wersji i aktualizacji procesu wydania.
 3. Po testach odbiorowych poprawić stwierdzone problemy i wydać kolejną betę, zamiast nazywać WIP stabilnym `1.0.0`.

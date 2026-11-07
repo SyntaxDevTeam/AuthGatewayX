@@ -50,6 +50,25 @@ tasks.register("buildAll") {
 val releaseVersion = version.toString()
 val paperDistribution = layout.projectDirectory.file("authgatewayx-paper/build/libs/AuthGatewayX-Paper-$releaseVersion.jar").asFile
 val velocityDistribution = layout.projectDirectory.file("authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-$releaseVersion.jar").asFile
+// Candidate filenames derive from the same version as descriptors and distribution JARs.
+val candidateMinecraft = providers.gradleProperty("paperDevBundleVersion")
+    .getOrElse(libs.versions.paper.api.get()).substringBefore(".build.")
+tasks.register<Sync>("stagePaperCandidate") {
+    group = "distribution"
+    dependsOn(":authgatewayx-paper:shadowJar")
+    from(paperDistribution)
+    into(layout.buildDirectory.dir("compatibility/paper"))
+    val candidateName = "AuthGatewayX-Paper-$releaseVersion-MC$candidateMinecraft.jar"
+    rename { candidateName }
+}
+tasks.register<Sync>("stageVelocityCandidate") {
+    group = "distribution"
+    dependsOn(":authgatewayx-velocity:shadowJar")
+    from(velocityDistribution)
+    into(layout.buildDirectory.dir("compatibility/velocity"))
+    val candidateName = "AuthGatewayX-Velocity-$releaseVersion-Velocity4.jar"
+    rename { candidateName }
+}
 val expectedPaperLibraries = listOf(
     libs.syntaxcore, libs.messagehandler.paper, libs.hikari, libs.sqlite.jdbc,
     libs.mysql.jdbc, libs.mariadb.jdbc, libs.postgresql.jdbc, libs.argon2.jvm, libs.gson,
@@ -62,6 +81,7 @@ tasks.register("verifyDistributions") {
     val paper = paperDistribution
     val velocity = velocityDistribution
     val coordinates = expectedPaperLibraries
+    val expectedVersion = releaseVersion
     inputs.files(paper, velocity)
     inputs.property("runtimeLibraries", coordinates)
     doLast {
@@ -73,6 +93,9 @@ tasks.register("verifyDistributions") {
                 check(jar.getEntry("pl/syntaxdevteam/authgatewayx/storage/jdbc/JdbcAccountStorage.class") != null)
                 if (file == paper) {
                     val descriptor = jar.getInputStream(jar.getJarEntry("paper-plugin.yml")).bufferedReader().use { it.readText() }
+                    check(descriptor.lineSequence().any {
+                        it.trim().removePrefix("version:").trim().trim('\"', '\'') == expectedVersion && it.startsWith("version:")
+                    }) { "Paper descriptor version differs from project" }
                     check("loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader" in descriptor)
                     check("bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap" in descriptor)
                     check("api-version: '26.1'" in descriptor) { "Paper minimum API version must be 26.1" }
@@ -87,6 +110,9 @@ tasks.register("verifyDistributions") {
                 } else {
                     val descriptor = jar.getInputStream(jar.getJarEntry("velocity-plugin.json")).bufferedReader().use { it.readText() }
                     check("pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity" in descriptor)
+                    check(descriptor.lineSequence().any {
+                        it.trim() == "\"version\": \"$expectedVersion\","
+                    }) { "Velocity descriptor version differs from project" }
                     for (required in listOf("com/zaxxer/hikari/HikariDataSource.class", "org/sqlite/JDBC.class",
                         "com/mysql/cj/jdbc/Driver.class", "org/mariadb/jdbc/Driver.class", "org/postgresql/Driver.class")) {
                         check(jar.getEntry(required) != null) { "Missing Velocity runtime library: $required" }

@@ -1,9 +1,7 @@
-name: Package and publish beta distributions
+name: Package snapshot distributions
 
 on:
-  push:
-    branches:
-      - 'beta/v*-beta.*'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -48,66 +46,20 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          RELEASE_VERSION="${GITHUB_REF_NAME#beta/v}"
           mkdir -p dist
           if [[ "$PLATFORM" == "paper" ]]; then
-            ./gradlew :authgatewayx-paper:shadowJar \
-              -PreleaseVersion="$RELEASE_VERSION" \
+            ./gradlew stagePaperCandidate \
               -PpaperDevBundleVersion="$PAPER_BUNDLE" \
               --console=plain --no-daemon
-            cp "authgatewayx-paper/build/libs/AuthGatewayX-Paper-$RELEASE_VERSION.jar" \
-              "dist/AuthGatewayX-Paper-$RELEASE_VERSION-MC$MC_VERSION.jar"
+            cp build/compatibility/paper/*.jar dist/
           else
-            ./gradlew :authgatewayx-velocity:shadowJar \
-              -PreleaseVersion="$RELEASE_VERSION" \
-              --console=plain --no-daemon
-            cp "authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-$RELEASE_VERSION.jar" \
-              "dist/AuthGatewayX-Velocity-$RELEASE_VERSION-Velocity4.jar"
+            ./gradlew stageVelocityCandidate --console=plain --no-daemon
+            cp build/compatibility/velocity/*.jar dist/
           fi
           (cd dist && sha256sum ./*.jar > "sha256-${PLATFORM}-${MC_VERSION:-4}.txt")
       - uses: actions/upload-artifact@v4
         with:
-          name: beta-${{ matrix.id }}
+          name: snapshot-${{ matrix.id }}
           path: dist/*
           if-no-files-found: error
           retention-days: 30
-
-  publish:
-    name: Publish tagged prerelease
-    needs: [package]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: beta-*
-          path: dist
-          merge-multiple: true
-      - name: Create or update GitHub prerelease
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          files=(dist/*.jar dist/sha256-*.txt)
-          if (( ${#files[@]} != 8 )); then
-            echo "Expected exactly four JARs and four checksums; got ${#files[@]}"
-            exit 1
-          fi
-          TAG="v${GITHUB_REF_NAME#beta/v}"
-          # 'gh release create --target' creates a missing tag at the exact
-          # verified commit. It avoids ambiguous Git ref lookup responses.
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "${files[@]}" --clobber
-          else
-            gh release create "$TAG" "${files[@]}" \
-              --prerelease --target "$GITHUB_SHA" --generate-notes \
-              --title "AuthGatewayX ${TAG#v} (beta)"
-          fi
-
-# The beta/v*-beta.* branch is created only from a verified PR head.
-# The workflow creates its release tag AFTER all four candidate JARs build.
-# Do not create a beta branch until code/CI review is complete.
-# Version-specific Paper builds avoid assuming 26.3 NMS binaries run on 26.1.

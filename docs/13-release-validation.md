@@ -390,3 +390,30 @@ polityki bezpieczeństwa; uzupełniono zawartość checkoutu do opisanej impleme
 
 Macierz rzeczywistych serwerów Paper/Purpur/Folia/Velocity pozostaje osobną
 bramką opisaną wyżej; naprawa checkoutu nie stanowi jej zatwierdzenia.
+
+## Naprawa CI i scalenie gałęzi — 2026-11-07
+
+Gałąź funkcjonalna `feature/prejoin-auth-26x-compatibility` została wcześniej scalona
+w PR #14. Scalono również historię `beta/v1.0.0-beta.1`; jej `BETA_CANDIDATE.md`
+pozostaje oznaczonym zapisem historycznym. Obowiązująca wersja pluginu to
+`1.0.0-R0.1-SNAPSHOT` z głównego `build.gradle.kts`.
+
+Przyczyna błędów macierzy: build się udawał, lecz krok `cp` szukał nieistniejącego
+`*-1.0.0-beta.1.jar`. `-PreleaseVersion` nie zmienia już wersji projektu. Nowe zadania
+`stagePaperCandidate` / `stageVelocityCandidate` pobierają wersję bezpośrednio z
+Gradle i synchronizują katalogi `build/compatibility/paper|velocity`, usuwając stare
+kopie z poprzednich wersji. `verifyDistributions` sprawdza zgodność wersji obydwu
+deskryptorów. Zadania zachowują zgodność z configuration cache.
+
+Macierze uruchamiają się także po push do main. Workflow `beta-release.yml` jest
+teraz ręcznym pakowaniem snapshotów z checksumami, bez tworzenia tagów i publikowania
+bet z historycznych nazw gałęzi. Publikacja do BuildExplorer przez dotychczasowy
+workflow pozostaje aktywna. Nie zmieniono auth, storage, schedulerów ani polityki
+premium DENY/PRE_AUTH; zielona kompilacja nie zastępuje macierzy klientów.
+
+- [x] Pełny lokalny `buildAll`, kontrola deskryptorów i obu dystrybucji.
+- [x] Pakowanie kandydatów z wersją projektu i obsługa configuration cache.
+- [x] Cztery testy Python protokołu loopback oraz bounded security benchmark.
+- [x] Parsowanie YAML i kontrola składni bash wszystkich workflowów.
+- [ ] Zdalne CI po scaleniu: główny build ze zdalnymi bazami, macierze Paper/Velocity
+      i publikacja Paper/Velocity do BuildExplorer.
