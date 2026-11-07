@@ -97,22 +97,13 @@ jobs:
             exit 1
           fi
           TAG="v${GITHUB_REF_NAME#beta/v}"
-          # gh api --jq may print the literal "null" for a missing ref even when
-          # stderr is suppressed; it is not a valid existing commit SHA.
-          existing_sha="$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq .object.sha 2>/dev/null || true)"
-          if [[ "$existing_sha" == "null" ]]; then existing_sha=""; fi
-          if [[ -z "$existing_sha" ]]; then
-            gh api --method POST "repos/${GH_REPO}/git/refs" \
-              -f "ref=refs/tags/${TAG}" -f "sha=${GITHUB_SHA}" >/dev/null
-          elif [[ "$existing_sha" != "$GITHUB_SHA" ]]; then
-            echo "Release tag $TAG already refers to a different commit; refusing to overwrite"
-            exit 1
-          fi
+          # 'gh release create --target' creates a missing tag at the exact
+          # verified commit. It avoids ambiguous Git ref lookup responses.
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "${files[@]}" --clobber
           else
             gh release create "$TAG" "${files[@]}" \
-              --prerelease --verify-tag --generate-notes \
+              --prerelease --target "$GITHUB_SHA" --generate-notes \
               --title "AuthGatewayX ${TAG#v} (beta)"
           fi
 
