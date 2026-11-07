@@ -2,8 +2,8 @@ name: Package and publish beta distributions
 
 on:
   push:
-    tags:
-      - 'v*-beta.*'
+    branches:
+      - 'beta/v*-beta.*'
 
 permissions:
   contents: read
@@ -48,7 +48,7 @@ jobs:
         run: |
           set -euo pipefail
           chmod +x ./gradlew
-          RELEASE_VERSION="${GITHUB_REF_NAME#v}"
+          RELEASE_VERSION="${GITHUB_REF_NAME#beta/v}"
           mkdir -p dist
           if [[ "$PLATFORM" == "paper" ]]; then
             ./gradlew :authgatewayx-paper:shadowJar \
@@ -96,14 +96,24 @@ jobs:
             echo "Expected exactly four JARs and four checksums; got ${#files[@]}"
             exit 1
           fi
-          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
-            gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber
+          TAG="v${GITHUB_REF_NAME#beta/v}"
+          existing_sha="$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq .object.sha 2>/dev/null || true)"
+          if [[ -z "$existing_sha" ]]; then
+            gh api --method POST "repos/${GH_REPO}/git/refs" \
+              -f "ref=refs/tags/${TAG}" -f "sha=${GITHUB_SHA}" >/dev/null
+          elif [[ "$existing_sha" != "$GITHUB_SHA" ]]; then
+            echo "Release tag $TAG already refers to a different commit; refusing to overwrite"
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${files[@]}" --clobber
           else
-            gh release create "$GITHUB_REF_NAME" "${files[@]}" \
+            gh release create "$TAG" "${files[@]}" \
               --prerelease --verify-tag --generate-notes \
-              --title "AuthGatewayX ${GITHUB_REF_NAME#v} (beta)"
+              --title "AuthGatewayX ${TAG#v} (beta)"
           fi
 
-# Never tag until the pre-world auth, premium migration, NMS and proxy gates
-# in docs/16-prejoin-authentication-and-26x-compatibility.md are approved.
+# The beta/v*-beta.* branch is created only from a verified PR head.
+# The workflow creates its release tag AFTER all four candidate JARs build.
+# Do not create a beta branch until code/CI review is complete.
 # Version-specific Paper builds avoid assuming 26.3 NMS binaries run on 26.1.
