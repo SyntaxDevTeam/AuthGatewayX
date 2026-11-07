@@ -55,6 +55,7 @@ class PreJoinConfigurationListener(
     private data class ConnectionRecord(
         val connection: PlayerConfigurationConnection,
         val ticket: PreJoinConnectionGate.Ticket,
+        val sessionNonce: UUID,
         val ownsSession: AtomicBoolean = AtomicBoolean(false),
     )
 
@@ -112,12 +113,13 @@ class PreJoinConfigurationListener(
             return
         }
         val connectionId = ConnectionId(id)
+        val initialSession = AuthSession.connecting(connectionId, username, address, clock.instant())
         val ticket = gate.tryOpen(connectionId)
         if (ticket == null) {
             connection.disconnect(capacityMessage)
             return
         }
-        val record = ConnectionRecord(connection, ticket)
+        val record = ConnectionRecord(connection, ticket, initialSession.sessionNonce)
         if (connections.putIfAbsent(id, record) != null) {
             gate.deny(ticket)
             connection.disconnect(capacityMessage)
@@ -126,7 +128,7 @@ class PreJoinConfigurationListener(
 
         try {
             // Never disconnect another connection's session simply because this UUID reconnected.
-            val created = sessions.create(AuthSession.connecting(connectionId, username, address, clock.instant()))
+            val created = sessions.create(initialSession)
             if (!created) {
                 gate.deny(ticket)
                 connection.disconnect(capacityMessage)
@@ -135,15 +137,16 @@ class PreJoinConfigurationListener(
             record.ownsSession.set(true)
             if (connections[id] !== record) {
                 // Disconnect could have removed the record while create() was in progress.
-                sessions.disconnect(connectionId)
+                sessions.disconnect(connectionId, record.sessionNonce)
                 return
             }
             sessions.enterPreAuth(connectionId)
             onPreAuth(id)
-            router.route(connection, ticket, AuthenticationFormContext(connectionId, username, address, id))
+            router.route(connection, ticket, AuthenticationFormContext(connectionId, username, address, id, record.sessionNonce))
             val result = gate.await(ticket, timeout)
             if (result == PreJoinConnectionGate.Outcome.AUTHENTICATED && !stopping.get() && isReady() &&
-                connection.isConnected && sessions.get(connectionId)?.state == ConnectionState.ACTIVE
+                connection.isConnected && sessions.get(connectionId)?.state == ConnectionState.ACTIVE &&
+                sessions.get(connectionId)?.sessionNonce == record.sessionNonce
             ) {
                 // The player can now transition into the world, but a close before PlayerJoinEvent
                 // must still invalidate the session. Keep the connection record until join.
@@ -157,7 +160,8 @@ class PreJoinConfigurationListener(
         } finally {
             // Release only the failed or terminal connections; successful ones remain tracked
             // until PlayerJoinEvent to prevent a connection-close session leak.
-            if (sessions.get(connectionId)?.state != ConnectionState.ACTIVE || !connection.isConnected) {
+            if (sessions.get(connectionId)?.state != ConnectionState.ACTIVE ||
+                sessions.get(connectionId)?.sessionNonce != record.sessionNonce || !connection.isConnected) {
                 removeRecord(id, record)
             }
         }
@@ -184,7 +188,8 @@ class PreJoinConfigurationListener(
         if (!record.connection.isConnected ||
             event.player.connection.address != record.connection.address ||
             !event.player.name.equals(record.connection.profile.name, ignoreCase = true) ||
-            sessions.get(ConnectionId(id))?.state != ConnectionState.ACTIVE
+            (sessions.get(ConnectionId(id))?.state != ConnectionState.ACTIVE ||
+                sessions.get(ConnectionId(id))?.sessionNonce != record.sessionNonce)
         ) {
             event.player.kick(unavailableMessage)
             return
@@ -223,7 +228,7 @@ class PreJoinConfigurationListener(
             dialogs.forget(record.ticket)
             migrationDialogs.forget(record.ticket)
             gate.disconnected(record.ticket)
-            if (record.ownsSession.get()) sessions.disconnect(record.ticket.connectionId)
+            if (record.ownsSession.get()) sessions.disconnect(record.ticket.connectionId, record.sessionNonce)
         }
     }
 
