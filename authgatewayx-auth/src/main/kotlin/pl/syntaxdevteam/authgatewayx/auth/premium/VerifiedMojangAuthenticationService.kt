@@ -38,6 +38,7 @@ data class VerifiedMojangAuthenticationContext(
     val username: AccountUsername,
     val sourceAddress: InetAddress,
     val minecraftUuid: UUID,
+    val sessionNonce: UUID? = null,
 )
 
 sealed interface VerifiedMojangAuthenticationResult {
@@ -115,7 +116,8 @@ class VerifiedMojangAuthenticationService(
             if (allowed != true) VerifiedMojangAuthenticationResult.AccessDenied
             else {
                 sessions.activate(context.connectionId, binding.account.id, context.minecraftUuid,
-                    IdentityType.MOJANG, AuthenticationMethod.MOJANG, verifiedAt)
+                    IdentityType.MOJANG, AuthenticationMethod.MOJANG, verifiedAt,
+                    expectedSessionNonce = context.sessionNonce)
                 audit(context, binding.account,
                     if (binding.migratedFromOffline) SecurityEventType.OFFLINE_TO_PREMIUM_MIGRATION
                     else SecurityEventType.PREMIUM_VERIFIED,
