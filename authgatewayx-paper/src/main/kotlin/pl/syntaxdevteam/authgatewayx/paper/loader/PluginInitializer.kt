@@ -1064,7 +1064,8 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 unavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "startup_failed"),
                 capacityMessage = messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
                 timeoutMessage = messages.stringMessageToComponentNoPrefix("auth", "timeout"),
-                onPreAuth = consent::prepare,
+                onPreAuth = consent::prepareConnection,
+                onPreAuthEnd = consent::discardConnection,
                 onWorldJoin = { id ->
                     consent.authenticated(id)
                     val method = sessions.get(ConnectionId(id))?.authenticationMethod
