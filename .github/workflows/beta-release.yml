@@ -97,7 +97,10 @@ jobs:
             exit 1
           fi
           TAG="v${GITHUB_REF_NAME#beta/v}"
+          # gh api --jq may print the literal "null" for a missing ref even when
+          # stderr is suppressed; it is not a valid existing commit SHA.
           existing_sha="$(gh api "repos/${GH_REPO}/git/ref/tags/${TAG}" --jq .object.sha 2>/dev/null || true)"
+          if [[ "$existing_sha" == "null" ]]; then existing_sha=""; fi
           if [[ -z "$existing_sha" ]]; then
             gh api --method POST "repos/${GH_REPO}/git/refs" \
               -f "ref=refs/tags/${TAG}" -f "sha=${GITHUB_SHA}" >/dev/null
