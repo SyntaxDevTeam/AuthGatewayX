@@ -22,6 +22,7 @@ data class AuthenticationFormContext(
     val username: AccountUsername,
     val sourceAddress: InetAddress,
     val minecraftUuid: UUID,
+    val sessionNonce: UUID? = null,
 )
 
 enum class AuthenticationFormResult {
@@ -82,7 +83,8 @@ class AuthenticationFormCoordinator(
             if (allowed != true) AuthenticationFormResult.ACCESS_DENIED
             else {
                 sessions.activate(context.connectionId, account.id, account.minecraftUuid,
-                    IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant())
+                    IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
+                    expectedSessionNonce = context.sessionNonce)
                 activationListener.activated(context)
                 AuthenticationFormResult.AUTHENTICATED
             }
