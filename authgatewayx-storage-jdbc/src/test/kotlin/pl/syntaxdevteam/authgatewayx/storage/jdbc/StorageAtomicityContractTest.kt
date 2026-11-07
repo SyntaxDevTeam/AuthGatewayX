@@ -66,6 +66,12 @@ class StorageAtomicityContractTest {
             assertEquals(0, reset.failedLoginCount)
             assertNull(reset.lockedUntil)
 
+            val timeout = ConnectionTimeoutState(syntheticAddress(), 1000, 3, 2000)
+            storage.saveConnectionTimeouts(listOf(timeout)).toCompletableFuture().get(10, TimeUnit.SECONDS)
+            assertEquals(listOf(timeout), storage.loadConnectionTimeouts(10).toCompletableFuture().get(10, TimeUnit.SECONDS))
+            assertFails { storage.saveConnectionTimeouts(listOf(timeout, timeout)).toCompletableFuture().get(10, TimeUnit.SECONDS) }
+            assertEquals(listOf(timeout), storage.loadConnectionTimeouts(10).toCompletableFuture().get(10, TimeUnit.SECONDS))
+
             storage.close()
             assertFails { storage.findCredentials(base.username).toCompletableFuture().get(10, TimeUnit.SECONDS) }
         } finally {

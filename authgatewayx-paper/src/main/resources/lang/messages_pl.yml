@@ -21,6 +21,8 @@ reload:
   failure: '<red>Nie udało się przeładować konfiguracji. Popraw config.yml i sprawdź log serwera; poprzednie ustawienia nadal obowiązują.</red>'
 
 auth:
+  connection_attempts_remaining: "<red>Pozostały Ci {remaining} próby połączenia.</red>"
+  suspicious_connections: "<red>Suspicious connections.</red>"
   login_title: "<aqua>Logowanie konta dla <white>{username}</white></aqua>"
   registration_title: "<aqua>Rejestracja konta dla <white>{username}</white></aqua>"
   login_prompt: "<gray>Wprowadź hasło do swojego konta.</gray>"

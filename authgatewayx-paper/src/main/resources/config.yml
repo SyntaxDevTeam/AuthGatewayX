@@ -66,6 +66,15 @@ premium:
 # /********************************************/
 
 anti-bot:
+  # Repeated native LOGIN timeouts (standalone Paper/Purpur/Folia).
+  # Counters and ban deadlines survive restarts in the configured database.
+  # One Paper runtime owns the connection_timeout_state table per database.
+  login-timeouts:
+    attempts: 3
+    # 0 keeps failures without an observation time limit until the ban expires.
+    window-seconds: 0
+    ban-seconds: 86400
+
   # Maximum number of source IP addresses remembered by anti-bot state trackers.
   # This is a memory-safety limit: old/unused state may be discarded when the limit is reached.
   maximum-tracked-addresses: 50000

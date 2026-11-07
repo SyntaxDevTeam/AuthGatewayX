@@ -865,3 +865,75 @@ Nie powtarza się eventów pre-login ani kryptograficznej wymiany kluczy. Brak n
 I/O na Netty lub threadzie gry. Ponowienia nie obejmują Velocity ani Paper z forwardingiem.
 Szczegóły integracji NMS i zachowania po odmowie:
 [decyzja techniczna](03-zalozenia-techniczne.md#decyzja-2026-11-03--ponowienia-weryfikacji-sesji-premium-na-paper-standalone).
+
+## Decyzja 2026-11-07 — powtarzane timeouty natywnego LOGIN
+
+`Took too long to log in` (`multiplayer.disconnect.slow_login`) jest timeoutem
+protokołu Minecraft, odrębnym od timeoutu izolacji PRE_AUTH i błędnego hasła `/login`.
+Paper standalone (również Purpur/Folia z kompatybilnym adapterem NMS) zlicza go
+per rzeczywisty adres transportu po dopuszczeniu przez cheap guards i zakończeniu
+lookupu premium. Nie zlicza oczekiwania na lookup ani weryfikację `hasJoinedServer`
+(stan AUTHENTICATING), błędów usług, odrzuceń limitera i zwykłych disconnectów.
+Pakiet timeoutu jest naliczany najwyżej raz na listener/połączenie.
+
+Konfiguracja `anti-bot.login-timeouts`: `attempts: 3`, `window-seconds: 0`,
+`ban-seconds: 86400`. Zero oznacza brak limitu czasu zliczania, a dodatnia wartość
+stałe okno od pierwszego timeoutu. Pierwszy i drugi timeout wyświetlają pozostałe
+próby; trzeci rozpoczyna blokadę IP z powodem `Suspicious connections.`. Kolejne
+odrzucenia nie przedłużają blokady. Po jej wygaśnięciu licznik zaczyna od zera.
+Udane logowanie nie usuwa wcześniejszych timeoutów.
+
+`ConnectionTimeoutGate` serializuje operacje pamięciowe bez I/O, ogranicza liczbę wpisów przez
+`anti-bot.maximum-tracked-addresses`, nie usuwa aktywnych blokad dla nowych IP.
+Pełny tracker odrzuca nowe adresy (fail-closed); przy oknie 0 wpisy z niepełnym
+licznikiem nie wygasają. To świadomy koszt żądanego braku okna, administrator może
+ustawić dodatnie okno. Odrzucenie następuje przed DB/HTTP, także dla zmienionego nicku,
+a ponowny check w pre-login uwzględnia blokadę powstałą podczas lookupu.
+
+Jest to trwała kwarantanna anti-bot AuthGatewayX, bez komend konsoli i bez zapisów do
+banlisty Minecraft/PunisherX. Decyzja o samym stanie pamięciowym została wycofana:
+restart nie może umożliwiać obejścia limitu. Stan znajduje się w skonfigurowanej bazie
+kont, a nie osobnym pliku. Migracja v10 dodaje `connection_timeout_state` z kluczem
+`source_ip`, początkiem okna `window_started`, licznikiem `failures` oraz absolutnym
+terminem końca blokady `banned_until` (UTC epoch nanoseconds). Powód odrzucenia ma
+stałe znaczenie `Suspicious connections.`. Backup bazy obejmuje również ochronę IP.
+`ConnectionTimeoutStorage` jest osobnym kontraktem storage bez API platformowego.
+`JdbcAccountStorage` zapewnia ten sam SQL dla SQLite/MySQL/MariaDB/PostgreSQL.
+
+Przed READY wykonywane są migracja oraz ograniczony odczyt stanu. Niepoprawne dane,
+przekroczenie skonfigurowanej pojemności lub niedostępność DB blokują start auth.
+Odtworzony gate pozostaje tanim filtrem w pamięci przed DB/HTTP. Pojedynczy
+`DurableConnectionTimeouts` z kolejką 128 serializuje zatwierdzenia; JDBC wykonuje
+istniejący bounded storage executor i connection pool. Writer czeka najwyżej 10 s,
+statementy mają timeout 5 s. Żaden thread gry ani Netty nie czeka na I/O.
+Licznik zmienia się natychmiast w pamięci, a promise pakietu rozłączenia kończy się
+po commit DB. Błąd lub pełna kolejka zamyka gate; klient jest rozłączany bez
+komunikatu sugerującego udany zapis. Po błędzie kolejne snapshoty nie nadpisują DB.
+Snapshot tabeli jest podmieniany w jednej transakcji (DELETE i batch INSERT), więc
+błąd batcha przywraca poprzedni stan. Koszt zapisu zależy od ograniczonej liczby
+śledzonych IP; nie ma zapytań DB przy każdym odrzuconym reconnect.
+
+Właścicielem tabeli jest jeden runtime Paper na bazę. Nie jest to rozproszona
+blokada sieciowa: równoczesne instancje Paper nie mogą współdzielić tej tabeli,
+ponieważ ich snapshoty mogłyby się nadpisywać. Velocity nie zapisuje tego stanu.
+Shutdown zatrzymuje producentów, opróżnia writer przed zamknięciem storage i
+blokuje attach spóźnionego writera przez `RetiringResource`. Następne enable czeka
+na zakończenie cleanup. Terminy używają czasu UTC systemu zamiast `nanoTime`;
+administrator musi utrzymywać poprawny zegar. Zmiana czasu wpływa na pozostały czas
+blokady. Zmiana `ban-seconds` nie zmienia już zapisanych terminów.
+Nie dodano kompletnej domeny kar ani rozszerzenia publicznego API PunisherX. Blokada dotyczy wszystkich klientów za wspólnym IP. Velocity i timeouty
+PRE_AUTH nie są objęte naliczaniem; backend za Velocity nie powinien interpretować
+adresu transportowego proxy jako adresu klienta. Nie zmienia się premium DENY ani
+izolacja PRE_AUTH. Komunikaty pochodzą z MessageHandler (`auth.connection_attempts_remaining`,
+`auth.suspicious_connections`). Nowe ustawienia wymagają restartu.
+
+Walidacja:
+- [x] Testy JVM limitu, okna 0/dodatniego, 24h, pojemności i równoległości.
+- [x] Test integracji cheap guard: zmiana nicku i ban podczas lookupu.
+- [x] Testy trwałości: restart z częściowym licznikiem i banem, pierwotny termin,
+      oczekiwanie na commit i błąd zapisu.
+- [x] SQLite: migracja idempotentna, ponowne otwarcie bazy, trwały licznik/ban,
+      rollback całego snapshotu po błędzie batcha.
+- [ ] MySQL/MariaDB/PostgreSQL: kontrakt zapisu/odczytu i rollbacku w CI.
+- [ ] Test rzeczywistym klientem Paper/Purpur/Folia: dwa ostrzeżenia, trzeci timeout,
+      ponowne wejście i błędy usług bez naliczania.

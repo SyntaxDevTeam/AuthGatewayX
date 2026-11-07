@@ -70,7 +70,7 @@ class JdbcAccountStorage(
     private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
     username: String? = null,
     password: String? = null,
-) : AccountStorage, ConsentStorage, SecurityAuditSink, ConnectionAccountLookup, AccountInspectionLookup {
+) : pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutStorage, AccountStorage, ConsentStorage, SecurityAuditSink, ConnectionAccountLookup, AccountInspectionLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
         this.driverClassName = databaseType.driverClassName
@@ -229,6 +229,67 @@ class JdbcAccountStorage(
                         """.trimIndent())
                     }
                     recordMigration(connection, 9)
+                }
+                if (!hasMigration(connection, 10)) {
+                    connection.createStatement().use { statement ->
+                        statement.executeUpdate("""CREATE TABLE connection_timeout_state (
+                            source_ip VARCHAR(45) PRIMARY KEY,
+                            window_started BIGINT NOT NULL,
+                            failures INTEGER NOT NULL,
+                            banned_until BIGINT
+                        )""".trimIndent())
+                    }
+                    recordMigration(connection, 10)
+                }
+                connection.commit()
+            } catch (failure: Throwable) {
+                connection.rollback()
+                throw failure
+            }
+        }
+    }
+
+    override fun loadConnectionTimeouts(maximumAddresses: Int): CompletionStage<List<pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutState>> = executor.submit {
+        require(maximumAddresses in 1 until Int.MAX_VALUE)
+        dataSource.connection.use { connection ->
+            connection.prepareStatement("SELECT source_ip, window_started, failures, banned_until FROM connection_timeout_state").use { statement ->
+                statement.queryTimeout = 5
+                statement.maxRows = maximumAddresses + 1
+                statement.executeQuery().use { rows ->
+                    buildList {
+                        while (rows.next()) {
+                            require(size < maximumAddresses) { "Timeout state exceeds configured capacity" }
+                            val raw = rows.getString("source_ip")
+                            // Persisted addresses must be numeric; never resolve a hostname from storage.
+                            require(raw.matches(Regex("[0-9a-fA-F:.]+")) && (raw.contains(':') || raw.count { it == '.' } == 3))
+                            val expiry = rows.getLong("banned_until").let { if (rows.wasNull()) null else it }
+                            add(pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutState(
+                                InetAddress.getByName(raw), rows.getLong("window_started"), rows.getInt("failures"), expiry,
+                            ))
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    override fun saveConnectionTimeouts(entries: List<pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutState>): CompletionStage<Unit> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                connection.createStatement().use { it.queryTimeout = 5; it.executeUpdate("DELETE FROM connection_timeout_state") }
+                connection.prepareStatement("INSERT INTO connection_timeout_state (source_ip, window_started, failures, banned_until) VALUES (?, ?, ?, ?)").use { statement ->
+                    statement.queryTimeout = 5
+                    entries.forEach { entry ->
+                        statement.setString(1, entry.address.hostAddress)
+                        statement.setLong(2, entry.started)
+                        statement.setInt(3, entry.failures)
+                        val deadline = entry.bannedUntil
+                        if (deadline == null) statement.setNull(4, java.sql.Types.BIGINT)
+                        else statement.setLong(4, deadline)
+                        statement.addBatch()
+                    }
+                    statement.executeBatch()
                 }
                 connection.commit()
             } catch (failure: Throwable) {

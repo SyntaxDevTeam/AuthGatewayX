@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "pl.syntaxdevteam"
-version = providers.gradleProperty("releaseVersion").getOrElse("1.0.0-WIP")
+version = "1.0.0-R0.1-SNAPSHOT"
 description = "Uwierzytelnianie premium i offline dla Paper/Folia oraz Velocity."
 
 val targetJavaVersion = libs.versions.java.get().toInt()

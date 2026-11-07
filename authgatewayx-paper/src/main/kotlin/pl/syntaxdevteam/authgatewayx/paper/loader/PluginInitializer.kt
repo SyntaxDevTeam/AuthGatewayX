@@ -201,7 +201,18 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             )
             return
         }
-        val cheapGuard = PaperLoginCheapGuard(floodGate, usernameBurstGate, behaviorGate)
+        val timeoutGate = try {
+            pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate(
+                config.getInt("anti-bot.login-timeouts.attempts", 3),
+                Duration.ofSeconds(config.getLong("anti-bot.login-timeouts.window-seconds", 0)),
+                Duration.ofSeconds(config.getLong("anti-bot.login-timeouts.ban-seconds", 86400)),
+                positive("anti-bot.maximum-tracked-addresses"),
+            )
+        } catch (failure: Throwable) {
+            fail("Login timeout configuration is invalid", failure)
+            return
+        }
+        val cheapGuard = PaperLoginCheapGuard(floodGate, usernameBurstGate, behaviorGate, timeoutGate)
         server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, cheapGuard), plugin)
         if (server.onlineMode) {
             readiness.force(RuntimeState.FAILED)
@@ -297,7 +308,28 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 config.getString("storage.remote.username"),
                 System.getenv("AUTHGATEWAYX_DB_PASSWORD") ?: config.getString("storage.remote.password"),
             ).also { components.attachStorage(it) }
-        }.thenCompose { storage -> storage.migrate().thenApply { storage } }
+        }.thenCompose { storage ->
+            storage.migrate().thenCompose {
+                storage.loadConnectionTimeouts(positive("anti-bot.maximum-tracked-addresses"))
+            }.thenApply { entries ->
+                val gate = requireNotNull(cheapGuard.timeoutGate)
+                gate.restore(entries.map { entry ->
+                    pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate.Entry(
+                        entry.address, entry.started, entry.failures, entry.bannedUntil,
+                    )
+                })
+                val durable = pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts(gate) { snapshot ->
+                    storage.saveConnectionTimeouts(snapshot.map { entry ->
+                        pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutState(
+                            entry.address, entry.started, entry.failures, entry.bannedUntil,
+                        )
+                    })
+                }
+                components.attachTimeoutPersistence(durable)
+                cheapGuard.durableTimeouts = durable
+                storage
+            }
+        }
         val dummyHashStage = passwordExecutor.submit { hasher.hash("AuthGatewayX-dummy-password".toCharArray()) }
         storageStage.thenCombine(dummyHashStage) { storage, dummyHash -> storage to dummyHash }.whenComplete { initialized, failure ->
             scheduler.global(Runnable {
@@ -333,6 +365,14 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
+        val timeoutWarning = messages.stringMessageToComponentNoPrefix("auth", "connection_attempts_remaining")
+        val timeoutBan = messages.stringMessageToComponentNoPrefix("auth", "suspicious_connections")
+        cheapGuard.timeoutMessage = { remaining ->
+            if (remaining == 0) timeoutBan else timeoutWarning.replaceText(
+                net.kyori.adventure.text.TextReplacementConfig.builder().matchLiteral("{remaining}")
+                    .replacement(net.kyori.adventure.text.Component.text(remaining)).build(),
+            )
+        }
         val consentGate = ConsentGate()
         runtime?.consentGate = consentGate
         val authenticationStatus = PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, { id ->
@@ -1148,6 +1188,8 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
+    private val timeoutPersistence = RetiringResource<pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts>()
+    fun attachTimeoutPersistence(value: pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts) = timeoutPersistence.attach(value)
     @Volatile var consentGate: ConsentGate? = null
     @Volatile var clientChannel: PaperClientAuthenticationChannel? = null
     @Volatile var staffProof: PaperStaffProof? = null
@@ -1160,6 +1202,7 @@ private class RuntimeComponents(
     fun markClosing() {
         preJoinListener?.shutdown()
         storage.stopAccepting()
+        timeoutPersistence.stopAccepting()
         migrationsDrained = migrationCoordinator?.stopAndDrain()
     }
 
@@ -1187,6 +1230,7 @@ private class RuntimeComponents(
                 "Premium diagnostic writer did not terminate"
             }
         }
+        attempt { timeoutPersistence.close() }
         sessions.clear()
         consentGate?.clear()
         attempt { migrationsDrained?.get(30, java.util.concurrent.TimeUnit.SECONDS) }

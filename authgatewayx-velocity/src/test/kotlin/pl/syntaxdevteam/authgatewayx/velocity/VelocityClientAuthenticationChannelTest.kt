@@ -26,11 +26,11 @@ class VelocityClientAuthenticationChannelTest {
         var ready = true
         var now = 0L
         var cancelled = 0
-        lateinit var backend: ServerConnection
+        var backend: ServerConnection
         val replies = mutableListOf<ByteArray>()
         val forwards = mutableListOf<ByteArray>()
         val ticks = mutableListOf<Runnable>()
-        var sessionId = UUID.randomUUID()
+        var sessionId: UUID = UUID.randomUUID()
         val player = mock(Player::class.java) { name, args -> when (name) {
             "getSessionId" -> sessionId
             "isActive" -> true

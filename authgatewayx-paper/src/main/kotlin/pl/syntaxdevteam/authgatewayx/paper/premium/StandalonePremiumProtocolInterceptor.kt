@@ -121,12 +121,21 @@ internal class StandalonePremiumProtocolInterceptor(
             }
 
             override fun write(context: ChannelHandlerContext, message: Any, promise: ChannelPromise) {
-                val rewritten = if (message is ClientboundLoginDisconnectPacket) {
-                    (connection.packetListener as? StandalonePremiumLoginListener)?.rewriteDisconnect(message) ?: message
+                val listener = connection.packetListener as? StandalonePremiumLoginListener
+                if (message is ClientboundLoginDisconnectPacket && listener != null) {
+                    listener.rewriteDisconnect(message).whenComplete { rewritten, failure ->
+                        context.executor().execute {
+                            if (failure != null) {
+                                promise.tryFailure(failure)
+                                context.close()
+                            } else {
+                                context.writeAndFlush(rewritten, promise)
+                            }
+                        }
+                    }
                 } else {
-                    message
+                    context.write(message, promise)
                 }
-                context.write(rewritten, promise)
             }
         }
         channel.pipeline().addBefore(packetHandler, childHandlerName, handler)
