@@ -2,7 +2,7 @@
 
 [Home](Home.md) · [Instalacja](Instalacja.md) · [Komendy](Komendy.md) · [Zgodność](Zgodnosc.md)
 
-Ta strona opisuje funkcje dostępne w obecnej wersji **1.0.0-WIP**. WIP oznacza wersję
+Ta strona opisuje funkcje dostępne w obecnej wersji **1.0.0-R0.1-SNAPSHOT**. SNAPSHOT oznacza wersję
 rozwojową, a nie gotowe wydanie produkcyjne. Funkcja opisana poniżej może nadal wymagać
 testów na konkretnej platformie; ograniczenia zebrano na stronie [Zgodność](Zgodnosc.md).
 

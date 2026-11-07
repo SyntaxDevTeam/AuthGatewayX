@@ -415,8 +415,13 @@ premium DENY/PRE_AUTH; zielona kompilacja nie zastępuje macierzy klientów.
 - [x] Pakowanie kandydatów z wersją projektu i obsługa configuration cache.
 - [x] Cztery testy Python protokołu loopback oraz bounded security benchmark.
 - [x] Parsowanie YAML i kontrola składni bash wszystkich workflowów.
-- [ ] Zdalne CI po scaleniu: główny build ze zdalnymi bazami, macierze Paper/Velocity
-      i publikacja Paper/Velocity do BuildExplorer.
+Zdalne potwierdzenie jest publikowane dla każdego SHA w GitHub Actions:
+[build, bazy i publikacja](https://github.com/SyntaxDevTeam/AuthGatewayX/actions/workflows/buildexplorer.yml),
+[macierz Paper](https://github.com/SyntaxDevTeam/AuthGatewayX/actions/workflows/paper-26x-compatibility.yml),
+[macierz Velocity](https://github.com/SyntaxDevTeam/AuthGatewayX/actions/workflows/velocity-4x-compatibility.yml).
+Do uznania CI za zaliczone wszystkie trzy workflowy dla tego samego SHA muszą
+zakończyć się sukcesem; statusu kolejki lub kompilacji lokalnej nie traktuje się
+jako wyniku zdalnych testów baz ani publikacji.
 
 Podczas pierwszej zdalnej weryfikacji Paper 26.1.2 i 26.2 przeszły, lecz build 26.3
 został przerwany przez `Gradle build daemon has been stopped: stop command received`.

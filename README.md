@@ -20,7 +20,7 @@ Budowa artefaktu standalone:
 ./gradlew :authgatewayx-paper:build
 ```
 
-Wynik: `authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-WIP.jar`.
+Wynik: `authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-R0.1-SNAPSHOT.jar`.
 
 Pełny build obu platform, testy i kontrola zawartości JAR-ów:
 
@@ -28,7 +28,7 @@ Pełny build obu platform, testy i kontrola zawartości JAR-ów:
 ./gradlew clean buildAll
 ```
 
-Velocity: `authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-1.0.0-WIP.jar`.
+Velocity: `authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-1.0.0-R0.1-SNAPSHOT.jar`.
 Wersja pluginu jest w głównym `build.gradle.kts`; wszystkie wersje zależności są
 w `gradle/libs.versions.toml`. Lifecycle składają platformowe `PluginInitializer.kt`.
 Zależności Paper ładuje `SyntaxLoader` z generowanego `paper-libraries.yml`.

@@ -2,7 +2,7 @@
 
 [Home](Home.md) · [Instalacja](Instalacja.md)
 
-WIKI opisuje **AuthGatewayX 1.0.0-WIP**. WIP oznacza wersję w rozwoju. Zachęcamy do sprawdzenia jej na serwerze testowym i poznania sposobu logowania przed stabilnym wydaniem.
+WIKI opisuje **AuthGatewayX 1.0.0-R0.1-SNAPSHOT**. SNAPSHOT oznacza wersję w rozwoju. Zachęcamy do sprawdzenia jej na serwerze testowym i poznania sposobu logowania przed stabilnym wydaniem.
 
 ## Platformy
 

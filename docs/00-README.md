@@ -31,7 +31,7 @@ Aktualny build, lifecycle i biblioteki: [standaryzacja SyntaxDevTeam](14-standar
 
 ## Stan ogólny
 
-Projekt jest aktywnym `1.0.0-WIP`, a nie gotowym wydaniem. Istnieją fundament domenowy,
+Projekt jest aktywnym `1.0.0-R0.1-SNAPSHOT`, a nie gotowym wydaniem. Istnieją fundament domenowy,
 SQLite, Argon2id, login i rejestracja offline, audit, limitery, Paper Dialog API,
 aktywna izolacja PRE_AUTH, trwały limit rejestracji per IP, bezpieczny lookup nazw
 premium, per-połączeniowy adapter premium LOGIN dla Paper standalone, selektor trybu

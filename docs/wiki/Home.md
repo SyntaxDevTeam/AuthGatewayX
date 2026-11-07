@@ -19,7 +19,7 @@ Masz serwer dla znajomych albo rozwijasz własną społeczność? AuthGatewayX �
 
 Chcesz wypróbować AuthGatewayX? Przejdź do [pobierania i instalacji](Instalacja.md), przygotuj serwer testowy i sprawdź pierwsze logowanie.
 
-Obecna wersja to **1.0.0-WIP**, czyli wersja w rozwoju. Możesz ją poznawać i testować, ale nie jest jeszcze gotowym, stabilnym wydaniem 1.0.0. Szczegóły znajdziesz na stronie [zgodności i dostępności](Zgodnosc.md).
+Obecna wersja to **1.0.0-R0.1-SNAPSHOT**, czyli wersja w rozwoju. Możesz ją poznawać i testować, ale nie jest jeszcze gotowym, stabilnym wydaniem 1.0.0. Szczegóły znajdziesz na stronie [zgodności i dostępności](Zgodnosc.md).
 
 ## Wybierz temat
 

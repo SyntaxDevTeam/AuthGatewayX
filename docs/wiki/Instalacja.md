@@ -10,7 +10,7 @@ Serwer potrzebuje dostępu do internetu, aby pobrać wymagane biblioteki i spraw
 
 ## Jaki plik wybrać?
 
-Do serwera Paper wybierz plik `AuthGatewayX-1.0.0-WIP.jar` udostępniony przez autorów. Wersja Velocity jest osobnym plikiem przeznaczonym na proxy. Nie zamieniaj ich miejscami.
+Do serwera Paper wybierz plik `AuthGatewayX-Paper-1.0.0-R0.1-SNAPSHOT.jar` udostępniony przez autorów. Wersja Velocity jest osobnym plikiem przeznaczonym na proxy. Nie zamieniaj ich miejscami.
 
 Ta wersja WIKI nie zawiera jeszcze potwierdzonego adresu publicznego pobierania. Gdy autorzy udostępnią paczkę testową, możesz przejść przez poniższe kroki.
 
