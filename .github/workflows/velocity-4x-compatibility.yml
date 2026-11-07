@@ -42,5 +42,32 @@ jobs:
             -PvelocityApiVersion='${{ matrix.api }}' \
             --console=plain --no-daemon
 
-# Only checks compilation, not linking of SyntaxCore/MessageHandler at runtime.
+
+  candidate-velocity:
+    name: Velocity 4.x candidate binary
+    needs: compile-velocity
+    runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build Velocity beta candidate
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          ./gradlew :authgatewayx-velocity:shadowJar -PreleaseVersion='1.0.0-beta.1' --console=plain --no-daemon
+          mkdir -p candidate
+          cp authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-1.0.0-beta.1.jar \
+            candidate/AuthGatewayX-Velocity-1.0.0-beta.1-Velocity4.jar
+      - uses: actions/upload-artifact@v4
+        with:
+          name: authgatewayx-beta-candidate-velocity-4
+          path: candidate/*.jar
+          if-no-files-found: error
+          retention-days: 30
+
+# Compatibility matrix checks compilation, not linking of SyntaxCore/MessageHandler at runtime.
 # Real Velocity 4.0/4.1/4.2/4.3 functional tests are required before beta.

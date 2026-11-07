@@ -46,7 +46,23 @@ jobs:
           chmod +x ./gradlew
           ./gradlew :authgatewayx-paper:shadowJar \
             -PpaperDevBundleVersion='${{ matrix.bundle }}' \
+            -PreleaseVersion='1.0.0-beta.1' \
             --console=plain --no-daemon
+      - name: Name beta candidate for target Minecraft build
+        env:
+          MC_BUNDLE: ${{ matrix.bundle }}
+        run: |
+          set -euo pipefail
+          mkdir -p candidate
+          MC_VERSION="${MC_BUNDLE%%.build.*}"
+          cp authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-beta.1.jar \
+            "candidate/AuthGatewayX-Paper-1.0.0-beta.1-MC${MC_VERSION}.jar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: authgatewayx-beta-candidate-paper-${{ matrix.bundle }}
+          path: candidate/*.jar
+          if-no-files-found: error
+          retention-days: 30
 
 # This is a source compatibility probe, NOT proof that a 26.3 shaded distribution
 # can be run on Paper 26.1/26.2. NMS runtime checks and game-client verification
