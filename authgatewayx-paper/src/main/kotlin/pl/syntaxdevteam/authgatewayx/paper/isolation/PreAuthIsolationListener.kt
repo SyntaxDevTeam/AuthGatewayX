@@ -35,6 +35,7 @@ class PreAuthIsolationListener(
     private val usernameBurstGate: UsernameBurstGate,
     private val behaviorGate: ConnectionBehaviorGate,
     private val consentGate: ConsentGate,
+    private val preJoinOwnsSessionCleanup: Boolean = false,
 ) : Listener {
     private fun blocked(player: Player) = access.isPreAuth(player.uniqueId) || consentGate.isPending(player.uniqueId)
 
@@ -172,9 +173,11 @@ class PreAuthIsolationListener(
                 behaviorGate.record(address, ConnectionBehaviorSignal.PRE_AUTH_DISCONNECT)
             }
         }
-        consentGate.forget(event.player.uniqueId)
+        if (!preJoinOwnsSessionCleanup) {
+            consentGate.forget(event.player.uniqueId)
+            sessions.disconnect(ConnectionId(event.player.uniqueId))
+        }
         isolation.forget(event.player.uniqueId)
         admission.release(event.player.uniqueId)
-        sessions.disconnect(ConnectionId(event.player.uniqueId))
     }
 }
