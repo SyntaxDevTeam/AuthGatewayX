@@ -64,9 +64,10 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
-    env:
-      GRADLE_USER_HOME: ${{ runner.temp }}/authgatewayx-gradle-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
+      - name: Isolate Gradle user home
+        shell: bash
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/authgatewayx-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@v7
 
@@ -189,7 +190,6 @@ jobs:
             artifact_prefix: authgatewayx-velocity-
             compatible_platforms: velocity
     env:
-      GRADLE_USER_HOME: ${{ runner.temp }}/authgatewayx-gradle-${{ github.run_id }}-${{ github.run_attempt }}
       BUILD_PLATFORM: ${{ matrix.platform }}
       BUILD_PLATFORM_FAMILY: ${{ matrix.platform_family }}
       BUILD_GRADLE_TASK: ${{ matrix.gradle_task }}
@@ -199,6 +199,9 @@ jobs:
       BUILD_COMPATIBLE_PLATFORMS: ${{ matrix.compatible_platforms }}
 
     steps:
+      - name: Isolate Gradle user home
+        shell: bash
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/authgatewayx-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@v7
         with:

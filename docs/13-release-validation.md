@@ -425,3 +425,6 @@ Runnery korzystały ze wspólnego `/home/github-runner/.gradle`; post-action
 używają teraz osobnego `GRADLE_USER_HOME` pod `runner.temp`, rozdzielonego przez
 run ID i numer próby. Cache przywraca `setup-gradle`; cleanup jest ograniczony do
 prywatnego katalogu zadania. Nie wyłączono testów ani obsługi configuration cache.
+Katalog jest ustawiany pierwszym krokiem przez `$RUNNER_TEMP` i `$GITHUB_ENV`, przed
+checkout/setup-gradle. Nie używamy `runner` context w `jobs.<id>.env`, gdzie GitHub
+nie udostępnia tego kontekstu.
