@@ -29,6 +29,7 @@ import java.time.Duration
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Experimental Paper-only pre-join admission. This listener must NEVER be installed together
@@ -48,7 +49,8 @@ class PreJoinConfigurationListener(
     private val unavailableMessage: Component,
     private val capacityMessage: Component,
     private val timeoutMessage: Component,
-    private val onPreAuth: (UUID) -> Unit,
+    private val onPreAuth: (UUID) -> Any?,
+    private val onPreAuthEnd: (UUID, Any?) -> Unit,
     private val onWorldJoin: (UUID) -> Unit,
     private val clock: Clock = Clock.systemUTC(),
 ) : Listener {
@@ -57,6 +59,7 @@ class PreJoinConfigurationListener(
         val ticket: PreJoinConnectionGate.Ticket,
         val sessionNonce: UUID,
         val ownsSession: AtomicBoolean = AtomicBoolean(false),
+        val consentToken: AtomicReference<Any?> = AtomicReference(null),
     )
 
     private val connections = ConcurrentHashMap<UUID, ConnectionRecord>()
@@ -132,6 +135,7 @@ class PreJoinConfigurationListener(
             if (!created) {
                 gate.deny(ticket)
                 connection.disconnect(capacityMessage)
+                removeRecord(id, record)
                 return
             }
             record.ownsSession.set(true)
@@ -141,7 +145,12 @@ class PreJoinConfigurationListener(
                 return
             }
             sessions.enterPreAuth(connectionId)
-            onPreAuth(id)
+            val consentToken = onPreAuth(id)
+            record.consentToken.set(consentToken)
+            if (connections[id] !== record) {
+                onPreAuthEnd(id, consentToken)
+                return
+            }
             router.route(connection, ticket, AuthenticationFormContext(connectionId, username, address, id, record.sessionNonce))
             val result = gate.await(ticket, timeout)
             if (result == PreJoinConnectionGate.Outcome.AUTHENTICATED && !stopping.get() && isReady() &&
@@ -229,6 +238,7 @@ class PreJoinConfigurationListener(
             migrationDialogs.forget(record.ticket)
             gate.disconnected(record.ticket)
             if (record.ownsSession.get()) sessions.disconnect(record.ticket.connectionId, record.sessionNonce)
+            runCatching { onPreAuthEnd(id, record.consentToken.get()) }
         }
     }
 
