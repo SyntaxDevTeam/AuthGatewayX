@@ -23,12 +23,16 @@ interface SessionRegistry {
         authenticationMethod: AuthenticationMethod,
         authenticatedAt: Instant,
         expiresAt: Instant? = null,
+        expectedSessionNonce: UUID? = null,
     ): AuthSession
 
-    fun disconnect(connectionId: ConnectionId): AuthSession?
+    fun disconnect(connectionId: ConnectionId, expectedSessionNonce: UUID? = null): AuthSession?
     fun clear()
     fun size(): Int
 }
+
+class StaleConnectionSessionException(connectionId: ConnectionId) :
+    IllegalStateException("Connection ${connectionId.value} no longer owns the original login attempt")
 
 class SessionAlreadyActiveException(accountId: AccountId) :
     IllegalStateException("Account ${accountId.value} already has an active session")
