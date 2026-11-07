@@ -1,2 +1,9 @@
 .gradle/
 **/build/
+
+# Local development documentation; publish only the user WIKI.
+/docs/*
+!/docs/WIKI/
+**/AGENTS.md
+/CRAFTCONNECT_AGENTS.md
+/BETA_CANDIDATE.md

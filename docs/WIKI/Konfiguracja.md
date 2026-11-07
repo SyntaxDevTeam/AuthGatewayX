@@ -1,0 +1,235 @@
+# Konfiguracja
+
+**Język / Language:** Polski · [English](EN/Configuration.md)
+
+[Home](Home.md) · [Ochrona serwera](Ochrona-serwera.md) · [Baza danych](Baza-danych.md)
+
+Ustawienia serwera gry znajdziesz w `plugins/AuthGatewayX/config.yml`. Na początek możesz zostawić wartości domyślne. Poniżej opisano wszystkie opcje dostarczane w tym pliku.
+
+## Jak zmieniać ustawienia?
+
+Wyłącz serwer, zrób kopię pliku, zmień wybrane wartości i uruchom serwer ponownie. Używaj spacji zamiast tabulatorów i zachowaj wcięcia. Nie dodawaj drugi raz tej samej sekcji.
+
+Kropka w tabeli oznacza kolejne poziomy pliku. Na przykład `authentication.timeout-seconds` to:
+
+```yaml
+authentication:
+  timeout-seconds: 120
+```
+
+To fragment do odnalezienia i edycji, a nie cały config. Końcówka `seconds` oznacza sekundy, a `millis` milisekundy: `1000` milisekund to sekunda. Nie używaj `0` jako uniwersalnego sposobu wyłączania ochrony. Wyjątkiem jest opisane poniżej `anti-bot.login-timeouts.window-seconds`, gdzie `0` oznacza brak wygaszania prób.
+
+## Język i logowanie
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `language` | `PL` | Język wiadomości; wymaga pasującego pliku językowego |
+| `authentication.timeout-seconds` | `120` | Czas na logowanie lub rejestrację |
+| `authentication.maximum-pre-auth-players` | `500` | Maksymalna liczba graczy czekających na zalogowanie |
+| `authentication.password.minimum-length` | `8` | Najkrótsze dozwolone hasło |
+| `authentication.password.maximum-length` | `128` | Najdłuższe dozwolone hasło |
+| `authentication.lockout.attempts` | `5` | Liczba błędnych prób prowadząca do blokady konta |
+| `authentication.lockout.duration-seconds` | `600` | Czas blokady konta |
+
+Minimum długości hasła nie może być większe od maksimum. Wiadomości opisano na stronie [Wiadomości](Wiadomosci.md).
+
+## Zgody i polityka prywatności (Paper)
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `privacy.enabled` | `true` | Wymagaj decyzji po uwierzytelnieniu konta premium lub offline |
+| `privacy.policy-version` | `1` | Wersja zasad, zmiana wymusza ponowną akceptację |
+| `privacy.policy-url` | pusty | Opcjonalny adres HTTPS nadpisujący link z `privacy.link` w pliku językowym; pusty zachowuje link z wiadomości |
+| `privacy.timeout-seconds` | `120` | Czas na decyzję po zalogowaniu |
+| `privacy.dialogs.enabled` | `true` | Automatyczny Dialog od Minecraft 1.21.7; poniżej czat. Ustaw `false`, aby zawsze używać czatu |
+
+Wybór interfejsu wynika z wersji Minecraft uruchomionej na serwerze Paper i nie wymaga ręcznego ustawiania progu. Jest niezależny od wersji klienta gracza. Ten mechanizm dotyczy wyświetlania polityki; obecny plik JAR nadal deklaruje `api-version: 26.1` i nie staje się zgodny ze starszymi Paper przez samo przełączenie na czat.
+
+## Sprawdzanie premium
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `premium.authentication.maximum-concurrent-handshakes` | `32` | Ile kont premium może być jednocześnie weryfikowanych na samodzielnym serwerze |
+| `premium.lookup.timeout-millis` | `3000` | Łączny czas oczekiwania na sprawdzenie nicku, razem z kolejką i odpowiedzią usługi |
+| `premium.lookup.positive-ttl-seconds` | `21600` | Jak długo pamiętać, że nick należy do premium: 6 godzin |
+| `premium.lookup.negative-ttl-seconds` | `300` | Jak długo pamiętać brak profilu premium: 5 minut |
+| `premium.lookup.maximum-cache-size` | `50000` | Maksymalna liczba zapamiętanych wyników |
+
+Zapamiętywanie wyniku ogranicza powtarzanie zapytań. Nie zastępuje potwierdzenia, że łączący się gracz jest właścicielem konta. Dłuższy czas pamiętania oznacza wolniejsze zauważanie zmian nazw.
+
+Po przekroczeniu czasu plugin odrzuca niezweryfikowany nick i usuwa oczekujące zadanie.
+Po odpowiedzi HTTP 429 wstrzymuje nowe zapytania zgodnie z `Retry-After` (maksymalnie
+24 godziny; domyślnie 60 sekund). Inne błędy usługi lub połączenia powodują przerwę
+2 sekund. W tym czasie nadal korzysta z ważnych zapamiętanych wyników. Nie wymaga to
+nowych ustawień. Diagnostykę opisano na stronie [Pomoc](Pomoc.md).
+
+## Podejrzane zachowanie
+
+Opcje tej tabeli zaczynają się od `anti-bot.behavior-score.`. Przykładowo pełna nazwa progu to `anti-bot.behavior-score.threshold`.
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `threshold` | `40` | Wynik, przy którym adres otrzymuje czasową blokadę |
+| `connection-weight` | `1` | Punkty za próbę połączenia |
+| `distinct-username-weight` | `5` | Punkty związane z różnymi nickami |
+| `authentication-failure-weight` | `8` | Punkty za nieudane uwierzytelnienie |
+| `pre-auth-disconnect-weight` | `8` | Punkty za wyjście przed zalogowaniem |
+| `window-seconds` | `60` | Okres zbierania punktów |
+| `quarantine-seconds` | `600` | Czas blokady adresu |
+
+Niższy próg lub większe punkty oznaczają szybsze blokowanie. Weź pod uwagę osoby korzystające ze wspólnego internetu.
+
+## Nicki, ponowne wejścia i rejestracja
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `anti-bot.maximum-tracked-addresses` | `50000` | Limit adresów pamiętanych przez ochronę |
+| `anti-bot.username-burst.maximum-distinct-usernames` | `5` | Limit różnych nicków z jednego IP w oknie czasu |
+| `anti-bot.username-burst.window-seconds` | `30` | Długość tego okna |
+| `anti-bot.username-burst.quarantine-seconds` | `600` | Blokada za przekroczenie limitu |
+| `anti-bot.reconnect-loop.maximum-pre-auth-disconnects` | `5` | Limit wyjść przed logowaniem; korzysta z okna i blokady ochrony nicków |
+| `anti-bot.registration-attempts.maximum-accounts-per-address` | `3` | Trwały limit kont offline utworzonych z jednego IP |
+| `anti-bot.registration-attempts.capacity` | `3` | Maksymalny zapas prób rejestracji na adres |
+| `anti-bot.registration-attempts.refill-tokens` | `1` | Ile prób wraca po każdym okresie odnowienia |
+| `anti-bot.registration-attempts.refill-seconds` | `60` | Czas odnowienia prób |
+| `anti-bot.registration-attempts.state-ttl-seconds` | `600` | Jak długo pamiętać nieaktywny licznik prób |
+
+Zapas prób działa jak bilety: każda próba zużywa jeden, a kolejne stopniowo wracają. Odnowienie prób nie usuwa limitu liczby kont. Przy wyczerpaniu miejsca na bezpieczne śledzenie adresów nowe próby mogą być odrzucane.
+
+## Powtarzane timeouty połączenia LOGIN
+
+Dotyczy samodzielnego Paper/Purpur/Folia, przed wejściem do świata. To osobny mechanizm od błędnych haseł i czasu na formularz logowania.
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `anti-bot.login-timeouts.attempts` | `3` | Liczba natywnych timeoutów LOGIN prowadząca do blokady IP |
+| `anti-bot.login-timeouts.window-seconds` | `0` | Okno zliczania; `0` zachowuje próby bez ograniczenia czasu do wygaśnięcia blokady |
+| `anti-bot.login-timeouts.ban-seconds` | `86400` | Długość blokady: 24 godziny |
+
+Stan jest zapisany w bazie i przeżywa restart. Tabela tego mechanizmu jest przeznaczona dla jednej instancji Paper. Błędy haseł, timeouty PRE_AUTH i awarie Mojang nie zwiększają tego licznika. [Szczegóły ochrony](Ochrona-serwera.md).
+
+## Baza danych
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `storage.type` | `SQLITE` | `SQLITE`, `MYSQL`, `MARIADB` lub `POSTGRESQL` |
+| `storage.sqlite-file` | `authgatewayx.db` | Nazwa pliku bazy w folderze pluginu |
+| `storage.pool-size` | `2` | Maksymalna liczba jednoczesnych połączeń z bazą |
+| `storage.remote.host` | `127.0.0.1` | Adres osobnej bazy danych |
+| `storage.remote.port` | `3306` | Port bazy; dla PostgreSQL ustaw port swojej usługi, zwykle `5432` |
+| `storage.remote.database` | `authgatewayx` | Nazwa bazy |
+| `storage.remote.username` | `authgatewayx` | Użytkownik bazy |
+| `storage.remote.password` | pusty tekst | Hasło bazy |
+| `storage.remote.parameters` | pusty tekst | Dodatkowe ustawienia połączenia wymagane przez hosting |
+
+`storage.remote` jest używane przy bazie innej niż SQLite. Hasło ustawione w środowisku hostingu jako `AUTHGATEWAYX_DB_PASSWORD` ma pierwszeństwo przed hasłem w pliku. Instrukcje i kopie opisuje [Baza danych](Baza-danych.md).
+
+## Ustawienia obciążenia
+
+Te opcje określają, ile zadań może działać naraz i ile może poczekać. Zbyt duże wartości mogą przeciążyć serwer. Na początek pozostaw je bez zmian.
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `executors.storage-threads` | `2` | Jednoczesne zadania bazy danych |
+| `executors.storage-queue` | `256` | Zadania bazy oczekujące w kolejce |
+| `executors.password-threads` | `2` | Jednoczesne zadania sprawdzania lub zabezpieczania haseł |
+| `executors.password-queue` | `64` | Oczekujące zadania haseł |
+| `executors.mojang-threads` | `4` | Jednoczesne zadania sprawdzania nicków |
+| `executors.mojang-queue` | `128` | Oczekujące zadania sprawdzania nicków |
+| `authentication.password.argon2.iterations` | `3` | Liczba powtórzeń obliczeń zabezpieczających hasło |
+| `authentication.password.argon2.memory-kib` | `65536` | Pamięć na jedno obliczenie hasła: 64 MiB |
+| `authentication.password.argon2.parallelism` | `1` | Podział pracy przy jednym obliczeniu hasła |
+
+Przy dwóch jednoczesnych zadaniach haseł same te obliczenia mogą zajmować około 128 MiB. Serwer i pozostałe funkcje potrzebują dodatkowej pamięci. Zwiększanie kolejek nie przyspiesza obsługi.
+
+## Integracje
+
+| Opcja | Domyślnie | Znaczenie |
+| --- | --- | --- |
+| `integrations.cleanerx.mode` | `AUTO` | Sposób korzystania z CleanerX |
+| `integrations.cleanerx.failure-strategy` | `FAIL_CLOSED` | Zachowanie przy błędzie sprawdzenia |
+| `integrations.punisherx.mode` | `AUTO` | Sposób korzystania z PunisherX |
+| `integrations.punisherx.failure-strategy` | `FAIL_CLOSED` | Zachowanie przy błędzie sprawdzenia |
+
+Tryby to `AUTO`, `REQUIRED` i `DISABLED`. Strategie to `FAIL_CLOSED` i `FAIL_OPEN`. Ich znaczenie oraz przykłady znajdziesz w [Integracjach](Integracje.md).
+
+## Czego nie dopisywać?
+
+Obecny plik nie udostępnia sekcji `anti-flood`, listy dozwolonych komend przed logowaniem ani przełącznika `premium.enabled`. Dopisanie takich nazw nie włączy nowej funkcji. Velocity ma własny, krótszy [plik ustawień](Velocity.md).
+
+## Alerty administracyjne, VPN i GeoIP
+
+```yaml
+multi-account:
+  alerts:
+    enabled: true
+    console: true
+    cooldown-seconds: 300
+    maximum-tracked-accounts: 10000
+    maximum-concurrent: 2
+ip-intelligence:
+  enabled: false
+  api-key: ""
+  notify-on-vpn: true
+  show-geo: true
+  timeout-millis: 2000
+  cache-ttl-seconds: 3600
+  failure-ttl-seconds: 60
+  maximum-cache-size: 10000
+  maximum-concurrent: 2
+  requests-per-minute: 30
+```
+
+Wklej brakujące sekcje do istniejącego configu, bez duplikowania kluczy. Włączenie
+`ip-intelligence` wysyła publiczne IP do proxycheck.io. Klucz z
+`AUTHGATEWAYX_PROXYCHECK_API_KEY` ma pierwszeństwo nad YAML. Sprawdzenia obejmują tylko
+udane uwierzytelnienia offline; alerty są informacyjne. Obie opcje `enabled` są
+niezależne: aby wyłączyć wszystkie sprawdzenia, ustaw obie na `false`.
+
+`show-geo` dodaje kraj i ASN do alertów, nie raportuje wszystkich wejść. `notify-on-vpn`
+steruje osobnym alarmem VPN/proxy/Tor. Wspólne ustawienia cooldownu, limitu zadań i
+konsoli z `multi-account.alerts` obejmują też alerty sieciowe.
+
+TTL cache wyniku wynosi 3600 s; TTL błędu i globalna przerwa po błędzie 60 s.
+Przekroczenie budżetu/minutę lub równoległości pomija sprawdzenie bez blokowania auth.
+Limity stanu: 1–100000, równoległość: 1–32, żądania/minutę: 1–1000,
+timeout: 100–10000 ms; cooldown i TTL muszą być dodatnie. Restart czyści pamięciowy
+cache i limity, ale nie zmienia dziennego limitu planu dostawcy.
+
+## VPN i multi-konta na proxy
+
+Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
+`ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
+`show-geo` dodaje kraj i ASN. Kontrole odrzucają połączenie przed serwerem gry.
+Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje zmiany IP.
+
+`alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
+proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
+Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
+`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
+Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
+
+Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
+[Konfiguracja Velocity](Velocity.md). Opcje alertów opisane
+powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+
+Diagnostyka samodzielnego Paper: ustaw `premium.authentication.diagnostics.enabled: true`
+i zrestartuj serwer. `maximum-lines-per-minute` domyślnie wynosi 120. Linie
+`[premium-diag]` pokazują trace, czasy lookup/handshake, stany NMS, sloty i odmowy,
+bez nicków, IP, UUID i sekretów. Podsumowania co 30 s zawierają także suppressed/dropped.
+Próba klientem i weryfikacja ACTIVE/UUID są nadal wymagane. [Pomoc i diagnostyka](Pomoc.md).
+
+### Krótkie awarie uwierzytelniania na samodzielnym Paper
+
+AuthGatewayX utrzymuje połączenie premium i ponawia weryfikację sesji przy błędzie
+dostępności usługi: maksymalnie 3 próby, przerwy 1 s i 2 s. Cały etap ma limit 12 s.
+Niepoprawna sesja jest odrzucana od razu, bez przejścia na offline. Dłuższa awaria
+nadal kończy się odmową. Mechanizm działa automatycznie na Paper/Purpur/Folia
+standalone; nie ma osobnej opcji i nie obejmuje Velocity. Limit równoległych handshake
+obejmuje również oczekiwanie na ponowienie. `premium.lookup.timeout-millis` steruje
+osobnym sprawdzaniem nicku i nie zmienia limitu weryfikacji sesji.
+W diagnostyce opt-in `SESSION_RETRY` oznacza zaplanowanie ponownej próby.
