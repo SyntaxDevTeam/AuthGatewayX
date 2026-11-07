@@ -99,3 +99,21 @@ Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekret
 Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
 [instrukcja kontroli proxy](../09-proxy-risk-admission.md). Opcje alertów opisane
 powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+### Powtarzające się „Took too long to log in”
+
+Na standalone Paper/Purpur/Folia ustawienia `anti-bot.login-timeouts` określają
+limit timeoutów połączenia z jednego IP: domyślnie `attempts: 3`,
+`window-seconds: 0` (próby nie wygasają), `ban-seconds: 86400` (24 godziny).
+Dodatnie `window-seconds` włącza okno zliczania w sekundach.
+Po timeoutach klient widzi pozostałe próby; po trzecim IP otrzymuje lokalną blokadę
+„Suspicious connections.”. Dotyczy ona również innych graczy ze wspólnego IP.
+Licznik i blokada są trwale zapisane w skonfigurowanej bazie AuthGatewayX, w tabeli
+`connection_timeout_state`. Restart zachowuje próby oraz pierwotny termin wygaśnięcia.
+Backup bazy obejmuje ten stan. Błąd odczytu lub zapisu blokuje dostęp zamiast zerować
+ochronę. Blokada jest egzekwowana przez AuthGatewayX; nie trafia do PunisherX ani
+banlisty Minecraft. Tabela obsługuje jedną instancję Paper na bazę — nie współdziel jej
+między równocześnie uruchomionymi serwerami Paper.
+Błędne hasła `/login`, timeout po wejściu do świata oraz awarie usług Mojang
+nie zwiększają tego licznika. Funkcja nie zlicza timeoutów na Velocity.
+Zmiana konfiguracji wymaga restartu.

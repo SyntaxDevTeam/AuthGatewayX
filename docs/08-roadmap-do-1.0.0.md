@@ -4,6 +4,17 @@ Ten dokument jest kanonicznym, skróconym widokiem prac pozostałych do pełnego
 Szczegółowe wymagania pozostają w dokumentach `01`–`07` i kompletnej dokumentacji.
 Checkbox wolno zamknąć dopiero po implementacji, integracji, testach i aktualizacji docs.
 
+## Nowy zakres: pre-join authentication i kompatybilność 26.x
+
+- [ ] Zastąpić izolację dopiero od `PlayerJoinEvent` autoryzacją w Configuration Phase bez powstawania encji gracza.
+- [ ] Doprowadzić do faktycznej zgodności Paper/Purpur 26.1.2 / 26.2 / 26.3 oraz Java 25, z testami NMS/premium.
+- [ ] Zweryfikować zakres Velocity 4.0+ (kompilacja obecnie z 4.3.0) i zachowanie połączenia.
+- [ ] Przeprowadzić testy fail-closed, timeout, reconnect, obciążenia i Folia.
+
+Pełna architektura, etapy, rozpoznane ograniczenia i dziennik decyzji: [16-prejoin-authentication-and-26x-compatibility.md](16-prejoin-authentication-and-26x-compatibility.md).
+
+Pierwszy etap kodu: `PreJoinConnectionGate` + jednostkowe testy semantyki uchwytów, jeszcze **bez podłączenia do Paper**; nie oznacza ukończenia żadnego z powyższych punktów.
+
 ## Stan ukończony i zweryfikowany w kodzie
 
 - [x] Fundament domenowy kont, tożsamości i sesji.

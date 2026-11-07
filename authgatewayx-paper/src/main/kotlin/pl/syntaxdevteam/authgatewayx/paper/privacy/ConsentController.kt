@@ -62,7 +62,15 @@ class ConsentController(
 
     /** Called before routing the player's first authentication form. */
     fun prepare(id: UUID) {
-        if (enabled) gate.prepare(id)
+        prepareConnection(id)
+    }
+
+    /** A token belongs to a single pre-world connection, not merely a player UUID. */
+    fun prepareConnection(id: UUID): Any? = if (enabled) gate.prepare(id) else null
+
+    /** Cancel pre-world consent state without clearing a subsequent connection's token. */
+    fun discardConnection(id: UUID, token: Any?) {
+        if (token != null && gate.release(id, token)) writing.remove(id, token)
     }
 
     /** Invoked after BOTH offline or verified premium authentication paths succeed. */

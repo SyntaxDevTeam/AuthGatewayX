@@ -2,7 +2,10 @@ package pl.syntaxdevteam.authgatewayx.velocity
 
 import com.velocitypowered.api.event.Continuation
 import com.velocitypowered.api.event.connection.PreLoginEvent
+import com.velocitypowered.api.event.connection.LoginEvent
+import com.velocitypowered.api.event.connection.DisconnectEvent
 import com.velocitypowered.api.proxy.InboundConnection
+import com.velocitypowered.api.proxy.Player
 import net.kyori.adventure.text.Component
 import pl.syntaxdevteam.authgatewayx.integrations.mojang.*
 import pl.syntaxdevteam.authgatewayx.integrations.network.*
@@ -73,5 +76,62 @@ class VelocityLoginListenerTest {
         assertEquals(SelectedAuthenticationMode.OFFLINE,pending.remove(a)!!.mode)
         assertEquals(SelectedAuthenticationMode.MOJANG,pending.remove(b)!!.mode)
         assertNull(pending.remove(a))
+    }
+
+    @Test fun `legacy Velocity session IDs are unique and cleared per physical player`() {
+        fun player(): Player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, _ ->
+            when (method.name) {
+                "getSessionId" -> null
+                "getUniqueId" -> UUID.randomUUID()
+                "getUsername" -> "NewName"
+                "getRemoteAddress" -> InetSocketAddress("127.0.0.1",20000)
+                "isActive" -> true
+                "isOnlineMode" -> false
+                else -> null
+            }
+        } as Player
+        val first = player()
+        val second = player()
+        val id = VelocitySessionIds.id(first)
+        assertEquals(id, VelocitySessionIds.id(first))
+        assertNotEquals(id, VelocitySessionIds.id(second))
+        assertEquals(id, VelocitySessionIds.discard(first))
+        assertNotEquals(id, VelocitySessionIds.id(first))
+        VelocitySessionIds.discard(first)
+        VelocitySessionIds.discard(second)
+    }
+
+    @Test fun `legacy login recomputes risk and mode without a PreLogin session key`() {
+        val pending = PendingConnectionRegistry(Duration.ofSeconds(30), 100)
+        val registry = VelocitySessionRegistry(100)
+        val listener = VelocityLoginListener(
+            AtomicBoolean(true),
+            ConnectionFloodGate(FloodLimit(100,100,Duration.ofSeconds(1)), FloodLimit(100,100,Duration.ofSeconds(1)),100),
+            PremiumUsernameLookup { CompletableFuture.completedFuture(PremiumUsernameStatus.NOT_PREMIUM) },
+            pending, registry,
+            VelocityLoginMessages(Component.text("unavailable"),Component.text("rate"),Component.text("name"),
+                Component.text("mojang"),Component.text("state"),Component.text("vpn"),Component.text("multi")),
+            VelocityRiskChecks(null, null, RiskAction.ALERT, RiskAction.DENY, true), 4, { _, _, _, _ -> },
+        )
+        val uid = UUID.randomUUID()
+        val player = Proxy.newProxyInstance(Player::class.java.classLoader, arrayOf(Player::class.java)) { _, method, _ ->
+            when (method.name) {
+                "getSessionId" -> null // Emulates Velocity < 4.2.1
+                "getUniqueId" -> uid
+                "getUsername" -> "NewName"
+                "getRemoteAddress" -> InetSocketAddress("127.0.0.1", 22222)
+                "isActive" -> true
+                "isOnlineMode" -> false
+                else -> null
+            }
+        } as Player
+        val event = LoginEvent(player, null)
+        val resumed = Resume()
+        listener.onLogin(event, resumed)
+        assertEquals(1, resumed.count)
+        assertTrue(event.result.isAllowed)
+        assertEquals(SelectedAuthenticationMode.OFFLINE, registry.find(VelocitySessionIds.id(player), uid)?.mode)
+        listener.onDisconnect(DisconnectEvent(player, DisconnectEvent.LoginStatus.SUCCESSFUL_LOGIN))
+        assertNull(VelocitySessionIds.existing(player))
     }
 }

@@ -40,6 +40,8 @@ data class AuthSession private constructor(
     val authenticatedAt: Instant?,
     val expiresAt: Instant?,
     val authenticationMethod: AuthenticationMethod?,
+    /** Unique generation for this physical login attempt. Preserved across state transitions. */
+    val sessionNonce: UUID,
 ) {
     init {
         if (state == ConnectionState.ACTIVE) {
@@ -114,6 +116,7 @@ data class AuthSession private constructor(
             authenticatedAt = null,
             expiresAt = null,
             authenticationMethod = null,
+            sessionNonce = UUID.randomUUID(),
         )
     }
 }

@@ -1,0 +1,69 @@
+name: Paper 26.x artifact compatibility
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'authgatewayx-paper/**'
+      - 'authgatewayx-auth/**'
+      - 'authgatewayx-domain/**'
+      - 'authgatewayx-api/**'
+      - 'authgatewayx-integrations/**'
+      - 'authgatewayx-security/**'
+      - 'authgatewayx-storage-*/**'
+      - 'gradle/**'
+      - '*.gradle.kts'
+      - '.github/workflows/paper-26x-compatibility.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: authgatewayx-paper-compat-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  compile-paper:
+    name: Paper ${{ matrix.bundle }}
+    runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    strategy:
+      fail-fast: false
+      matrix:
+        bundle:
+          - '26.1.2.build.74-stable'
+          - '26.2.build.133-stable'
+          - '26.3.build.241-stable'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Build against Paper ${{ matrix.bundle }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :authgatewayx-paper:shadowJar \
+            -PpaperDevBundleVersion='${{ matrix.bundle }}' \
+            -PreleaseVersion='1.0.0-beta.1' \
+            --console=plain --no-daemon
+      - name: Name beta candidate for target Minecraft build
+        env:
+          MC_BUNDLE: ${{ matrix.bundle }}
+        run: |
+          set -euo pipefail
+          mkdir -p candidate
+          MC_VERSION="${MC_BUNDLE%%.build.*}"
+          cp authgatewayx-paper/build/libs/AuthGatewayX-Paper-1.0.0-beta.1.jar \
+            "candidate/AuthGatewayX-Paper-1.0.0-beta.1-MC${MC_VERSION}.jar"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: authgatewayx-beta-candidate-paper-${{ matrix.bundle }}
+          path: candidate/*.jar
+          if-no-files-found: error
+          retention-days: 30
+
+# This is a source compatibility probe, NOT proof that a 26.3 shaded distribution
+# can be run on Paper 26.1/26.2. NMS runtime checks and game-client verification
+# remain a release blocker until version-specific adapters or artifacts exist.

@@ -14,6 +14,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -85,6 +87,31 @@ class InMemorySessionRegistryTest {
         } finally {
             executor.shutdownNow()
         }
+    }
+
+    @Test
+    fun `late callback cannot activate or disconnect a replacement session with the same connection UUID`() {
+        val registry = InMemorySessionRegistry()
+        val id = ConnectionId.random()
+        val name = AccountUsername.parse("Reconnect")
+        val old = AuthSession.connecting(id, name, InetAddress.getLoopbackAddress(), now.minusSeconds(1))
+        assertTrue(registry.create(old))
+        registry.enterPreAuth(id)
+        assertNotNull(registry.disconnect(id, old.sessionNonce))
+        val replacement = AuthSession.connecting(id, name, InetAddress.getLoopbackAddress(), now.minusSeconds(1))
+        assertTrue(registry.create(replacement))
+        registry.enterPreAuth(id)
+
+        assertFalse(old.sessionNonce == replacement.sessionNonce)
+        assertFailsWith<StaleConnectionSessionException> {
+            registry.activate(id, AccountId.random(), id.value, IdentityType.OFFLINE,
+                AuthenticationMethod.PASSWORD, now, expectedSessionNonce = old.sessionNonce)
+        }
+        assertNull(registry.disconnect(id, old.sessionNonce))
+        assertEquals(replacement.sessionNonce, registry.get(id)?.sessionNonce)
+        assertEquals(pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState.PRE_AUTH, registry.get(id)?.state)
+        assertEquals(1, registry.size())
+        assertNotNull(registry.disconnect(id, replacement.sessionNonce))
     }
 
     private fun connecting(username: String) = AuthSession.connecting(

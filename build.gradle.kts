@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "pl.syntaxdevteam"
-version = "1.0.0-WIP"
+version = "1.0.0-R0.1-SNAPSHOT"
 description = "Uwierzytelnianie premium i offline dla Paper/Folia oraz Velocity."
 
 val targetJavaVersion = libs.versions.java.get().toInt()
@@ -75,6 +75,7 @@ tasks.register("verifyDistributions") {
                     val descriptor = jar.getInputStream(jar.getJarEntry("paper-plugin.yml")).bufferedReader().use { it.readText() }
                     check("loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader" in descriptor)
                     check("bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap" in descriptor)
+                    check("api-version: '26.1'" in descriptor) { "Paper minimum API version must be 26.1" }
                     val manifest = jar.getInputStream(jar.getJarEntry("paper-libraries.yml")).bufferedReader().use { it.readText() }
                     val actual = manifest.lineSequence().map { it.trim() }.filter { it.startsWith("- ") }
                         .map { it.removePrefix("- ") }.toList()

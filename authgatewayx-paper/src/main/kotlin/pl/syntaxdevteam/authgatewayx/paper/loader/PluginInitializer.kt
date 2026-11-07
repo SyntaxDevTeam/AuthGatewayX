@@ -37,6 +37,7 @@ import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider
 import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
 import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
 import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
+import pl.syntaxdevteam.authgatewayx.auth.session.PreJoinConnectionGate
 import pl.syntaxdevteam.authgatewayx.auth.session.InMemorySessionRegistry
 import pl.syntaxdevteam.authgatewayx.auth.session.LogoutResult
 import pl.syntaxdevteam.authgatewayx.auth.session.LogoutService
@@ -48,6 +49,9 @@ import pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionService
 import pl.syntaxdevteam.authgatewayx.paper.integration.PaperIntegrationResolver
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationRouter
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationPremiumMigrationDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
 import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
@@ -71,6 +75,7 @@ import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentPresentation
 import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentPresentationSelector
 import pl.syntaxdevteam.authgatewayx.paper.command.ReloadCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreJoinConfigurationListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationListener
 import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationManager
@@ -196,7 +201,18 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             )
             return
         }
-        val cheapGuard = PaperLoginCheapGuard(floodGate, usernameBurstGate, behaviorGate)
+        val timeoutGate = try {
+            pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate(
+                config.getInt("anti-bot.login-timeouts.attempts", 3),
+                Duration.ofSeconds(config.getLong("anti-bot.login-timeouts.window-seconds", 0)),
+                Duration.ofSeconds(config.getLong("anti-bot.login-timeouts.ban-seconds", 86400)),
+                positive("anti-bot.maximum-tracked-addresses"),
+            )
+        } catch (failure: Throwable) {
+            fail("Login timeout configuration is invalid", failure)
+            return
+        }
+        val cheapGuard = PaperLoginCheapGuard(floodGate, usernameBurstGate, behaviorGate, timeoutGate)
         server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, cheapGuard), plugin)
         if (server.onlineMode) {
             readiness.force(RuntimeState.FAILED)
@@ -292,7 +308,28 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 config.getString("storage.remote.username"),
                 System.getenv("AUTHGATEWAYX_DB_PASSWORD") ?: config.getString("storage.remote.password"),
             ).also { components.attachStorage(it) }
-        }.thenCompose { storage -> storage.migrate().thenApply { storage } }
+        }.thenCompose { storage ->
+            storage.migrate().thenCompose {
+                storage.loadConnectionTimeouts(positive("anti-bot.maximum-tracked-addresses"))
+            }.thenApply { entries ->
+                val gate = requireNotNull(cheapGuard.timeoutGate)
+                gate.restore(entries.map { entry ->
+                    pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate.Entry(
+                        entry.address, entry.started, entry.failures, entry.bannedUntil,
+                    )
+                })
+                val durable = pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts(gate) { snapshot ->
+                    storage.saveConnectionTimeouts(snapshot.map { entry ->
+                        pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutState(
+                            entry.address, entry.started, entry.failures, entry.bannedUntil,
+                        )
+                    })
+                }
+                components.attachTimeoutPersistence(durable)
+                cheapGuard.durableTimeouts = durable
+                storage
+            }
+        }
         val dummyHashStage = passwordExecutor.submit { hasher.hash("AuthGatewayX-dummy-password".toCharArray()) }
         storageStage.thenCombine(dummyHashStage) { storage, dummyHash -> storage to dummyHash }.whenComplete { initialized, failure ->
             scheduler.global(Runnable {
@@ -328,6 +365,14 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         behaviorGate: ConnectionBehaviorGate,
         cheapGuard: PaperLoginCheapGuard,
     ) {
+        val timeoutWarning = messages.stringMessageToComponentNoPrefix("auth", "connection_attempts_remaining")
+        val timeoutBan = messages.stringMessageToComponentNoPrefix("auth", "suspicious_connections")
+        cheapGuard.timeoutMessage = { remaining ->
+            if (remaining == 0) timeoutBan else timeoutWarning.replaceText(
+                net.kyori.adventure.text.TextReplacementConfig.builder().matchLiteral("{remaining}")
+                    .replacement(net.kyori.adventure.text.Component.text(remaining)).build(),
+            )
+        }
         val consentGate = ConsentGate()
         runtime?.consentGate = consentGate
         val authenticationStatus = PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, { id ->
@@ -610,7 +655,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
             sessions.get(context.connectionId)?.let { session -> runCatching { riskAlerts.observe(session) } }
         })
-        val dialogs = AuthenticationDialogController(coordinator, scheduler, AuthenticationDialogText(
+        val dialogText = AuthenticationDialogText(
             messages.stringMessageToComponentNoPrefix("auth", "login_title"),
             messages.stringMessageToComponentNoPrefix("auth", "registration_title"),
             messages.stringMessageToComponentNoPrefix("auth", "login_prompt"),
@@ -626,7 +671,8 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             messages.stringMessageToComponentNoPrefix("auth", "account_exists"),
             messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
             messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
-            accessDenied = messages.stringMessageToComponentNoPrefix("auth", "integration_denied")),
+            accessDenied = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"))
+        val dialogs = AuthenticationDialogController(coordinator, scheduler, dialogText,
             onOutcome = { context, result ->
                 if (result != AuthenticationFormResult.AUTHENTICATED) {
                     behaviorGate.record(context.sourceAddress, ConnectionBehaviorSignal.AUTHENTICATION_FAILURE)
@@ -959,13 +1005,129 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
         }
         server.pluginManager.registerEvents(passwordDialogs, plugin)
         server.pluginManager.registerEvents(
-            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate, consentGate), plugin,
+            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate,
+                consentGate, preJoinOwnsSessionCleanup = config.getBoolean("authentication.prejoin.experimental-enabled", false)
+            ), plugin,
         )
-        server.pluginManager.registerEvents(PreAuthEntryListener(
-            sessions, isolation, admission,
-            messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
-            onEntered = { player -> consent.prepare(player.uniqueId); router.route(player) },
-        ), plugin)
+        if (config.getBoolean("authentication.prejoin.experimental-enabled", false)) {
+            val preJoinGate = PreJoinConnectionGate(positive("authentication.prejoin.maximum-pending"))
+            val preJoinDialogs = ConfigurationAuthenticationDialogController(
+                coordinator, dialogs, sessions, preJoinGate, dialogText,
+                onOutcome = { context, result ->
+                    if (result != AuthenticationFormResult.AUTHENTICATED) {
+                        behaviorGate.record(context.sourceAddress, ConnectionBehaviorSignal.AUTHENTICATION_FAILURE)
+                    }
+                },
+            )
+            val preJoinMigrationDialogs = ConfigurationPremiumMigrationDialogController(
+                authorization = premiumMigration,
+                renderer = premiumMigrationDialogs,
+                gate = preJoinGate,
+                text = PremiumMigrationDialogText(
+                    messages.stringMessageToComponentNoPrefix("migration", "title"),
+                    messages.stringMessageToComponentNoPrefix("migration", "prompt"),
+                    messages.stringMessageToComponentNoPrefix("migration", "password_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+                    messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+                    messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                    messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+                    messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+                    messages.stringMessageToComponentNoPrefix("migration", "cancelled"),
+                    messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+                ),
+                onPrepared = { ticket ->
+                    // A short reconnect may overlap the disconnect callback. Keep migration
+                    // pending until neither the source nor target UUID has an in-world player
+                    // or an AuthGatewayX session. Never migrate live player data.
+                    fun attemptAfterDisconnect(attemptsLeft: Int) {
+                        scheduler.delayedGlobal(20L, Runnable {
+                            if (!readiness.acceptsAuthentication()) return@Runnable
+                            val occupied = listOf(ticket.sourceMinecraftUuid, ticket.targetMinecraftUuid).any { id ->
+                                server.getPlayer(id)?.isOnline == true ||
+                                    sessions.get(ConnectionId(id)) != null
+                            }
+                            if (occupied) {
+                                if (attemptsLeft > 0) attemptAfterDisconnect(attemptsLeft - 1)
+                                else logger.warning("Pre-join migration deferred after reconnect collisions; restart recovery can resume ticket")
+                                return@Runnable
+                            }
+                            migrationCoordinator.migrate(ticket).whenComplete { result, failure ->
+                                if (failure != null) logger.log(java.util.logging.Level.WARNING,
+                                    "Pre-join premium migration failed", failure)
+                                else logger.info("Pre-join migration result: " + result?.javaClass?.simpleName)
+                            }
+                        })
+                    }
+                    attemptAfterDisconnect(30)
+                },
+            )
+            val preJoinRouter = ConfigurationAuthenticationRouter(
+                storage = storage,
+                dialogs = preJoinDialogs,
+                migrationDialogs = preJoinMigrationDialogs,
+                sessions = sessions,
+                gate = preJoinGate,
+                lookup = premiumLookup,
+                mojang = mojangAuthentication,
+                admission = loginAdmission,
+                integrationDeniedMessage = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"),
+                premiumRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
+                lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+                identityConflictMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+                migrationRequiredMessage = messages.stringMessageToComponentNoPrefix("migration", "in_progress"),
+                migrationInProgressMessage = messages.stringMessageToComponentNoPrefix("migration", "in_progress"),
+                internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+                onMojangActivated = { id ->
+                    admission.release(id)
+                },
+                onAdmissionDenied = { context, reason ->
+                    val type = if (reason.startsWith("CLEANER"))
+                        pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.USERNAME_POLICY_DENY
+                    else pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.PUNISHMENT_DENY
+                    runCatching {
+                        storage.record(pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent(
+                            java.time.Instant.now(), null, null, context.username.value, context.sourceAddress,
+                            type, reason,
+                        ))
+                    }
+                },
+                onFailure = { logger.log(java.util.logging.Level.WARNING, "Pre-join authentication routing failed", it) },
+            )
+            val preJoinListener = PreJoinConfigurationListener(
+                sessions = sessions,
+                gate = preJoinGate,
+                dialogs = preJoinDialogs,
+                migrationDialogs = preJoinMigrationDialogs,
+                router = preJoinRouter,
+                isReady = readiness::acceptsAuthentication,
+                timeout = Duration.ofSeconds(positiveLong("authentication.timeout-seconds")),
+                unavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "startup_failed"),
+                capacityMessage = messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
+                timeoutMessage = messages.stringMessageToComponentNoPrefix("auth", "timeout"),
+                onPreAuth = consent::prepareConnection,
+                onPreAuthEnd = consent::discardConnection,
+                onWorldJoin = { id ->
+                    consent.authenticated(id)
+                    val method = sessions.get(ConnectionId(id))?.authenticationMethod
+                    sendAuthenticationSuccess(id, if (method ==
+                        pl.syntaxdevteam.authgatewayx.domain.session.AuthenticationMethod.MOJANG
+                    ) premiumAuthenticationSuccess else offlineAuthenticationSuccess)
+                },
+            )
+            runtime?.preJoinListener = preJoinListener
+            server.pluginManager.registerEvents(preJoinDialogs, plugin)
+            server.pluginManager.registerEvents(preJoinMigrationDialogs, plugin)
+            server.pluginManager.registerEvents(preJoinListener, plugin)
+            logger.warning("EXPERIMENTAL pre-join configuration authentication enabled; real-client, premium migration and 26.x compatibility tests remain open")
+        } else {
+            server.pluginManager.registerEvents(PreAuthEntryListener(
+                sessions, isolation, admission,
+                messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
+                onEntered = { player -> consent.prepare(player.uniqueId); router.route(player) },
+            ), plugin)
+        }
     }
 
     private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
@@ -1028,6 +1190,8 @@ private class RuntimeComponents(
     val usernameBurstGate: UsernameBurstGate,
     val behaviorGate: ConnectionBehaviorGate,
 ) : AutoCloseable {
+    private val timeoutPersistence = RetiringResource<pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts>()
+    fun attachTimeoutPersistence(value: pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts) = timeoutPersistence.attach(value)
     @Volatile var consentGate: ConsentGate? = null
     @Volatile var clientChannel: PaperClientAuthenticationChannel? = null
     @Volatile var staffProof: PaperStaffProof? = null
@@ -1038,7 +1202,9 @@ private class RuntimeComponents(
     private var migrationsDrained: CompletableFuture<Void>? = null
 
     fun markClosing() {
+        preJoinListener?.shutdown()
         storage.stopAccepting()
+        timeoutPersistence.stopAccepting()
         migrationsDrained = migrationCoordinator?.stopAndDrain()
     }
 
@@ -1046,6 +1212,7 @@ private class RuntimeComponents(
     @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
     @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
     @Volatile var premiumLookup: MojangProfileLookup? = null
+    @Volatile var preJoinListener: PreJoinConfigurationListener? = null
 
     override fun close() {
         var failure: Throwable? = null
@@ -1065,6 +1232,7 @@ private class RuntimeComponents(
                 "Premium diagnostic writer did not terminate"
             }
         }
+        attempt { timeoutPersistence.close() }
         sessions.clear()
         consentGate?.clear()
         attempt { migrationsDrained?.get(30, java.util.concurrent.TimeUnit.SECONDS) }

@@ -18,7 +18,10 @@ repositories {
 }
 
 dependencies {
-    paperweight.paperDevBundle(libs.versions.paper.api.get())
+    // Independent compilation against each 26.x Paper bundle is required for our
+    // NMS premium login adapter; this property drives the compatibility matrix.
+    paperweight.paperDevBundle(providers.gradleProperty("paperDevBundleVersion")
+        .getOrElse(libs.versions.paper.api.get()))
     implementation(project(":authgatewayx-api"))
     implementation(project(":authgatewayx-auth"))
     implementation(project(":authgatewayx-domain"))

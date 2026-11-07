@@ -37,6 +37,10 @@ internal class StandalonePremiumLoginListener(
     private val capacityHeld = AtomicBoolean()
     private val premiumAuthenticationAttempted = AtomicBoolean()
 
+    private val timeoutRecorded = AtomicBoolean()
+    private val lookupCompleted = AtomicBoolean()
+    private var admittedAddress: java.net.InetAddress? = null
+
     private var previousState: State? = null
 
     override fun handleHello(packet: ServerboundHelloPacket) {
@@ -58,7 +62,9 @@ internal class StandalonePremiumLoginListener(
             val message = if (guardResult.decision == PaperLoginGuardDecision.DENY_INVALID_USERNAME) {
                 unavailableMessage
             } else {
-                rateLimitedMessage
+                if (guardResult.decision == PaperLoginGuardDecision.DENY_SUSPICIOUS)
+                    cheapGuard.timeoutMessage?.invoke(0) ?: rateLimitedMessage
+                else rateLimitedMessage
             }
             disconnect(PaperAdventure.asVanilla(message))
             return
@@ -67,6 +73,7 @@ internal class StandalonePremiumLoginListener(
             disconnect(PaperAdventure.asVanilla(unavailableMessage))
             return
         }
+        admittedAddress = sourceAddress
         diagnostics?.record(Event.LOOKUP_START)
         premiumLookup.lookupProfile(username).whenComplete { result, failure ->
             connection.channel.eventLoop().execute {
@@ -80,6 +87,7 @@ internal class StandalonePremiumLoginListener(
                     disconnect(PaperAdventure.asVanilla(unavailableMessage))
                     return@execute
                 }
+                lookupCompleted.set(true)
                 when (result) {
                     MojangProfileLookupResult.NotPremium -> {
                         diagnostics?.record(Event.LOOKUP_OFFLINE, terminalEvent = true)
@@ -242,13 +250,28 @@ internal class StandalonePremiumLoginListener(
         }
     }
 
-    internal fun rewriteDisconnect(packet: ClientboundLoginDisconnectPacket): ClientboundLoginDisconnectPacket {
+    internal fun rewriteDisconnect(packet: ClientboundLoginDisconnectPacket): java.util.concurrent.CompletionStage<ClientboundLoginDisconnectPacket> {
+        fun completed(value: ClientboundLoginDisconnectPacket) = java.util.concurrent.CompletableFuture.completedFuture(value)
         val key = (packet.reason().contents as? net.minecraft.network.chat.contents.TranslatableContents)?.key
-        if (key == "multiplayer.disconnect.slow_login") diagnostics?.record(Event.TIMEOUT)
-        if (!premiumAuthenticationAttempted.get()) return packet
+        if (key == "multiplayer.disconnect.slow_login") {
+            diagnostics?.record(Event.TIMEOUT)
+            // Service work is not client abuse. Count only completed lookup / client handshake waits.
+            if (lookupCompleted.get() && state != State.AUTHENTICATING &&
+                timeoutRecorded.compareAndSet(false, true)) {
+                val address = admittedAddress
+                val durable = cheapGuard.durableTimeouts
+                if (address != null && durable != null) {
+                    return durable.timeout(address).thenApply { remaining ->
+                        val message = remaining?.let { cheapGuard.timeoutMessage?.invoke(it) }
+                        if (message == null) packet else ClientboundLoginDisconnectPacket(PaperAdventure.asVanilla(message))
+                    }
+                }
+            }
+        }
+        if (!premiumAuthenticationAttempted.get()) return completed(packet)
         if (key == "multiplayer.disconnect.unverified_username") diagnostics?.record(Event.NATIVE_DENIED)
         val reason = replaceInvalidPremiumSessionReason(packet.reason(), invalidSessionMessage)
-        return if (reason === packet.reason()) packet else ClientboundLoginDisconnectPacket(reason)
+        return completed(if (reason === packet.reason()) packet else ClientboundLoginDisconnectPacket(reason))
     }
 
     private fun challengeBytes(): ByteArray = CHALLENGE_FIELD.get(this) as ByteArray

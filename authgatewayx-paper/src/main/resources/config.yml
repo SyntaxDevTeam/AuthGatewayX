@@ -12,6 +12,16 @@ language: "PL"
 
 premium:
   authentication:
+  # Experimental: authenticates during Paper's Configuration Phase, before PlayerJoinEvent.
+  # This preview is OFF by default. Do not enable on production until runtime testing,
+  # premium migration handling and cross-version 26.1–26.3 validation are complete.
+  # Premium accounts requiring offline->premium identity migration are currently rejected.
+  prejoin:
+    experimental-enabled: false
+    # The CONFIG event is held until authentication completes; keep this bounded
+    # separately from the old in-world PRE_AUTH pool to avoid exhausting login workers.
+    maximum-pending: 64
+
     # Maximum number of premium authentication handshakes that may be processed at the same time
     # when AuthGatewayX works directly on a standalone Paper server.
     # Connections above this limit are rejected instead of allowing an unbounded amount of
@@ -56,6 +66,15 @@ premium:
 # /********************************************/
 
 anti-bot:
+  # Repeated native LOGIN timeouts (standalone Paper/Purpur/Folia).
+  # Counters and ban deadlines survive restarts in the configured database.
+  # One Paper runtime owns the connection_timeout_state table per database.
+  login-timeouts:
+    attempts: 3
+    # 0 keeps failures without an observation time limit until the ban expires.
+    window-seconds: 0
+    ban-seconds: 86400
+
   # Maximum number of source IP addresses remembered by anti-bot state trackers.
   # This is a memory-safety limit: old/unused state may be discarded when the limit is reached.
   maximum-tracked-addresses: 50000

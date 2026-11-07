@@ -85,6 +85,24 @@ class PaperLoginCheapGuardTest {
         assertEquals(PaperLoginGuardDecision.ALLOW, guard.evaluateProtocol(address, "Alice").decision)
     }
 
+    @Test
+    fun `timeout ban blocks rotated usernames and late pre-login after protocol admission`() {
+        val timeoutGate = pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate(
+            3, Duration.ZERO, Duration.ofHours(24), 100,
+        )
+        val guard = PaperLoginCheapGuard(
+            ConnectionFloodGate(FloodLimit(100, 1, Duration.ofDays(1)),
+                FloodLimit(1000, 1, Duration.ofDays(1)), 100),
+            null, null, timeoutGate,
+        )
+        val address = InetAddress.getByName("192.0.2.70")
+        assertEquals(PaperLoginGuardDecision.ALLOW, guard.evaluateProtocol(address, "Alice").decision)
+        guard.activateStandaloneProtocolOwnership()
+        repeat(3) { timeoutGate.timeout(address) }
+        assertEquals(PaperLoginGuardDecision.DENY_SUSPICIOUS, guard.evaluateProtocol(address, "Bob").decision)
+        assertEquals(PaperLoginGuardDecision.DENY_SUSPICIOUS, guard.evaluatePreLogin(address, "Alice").decision)
+    }
+
     private fun guard(
         perIpCapacity: Int,
         usernameBurstGate: UsernameBurstGate? = UsernameBurstGate(

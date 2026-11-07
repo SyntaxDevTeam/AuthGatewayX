@@ -17,6 +17,11 @@ class AuthenticationReadinessListener(
     fun onPreLogin(event: AsyncPlayerPreLoginEvent) {
         when (cheapGuard.evaluatePreLogin(event.address, event.name).decision) {
             PaperLoginGuardDecision.ALLOW -> Unit
+            PaperLoginGuardDecision.DENY_SUSPICIOUS -> {
+                event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER,
+                    cheapGuard.timeoutMessage?.invoke(0) ?: Component.text("Suspicious connections."))
+                return
+            }
             PaperLoginGuardDecision.DENY_INVALID_USERNAME -> {
                 event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_OTHER, Component.text("Connection rejected."))
                 return

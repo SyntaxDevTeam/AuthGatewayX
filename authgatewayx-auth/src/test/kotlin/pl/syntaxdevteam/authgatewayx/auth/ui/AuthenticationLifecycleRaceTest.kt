@@ -108,6 +108,28 @@ class AuthenticationLifecycleRaceTest {
     }
 
     @Test
+    fun `delayed password result cannot authenticate a replacement connection with same UUID`() {
+        val first = context()
+        val sessionNonce = sessions.get(first.connectionId)!!.sessionNonce
+        val guarded = first.copy(sessionNonce = sessionNonce)
+        val pending = CompletableFuture<LoginResult>()
+        val result = coordinator(OfflineLoginUseCase { _, _, password ->
+            password.fill('\u0000')
+            pending
+        }).submitLogin(guarded, "synthetic".toCharArray()).toCompletableFuture()
+        sessions.disconnect(first.connectionId, sessionNonce)
+        val newer = AuthSession.connecting(first.connectionId, first.username, first.sourceAddress, now)
+        assertTrue(sessions.create(newer))
+        sessions.enterPreAuth(newer.connectionId)
+        pending.complete(LoginResult.Success(account))
+        assertTrue(result.isCompletedExceptionally)
+        assertEquals(ConnectionState.PRE_AUTH, sessions.get(first.connectionId)?.state)
+        assertEquals(newer.sessionNonce, sessions.get(first.connectionId)?.sessionNonce)
+        assertEquals(0, activations.get())
+        sessions.disconnect(newer.connectionId, newer.sessionNonce)
+    }
+
+    @Test
     fun `late registration callback does not recreate a disconnected session`() {
         val pending = CompletableFuture<RegistrationOutcome>()
         val context = context()

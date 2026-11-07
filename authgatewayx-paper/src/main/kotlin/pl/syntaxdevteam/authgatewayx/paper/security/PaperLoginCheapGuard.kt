@@ -13,6 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 enum class PaperLoginGuardDecision {
     ALLOW,
     DENY_FLOOD,
+    DENY_SUSPICIOUS,
     DENY_INVALID_USERNAME,
     DENY_BEHAVIOR,
     DENY_USERNAME_BURST,
@@ -38,7 +39,11 @@ class PaperLoginCheapGuard(
     private val floodGate: ConnectionFloodGate,
     private val usernameBurstGate: UsernameBurstGate?,
     private val behaviorGate: ConnectionBehaviorGate?,
+    val timeoutGate: pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate? = null,
 ) {
+    @Volatile var durableTimeouts: pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts? = null
+    @Volatile var timeoutMessage: ((Int) -> net.kyori.adventure.text.Component)? = null
+
     private val standaloneProtocolOwner = AtomicBoolean(false)
 
     fun activateStandaloneProtocolOwnership() {
@@ -53,6 +58,9 @@ class PaperLoginCheapGuard(
         evaluateStateful(address, rawUsername)
 
     fun evaluatePreLogin(address: InetAddress, rawUsername: String): PaperLoginGuardResult {
+        if (timeoutGate?.admit(address) == false) {
+            return PaperLoginGuardResult(PaperLoginGuardDecision.DENY_SUSPICIOUS)
+        }
         if (!standaloneProtocolOwner.get()) return evaluateStateful(address, rawUsername)
         val username = parseUsername(rawUsername)
             ?: return PaperLoginGuardResult(PaperLoginGuardDecision.DENY_INVALID_USERNAME)
@@ -62,6 +70,9 @@ class PaperLoginCheapGuard(
     fun standaloneProtocolOwnsStatefulChecks(): Boolean = standaloneProtocolOwner.get()
 
     private fun evaluateStateful(address: InetAddress, rawUsername: String): PaperLoginGuardResult {
+        if (timeoutGate?.admit(address) == false) {
+            return PaperLoginGuardResult(PaperLoginGuardDecision.DENY_SUSPICIOUS)
+        }
         if (floodGate.evaluate(address) != ConnectionDecision.ALLOW) {
             return PaperLoginGuardResult(PaperLoginGuardDecision.DENY_FLOOD)
         }

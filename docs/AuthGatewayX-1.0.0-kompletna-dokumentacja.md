@@ -3261,3 +3261,14 @@ challenge/szyfrowanie i jednorazowe natywne eventy pre-login. Ograniczona pula b
 kolejki, disconnect/shutdown i odrzucanie spóźnionych wyników chronią przed floodem.
 Velocity bez zmian. Szczegóły i ograniczenia NMS:
 [decyzja techniczna](03-zalozenia-techniczne.md#decyzja-2026-11-03--ponowienia-weryfikacji-sesji-premium-na-paper-standalone).
+
+## Aktualizacja 2026-11-07 — limit timeoutów LOGIN
+
+Standalone Paper/Purpur/Folia posiada lokalną kwarantannę IP za powtarzane natywne
+timeouty LOGIN: domyślnie 3 próby, okno 0 (bez wygaszania prób), blokada 24h,
+powód `Suspicious connections.` i komunikat pozostałych prób przez MessageHandler.
+Nie obejmuje `/login`, timeoutów PRE_AUTH, awarii Mojang ani Velocity. Stan liczników i blokad jest
+trwale zapisany w tabeli `connection_timeout_state` skonfigurowanej bazy (migracja v10);
+restart zachowuje datę wygaśnięcia. Tabela jest przeznaczona dla jednej instancji Paper.
+Zapis async jest zatwierdzany przed wysłaniem komunikatu, błędy działają fail-closed. Szczegółowy kontrakt, ograniczenia pojemności i
+checklista testów: sekcja „Decyzja 2026-11-07” dokumentu bezpieczeństwa.

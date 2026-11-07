@@ -8,7 +8,7 @@ WIKI opisuje **AuthGatewayX 1.0.0-WIP**. WIP oznacza wersję w rozwoju. Zachęca
 
 | Platforma | Stan obecnej wersji |
 | --- | --- |
-| Paper | Główna wersja pluginu; kompilacja i testy JVM dla 26.3 build 169-beta; test serwerowy tej wersji pozostaje otwarty |
+| Paper | Deklarowane minimum API 26.1; udana kompilacja źródeł na 26.1.2, 26.2 i 26.3. Test uruchomienia każdej wersji NMS pozostaje otwarty |
 | Purpur | Ten sam wariant pluginu co Paper; testuj na pasującej wersji serwera |
 | Folia | Zgodność jest rozwijana; nie jest jeszcze zatwierdzona do użycia |
 | Velocity | Osobny wariant testowy; pełna weryfikacja sieci pozostaje otwarta |
@@ -16,6 +16,14 @@ WIKI opisuje **AuthGatewayX 1.0.0-WIP**. WIP oznacza wersję w rozwoju. Zachęca
 | Bedrock przez Geyser/Floodgate | Brak potwierdzonej obsługi |
 
 Wersja Paper wymaga Javy 25. Używa okien Minecrafta, dlatego nie zakładaj obsługi starszego klienta tylko dlatego, że inny plugin pozwala mu połączyć się z serwerem. Tak samo nie zakładaj zgodności z każdą przyszłą aktualizacją Paper.
+
+## Planowana zgodność 26.1+ i autoryzacja bez wejścia do świata
+
+Celem rozwoju jest Paper/Purpur **26.1+**, Java **25** i Velocity **4.0+**. Obecny build domyślny Paper jest kompilowany przeciwko 26.3 i deklaruje `api-version: '26.1'`. Macierz CI potwierdziła kompilację także z 26.1.2 i 26.2. Dla beta przygotowano trzy warianty JAR kompilowane osobno przeciwko zgodnemu dev bundle. To nadal nie potwierdza zgodności uruchomieniowej. Velocity jest kompilowany z API 4.3.0; inne wersje 4.x muszą przejść osobne testy uruchomieniowe. Na Velocity 4.0–4.2.0 nie ma `getSessionId()` (dostępnego od 4.2.1). Wprowadzono bezpieczny wariant kompatybilności: ponowny lookup Mojang i ocena ryzyka w `LoginEvent`, bez powiązania poprzedniej decyzji po IP, porcie lub nicku. Testy JVM przeszły, lecz należy jeszcze przetestować go na rzeczywistych wydaniach 4.0–4.2.
+
+Dotychczasowy mechanizm PRE_AUTH izoluje gracza dopiero po `PlayerJoinEvent`. Dodano eksperymentalny wariant **Configuration Phase**, który ma zatrzymywać gracza przed utworzeniem encji. Jest on **domyślnie wyłączony** (`authentication.prejoin.experimental-enabled: false`) i nieprzetestowany jeszcze z prawdziwym klientem. Nie włączaj go na serwerze produkcyjnym; konta wymagające migracji OFFLINE -> MOJANG otrzymują formularz z hasłem starego konta, po którym zostają rozłączone na czas bezpiecznej migracji danych (procedura nieprzetestowana jeszcze na rzeczywistym kliencie). Podstawowa ścieżka logowania pozostała bez zmian. Ryzykiem pozostaje zależność od wewnętrznego NMS Paper, w szczególności weryfikacja premium — dlatego beta dostarczy warianty JAR dla poszczególnych wersji Minecraft, a testy runtime są obowiązkowe przed uznaniem kompatybilności za potwierdzoną.
+
+[Plan i kryteria akceptacji](../16-prejoin-authentication-and-26x-compatibility.md) · [Wersja beta i warianty JAR](../17-beta-release-preparation.md).
 
 ## Co możesz wypróbować?
 

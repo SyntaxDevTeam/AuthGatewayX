@@ -37,9 +37,13 @@ class InMemorySessionRegistry : SessionRegistry {
         authenticationMethod: AuthenticationMethod,
         authenticatedAt: Instant,
         expiresAt: Instant?,
+        expectedSessionNonce: UUID?,
     ): AuthSession {
         val ref = sessions[connectionId] ?: throw UnknownSessionException(connectionId)
         synchronized(ref) {
+            if (expectedSessionNonce != null && ref.get().sessionNonce != expectedSessionNonce) {
+                throw StaleConnectionSessionException(connectionId)
+            }
             val activated = ref.get().activate(
                 accountId,
                 minecraftUuid,
@@ -63,10 +67,11 @@ class InMemorySessionRegistry : SessionRegistry {
     }
 
     @Synchronized
-    override fun disconnect(connectionId: ConnectionId): AuthSession? {
+    override fun disconnect(connectionId: ConnectionId, expectedSessionNonce: UUID?): AuthSession? {
         val ref = sessions[connectionId] ?: return null
         synchronized(ref) {
             val current = ref.get()
+            if (expectedSessionNonce != null && current.sessionNonce != expectedSessionNonce) return null
             val disconnected = current.disconnect()
             ref.set(disconnected)
             current.accountId?.let { activeAccounts.remove(it, connectionId) }
