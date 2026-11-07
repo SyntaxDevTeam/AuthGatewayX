@@ -35,7 +35,7 @@ Do wydania beta przygotowano **cztery** osobne pliki, ponieważ nie przyjmujemy 
 
 **Nie instaluj jednocześnie kilku wersji Paper JAR**. Dobierz artefakt do konkretnej wersji Minecraft uruchomionej na backendzie.
 
-Każdy artefakt będzie kompilowany na Java 25 i posiada osobny plik z SHA-256. Workflow do tworzenia prerelease: `.github/workflows/beta-release.yml`; uruchamia się dopiero po wypchnięciu tagu odpowiadającego `v*-beta.*`. Samo utworzenie workflow **nie publikuje wydania**.
+Każdy artefakt będzie kompilowany na Java 25 i posiada osobny plik z SHA-256. Workflow do tworzenia prerelease: `.github/workflows/beta-release.yml`; uruchamia się po utworzeniu gałęzi `beta/v*-beta.*`. Po zbudowaniu wszystkich dystrybucji sam zakłada tag `v*-beta.*` i publikuje GitHub prerelease. Samo utworzenie workflow **nie publikuje wydania**; inicjatorem jest dopiero nowa gałąź `beta/`.
 
 ## Odtworzenie builda lokalnie
 
@@ -71,5 +71,5 @@ Uwaga: powyższe polecenia zapisują kolejne warianty Paper pod **tą samą nazw
 
 Po spełnieniu kryteriów:
 1. Uaktualnić changelog i dokumentację, ustalić wersję beta, oznaczyć komit.
-2. Wypchnąć tag `v1.0.0-beta.1` — workflow zbuduje cztery dystrybucje i utworzy GitHub prerelease.
+2. Wypchnąć gałąź `beta/v1.0.0-beta.1` od zatwierdzonego commita — workflow zbuduje cztery dystrybucje i utworzy GitHub prerelease.
 3. Po testach odbiorowych poprawić stwierdzone problemy i wydać kolejną betę, zamiast nazywać WIP stabilnym `1.0.0`.
