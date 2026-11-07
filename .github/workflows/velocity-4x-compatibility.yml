@@ -32,6 +32,8 @@ jobs:
       fail-fast: false
       matrix:
         api: ['4.0.0', '4.1.1', '4.2.0', '4.3.0']
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/authgatewayx-gradle-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -51,6 +53,8 @@ jobs:
     name: Velocity 4.x candidate binary
     needs: compile-velocity
     runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    env:
+      GRADLE_USER_HOME: ${{ runner.temp }}/authgatewayx-gradle-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

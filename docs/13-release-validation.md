@@ -417,3 +417,11 @@ premium DENY/PRE_AUTH; zielona kompilacja nie zastępuje macierzy klientów.
 - [x] Parsowanie YAML i kontrola składni bash wszystkich workflowów.
 - [ ] Zdalne CI po scaleniu: główny build ze zdalnymi bazami, macierze Paper/Velocity
       i publikacja Paper/Velocity do BuildExplorer.
+
+Podczas pierwszej zdalnej weryfikacji Paper 26.1.2 i 26.2 przeszły, lecz build 26.3
+został przerwany przez `Gradle build daemon has been stopped: stop command received`.
+Runnery korzystały ze wspólnego `/home/github-runner/.gradle`; post-action
+`setup-gradle` innego zadania może zatrzymać cudzy daemon. Wszystkie joby Gradle
+używają teraz osobnego `GRADLE_USER_HOME` pod `runner.temp`, rozdzielonego przez
+run ID i numer próby. Cache przywraca `setup-gradle`; cleanup jest ograniczony do
+prywatnego katalogu zadania. Nie wyłączono testów ani obsługi configuration cache.

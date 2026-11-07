@@ -58,6 +58,7 @@ tasks.register<Sync>("stagePaperCandidate") {
     dependsOn(":authgatewayx-paper:shadowJar")
     from(paperDistribution)
     into(layout.buildDirectory.dir("compatibility/paper"))
+    inputs.property("minecraftVersion", candidateMinecraft)
     val candidateName = "AuthGatewayX-Paper-$releaseVersion-MC$candidateMinecraft.jar"
     rename { candidateName }
 }
