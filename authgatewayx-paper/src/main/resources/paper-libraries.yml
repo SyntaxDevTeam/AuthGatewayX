@@ -1,0 +1,16 @@
+repositories:
+  syntaxdevteam-snapshots: https://nexus.syntaxdevteam.pl/repository/maven-snapshots/
+  syntaxdevteam-releases: https://nexus.syntaxdevteam.pl/repository/maven-releases/
+  central: https://repo.papermc.io/repository/maven-central/
+
+libraries:
+  - ${kotlin}
+  - ${syntaxcore}
+  - ${messagehandler}
+  - ${hikari}
+  - ${sqlite}
+  - ${mysql}
+  - ${mariadb}
+  - ${postgresql}
+  - ${argon2}
+  - ${gson}

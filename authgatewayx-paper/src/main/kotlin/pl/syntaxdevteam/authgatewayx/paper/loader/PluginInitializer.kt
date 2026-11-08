@@ -1,0 +1,1251 @@
+package pl.syntaxdevteam.authgatewayx.paper.loader
+
+import pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.PaperConnectionMaintenanceGate
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.closeTransport
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RetiringResource
+import net.minecraft.server.MinecraftServer
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicBoolean
+
+import io.papermc.paper.configuration.GlobalConfiguration
+import net.kyori.adventure.text.Component
+import net.kyori.adventure.text.TextReplacementConfig
+import pl.syntaxdevteam.authgatewayx.paper.client.PaperClientAuthenticationChannel
+import org.bukkit.plugin.ServicePriority
+import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
+import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
+import org.bukkit.command.ConsoleCommandSender
+import org.bukkit.entity.Player
+import org.bukkit.configuration.file.YamlConfiguration
+import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
+import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
+import pl.syntaxdevteam.authgatewayx.auth.alert.OfflineRiskAlerts
+import pl.syntaxdevteam.authgatewayx.integrations.network.ProxycheckIpLookup
+import pl.syntaxdevteam.authgatewayx.paper.alert.PaperStaffProof
+import pl.syntaxdevteam.authgatewayx.security.proof.StaffSessionProof
+import pl.syntaxdevteam.authgatewayx.paper.alert.PaperRiskAlertDelivery
+import pl.syntaxdevteam.authgatewayx.paper.alert.RiskAlertText
+import pl.syntaxdevteam.authgatewayx.auth.login.LockoutPolicy
+import pl.syntaxdevteam.authgatewayx.auth.login.LoginService
+import pl.syntaxdevteam.authgatewayx.auth.premium.VerifiedMojangAuthenticationService
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationCoordinator
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationRecoveryService
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationRunResult
+import pl.syntaxdevteam.authgatewayx.auth.premium.PremiumMigrationService
+import pl.syntaxdevteam.authgatewayx.api.migration.IdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
+import pl.syntaxdevteam.authgatewayx.auth.registration.PasswordPolicy
+import pl.syntaxdevteam.authgatewayx.auth.registration.RegistrationService
+import pl.syntaxdevteam.authgatewayx.auth.session.PreJoinConnectionGate
+import pl.syntaxdevteam.authgatewayx.auth.session.InMemorySessionRegistry
+import pl.syntaxdevteam.authgatewayx.auth.session.LogoutResult
+import pl.syntaxdevteam.authgatewayx.auth.session.LogoutService
+import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormCoordinator
+import pl.syntaxdevteam.authgatewayx.auth.ui.AuthenticationFormResult
+import pl.syntaxdevteam.authgatewayx.integrations.mojang.MojangProfileLookup
+import pl.syntaxdevteam.authgatewayx.integrations.FailureStrategy
+import pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionService
+import pl.syntaxdevteam.authgatewayx.paper.integration.PaperIntegrationResolver
+import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogRouter
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationAuthenticationRouter
+import pl.syntaxdevteam.authgatewayx.paper.dialog.ConfigurationPremiumMigrationDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.AuthenticationDialogText
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PasswordChangeDialogText
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PremiumMigrationDialogController
+import pl.syntaxdevteam.authgatewayx.paper.dialog.PremiumMigrationDialogText
+import pl.syntaxdevteam.authgatewayx.paper.command.LogoutCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.MultiAccountCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.AccountInfoCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.MigrationAdminCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandController
+import pl.syntaxdevteam.authgatewayx.paper.command.AdminHelpCommandText
+import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandRegistrar
+import pl.syntaxdevteam.authgatewayx.paper.command.ConsentCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentController
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentGate
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentText
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentPresentation
+import pl.syntaxdevteam.authgatewayx.paper.privacy.ConsentPresentationSelector
+import pl.syntaxdevteam.authgatewayx.paper.command.ReloadCommandGateway
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthAdmission
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreJoinConfigurationListener
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthEntryListener
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationListener
+import pl.syntaxdevteam.authgatewayx.paper.isolation.PreAuthIsolationManager
+import pl.syntaxdevteam.authgatewayx.paper.isolation.SessionPreAuthAccess
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeReadiness
+import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RuntimeState
+import pl.syntaxdevteam.authgatewayx.paper.listener.AuthenticationReadinessListener
+import pl.syntaxdevteam.authgatewayx.paper.migration.ExternalIdentityDataGuardProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.EssentialsXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.HorseManagerXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.LuckPermsIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.PlotsXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationDisconnectCoordinator
+import pl.syntaxdevteam.authgatewayx.paper.migration.PremiumMigrationStartupRecovery
+import pl.syntaxdevteam.authgatewayx.paper.migration.PunisherXIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.MigrationRecipeRegistry
+import pl.syntaxdevteam.authgatewayx.paper.migration.MigrationIgnorePolicy
+import pl.syntaxdevteam.authgatewayx.paper.migration.UniversalLocalIdentityMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.migration.VanillaPlayerDataMigrationProvider
+import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationMode
+import pl.syntaxdevteam.authgatewayx.paper.premium.PaperPremiumAuthenticationModeSelector
+import pl.syntaxdevteam.authgatewayx.paper.premium.StandalonePremiumProtocolInterceptor
+import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
+import pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginCheapGuard
+import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorGate
+import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorPolicy
+import pl.syntaxdevteam.authgatewayx.security.bot.ConnectionBehaviorSignal
+import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstGate
+import pl.syntaxdevteam.authgatewayx.security.bot.UsernameBurstPolicy
+import pl.syntaxdevteam.authgatewayx.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.authgatewayx.security.flood.ConnectionFloodGate
+import pl.syntaxdevteam.authgatewayx.security.flood.FloodLimit
+import pl.syntaxdevteam.authgatewayx.security.login.LoginAttemptGate
+import pl.syntaxdevteam.authgatewayx.security.password.Argon2Parameters
+import pl.syntaxdevteam.authgatewayx.security.password.Argon2PasswordHasher
+import pl.syntaxdevteam.authgatewayx.security.registration.RegistrationAttemptGate
+import pl.syntaxdevteam.authgatewayx.storage.jdbc.JdbcAccountStorage
+import pl.syntaxdevteam.authgatewayx.storage.jdbc.JdbcDatabaseType
+import pl.syntaxdevteam.core.SyntaxCore
+import pl.syntaxdevteam.message.MessageHandler
+import pl.syntaxdevteam.message.SyntaxMessages
+import java.time.Duration
+import java.util.UUID
+
+class PluginInitializer(private val plugin: AuthGatewayXPaper) {
+    private val config get() = plugin.config
+    private val server get() = plugin.server
+    private val logger get() = plugin.logger
+    private val dataFolder get() = plugin.dataFolder
+    private val description get() = plugin.pluginMeta
+    private val isEnabled get() = plugin.isEnabled
+    private val readiness = RuntimeReadiness()
+    private val passwordCommandGateway = plugin.passwordCommandGateway
+    private val logoutCommandGateway = plugin.logoutCommandGateway
+    private val multiAccountCommandGateway = plugin.multiAccountCommandGateway
+    private val accountInfoCommandGateway = plugin.accountInfoCommandGateway
+    private val migrationAdminCommandGateway = plugin.migrationAdminCommandGateway
+    private val adminHelpCommandGateway = plugin.adminHelpCommandGateway
+    private val reloadCommandGateway = plugin.reloadCommandGateway
+    private val consentCommandGateway = plugin.consentCommandGateway
+    private var runtime: RuntimeComponents? = null
+    private var maintenance: PaperConnectionMaintenanceGate? = null
+    private val active = AtomicBoolean(true)
+    private val coreUuidManager = RetiringResource<AutoCloseable>()
+    private val bootstrapExecutor = BoundedTaskExecutor(1, 1, "authgatewayx-bootstrap")
+    private val scheduler by lazy { PaperPlatformScheduler(plugin) { active.get() } }
+
+    internal fun isAuthenticated(player: Player): Boolean = readiness.acceptsAuthentication() &&
+        runtime?.sessions?.getActive(player.uniqueId) != null && runtime?.consentGate?.isPending(player.uniqueId) != true
+
+    fun onEnable() {
+        maintenance = PaperConnectionMaintenanceGate.create(MinecraftServer.getServer())
+        maintenance!!.install()
+        MinecraftServer.getServer().connection.connections.forEach { closeTransport(it.channel) }
+        plugin.saveDefaultConfig()
+        if (!plugin.commandsRegistered) {
+            val commandPlugin = plugin
+            PasswordCommandRegistrar(
+                plugin,
+                passwordCommandGateway,
+                logoutCommandGateway,
+                multiAccountCommandGateway,
+                accountInfoCommandGateway,
+                migrationAdminCommandGateway,
+                adminHelpCommandGateway,
+                reloadCommandGateway,
+                consentCommandGateway,
+                canSuggestOnlinePlayers = { sender ->
+                    sender is ConsoleCommandSender ||
+                        sender is Player &&
+                        sender.isOnline &&
+                        commandPlugin.isAuthenticated(sender)
+                },
+            ).register()
+            plugin.commandsRegistered = true
+        }
+        val floodGate = ConnectionFloodGate(
+            FloodLimit(8, 3, Duration.ofSeconds(1)), FloodLimit(400, 200, Duration.ofSeconds(1)), 50_000,
+        )
+        val (usernameBurstGate, behaviorGate) = try {
+            val maximumTrackedAddresses = positive("anti-bot.maximum-tracked-addresses")
+            UsernameBurstGate(UsernameBurstPolicy(
+                positive("anti-bot.username-burst.maximum-distinct-usernames"),
+                positive("anti-bot.reconnect-loop.maximum-pre-auth-disconnects"),
+                Duration.ofSeconds(positive("anti-bot.username-burst.window-seconds").toLong()),
+                Duration.ofSeconds(positive("anti-bot.username-burst.quarantine-seconds").toLong()),
+                maximumTrackedAddresses,
+            )) to ConnectionBehaviorGate(ConnectionBehaviorPolicy(
+                positive("anti-bot.behavior-score.threshold"),
+                positive("anti-bot.behavior-score.connection-weight"),
+                positive("anti-bot.behavior-score.distinct-username-weight"),
+                positive("anti-bot.behavior-score.authentication-failure-weight"),
+                positive("anti-bot.behavior-score.pre-auth-disconnect-weight"),
+                Duration.ofSeconds(positive("anti-bot.behavior-score.window-seconds").toLong()),
+                Duration.ofSeconds(positive("anti-bot.behavior-score.quarantine-seconds").toLong()),
+                maximumTrackedAddresses,
+            ))
+        } catch (failure: Throwable) {
+            fail("Anti-bot configuration is invalid", failure)
+            server.pluginManager.registerEvents(
+                AuthenticationReadinessListener(readiness, PaperLoginCheapGuard(floodGate, null, null)),
+                plugin,
+            )
+            return
+        }
+        val timeoutGate = try {
+            pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate(
+                config.getInt("anti-bot.login-timeouts.attempts", 3),
+                Duration.ofSeconds(config.getLong("anti-bot.login-timeouts.window-seconds", 0)),
+                Duration.ofSeconds(config.getLong("anti-bot.login-timeouts.ban-seconds", 86400)),
+                positive("anti-bot.maximum-tracked-addresses"),
+            )
+        } catch (failure: Throwable) {
+            fail("Login timeout configuration is invalid", failure)
+            return
+        }
+        val cheapGuard = PaperLoginCheapGuard(floodGate, usernameBurstGate, behaviorGate, timeoutGate)
+        server.pluginManager.registerEvents(AuthenticationReadinessListener(readiness, cheapGuard), plugin)
+        if (server.onlineMode) {
+            readiness.force(RuntimeState.FAILED)
+            logger.severe("Paper standalone requires online-mode=false; authentication remains fail-closed")
+            return
+        }
+        maintenance!!.previousCleanup.whenComplete { _, cleanupFailure ->
+            if (!active.get()) return@whenComplete
+            if (cleanupFailure != null) {
+                scheduler.global { fail("Previous runtime cleanup failed", cleanupFailure) }
+                return@whenComplete
+            }
+            bootstrapExecutor.submit {
+                check(active.get()) { "Runtime stopped before library initialization" }
+                SyntaxCore.init(plugin, versionType = "paper")
+                plugin.loggerX = SyntaxCore.logger
+                coreUuidManager.attach(SyntaxCore.uuidManager)
+                plugin.versionChecker.checkAndLog()
+                check(plugin.versionCompatibility.supports(
+                    pl.syntaxdevteam.authgatewayx.paper.compatibility.VersionCompatibility.CompatibilityFlag.MODERN_LOGIN_EVENTS,
+                )) { "Minecraft version lacks required modern login events" }
+                SyntaxMessages.initialize(plugin)
+                plugin.messageHandler = SyntaxMessages.messages
+            }.whenComplete { _, bootstrapFailure ->
+                scheduler.global(Runnable {
+                    if (bootstrapFailure != null) {
+                        fail("AuthGatewayX bootstrap failed", bootstrapFailure)
+                        return@Runnable
+                    }
+                    runCatching {
+                        startRuntime(plugin.messageHandler, floodGate, usernameBurstGate, behaviorGate, cheapGuard)
+                    }.onFailure { fail("AuthGatewayX runtime failed", it) }
+                })
+            }
+        }
+    }
+
+    private fun startRuntime(
+        messages: MessageHandler,
+        floodGate: ConnectionFloodGate,
+        usernameBurstGate: UsernameBurstGate,
+        behaviorGate: ConnectionBehaviorGate,
+        cheapGuard: PaperLoginCheapGuard,
+    ) {
+        adminHelpCommandGateway.delegate = AdminHelpCommandController(
+            AdminHelpCommandText(
+                header = messages.stringMessageToComponentNoPrefix("help", "header"),
+                playerSection = messages.stringMessageToComponentNoPrefix("help", "player_section"),
+                adminSection = messages.stringMessageToComponentNoPrefix("help", "admin_section"),
+                changePassword = messages.stringMessageToComponentNoPrefix("help", "change_password"),
+                logout = messages.stringMessageToComponentNoPrefix("help", "logout"),
+                info = messages.stringMessageToComponentNoPrefix("help", "info"),
+                alts = messages.stringMessageToComponentNoPrefix("help", "alts"),
+                setPassword = messages.stringMessageToComponentNoPrefix("help", "set_password"),
+                migrateStatus = messages.stringMessageToComponentNoPrefix("help", "migrate_status"),
+                migrateInspect = messages.stringMessageToComponentNoPrefix("help", "migrate_inspect"),
+                migrateRetry = messages.stringMessageToComponentNoPrefix("help", "migrate_retry"),
+                migrateRecover = messages.stringMessageToComponentNoPrefix("help", "migrate_recover"),
+                reload = messages.stringMessageToComponentNoPrefix("help", "reload"),
+                hover = messages.stringMessageToComponentNoPrefix("help", "hover"),
+                footer = messages.stringMessageToComponentNoPrefix("help", "footer"),
+            ),
+            description.version,
+        )
+        val sessions = InMemorySessionRegistry()
+        val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
+        val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
+        val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
+        val migrationExecutor = BoundedTaskExecutor(positive("executors.migration-threads"), positive("executors.migration-queue"), "authgatewayx-migration")
+        val migrationIgnorePolicy = MigrationIgnorePolicy(
+            config.getStringList("migration.unmanaged-plugin-scan.ignored-plugin-directories"),
+        )
+        val components = RuntimeComponents(
+            sessions, storageExecutor, passwordExecutor, mojangExecutor, migrationExecutor,
+            floodGate, usernameBurstGate, behaviorGate,
+        )
+        runtime = components
+        val hasher = Argon2PasswordHasher(Argon2Parameters(
+            positive("authentication.password.argon2.iterations"), positive("authentication.password.argon2.memory-kib"),
+            positive("authentication.password.argon2.parallelism"),
+        ))
+        val storageStage = storageExecutor.submit {
+            dataFolder.mkdirs()
+            val databaseType = JdbcDatabaseType.valueOf(config.getString("storage.type", "SQLITE")!!.uppercase())
+            val databaseName = config.getString("storage.remote.database", "authgatewayx")!!
+            val host = config.getString("storage.remote.host", "127.0.0.1")!!
+            val configuredPort = positive("storage.remote.port")
+            val parameters = config.getString("storage.remote.parameters", "")!!.trim().removePrefix("?")
+            val jdbcUrl = when (databaseType) {
+                JdbcDatabaseType.SQLITE -> "jdbc:sqlite:${dataFolder.resolve(config.getString("storage.sqlite-file") ?: "authgatewayx.db").absolutePath}"
+                JdbcDatabaseType.MYSQL -> "jdbc:mysql://$host:$configuredPort/$databaseName${parameters.takeIf(String::isNotEmpty)?.let { "?$it" } ?: ""}"
+                JdbcDatabaseType.MARIADB -> "jdbc:mariadb://$host:$configuredPort/$databaseName${parameters.takeIf(String::isNotEmpty)?.let { "?$it" } ?: ""}"
+                JdbcDatabaseType.POSTGRESQL -> "jdbc:postgresql://$host:$configuredPort/$databaseName${parameters.takeIf(String::isNotEmpty)?.let { "?$it" } ?: ""}"
+            }
+            JdbcAccountStorage(
+                jdbcUrl, positive("storage.pool-size"), storageExecutor, databaseType,
+                config.getString("storage.remote.username"),
+                System.getenv("AUTHGATEWAYX_DB_PASSWORD") ?: config.getString("storage.remote.password"),
+            ).also { components.attachStorage(it) }
+        }.thenCompose { storage ->
+            storage.migrate().thenCompose {
+                storage.loadConnectionTimeouts(positive("anti-bot.maximum-tracked-addresses"))
+            }.thenApply { entries ->
+                val gate = requireNotNull(cheapGuard.timeoutGate)
+                gate.restore(entries.map { entry ->
+                    pl.syntaxdevteam.authgatewayx.security.login.ConnectionTimeoutGate.Entry(
+                        entry.address, entry.started, entry.failures, entry.bannedUntil,
+                    )
+                })
+                val durable = pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts(gate) { snapshot ->
+                    storage.saveConnectionTimeouts(snapshot.map { entry ->
+                        pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutState(
+                            entry.address, entry.started, entry.failures, entry.bannedUntil,
+                        )
+                    })
+                }
+                components.attachTimeoutPersistence(durable)
+                cheapGuard.durableTimeouts = durable
+                storage
+            }
+        }
+        val dummyHashStage = passwordExecutor.submit { hasher.hash("AuthGatewayX-dummy-password".toCharArray()) }
+        storageStage.thenCombine(dummyHashStage) { storage, dummyHash -> storage to dummyHash }.whenComplete { initialized, failure ->
+            scheduler.global(Runnable {
+                if (!isEnabled || readiness.current() == RuntimeState.STOPPING) return@Runnable
+                if (failure != null) return@Runnable fail("Storage migration or password subsystem failed", failure)
+                runCatching {
+                    installAuthentication(
+                        initialized.first, initialized.second, hasher, messages, scheduler, sessions,
+                        passwordExecutor, mojangExecutor, migrationExecutor, migrationIgnorePolicy,
+                        usernameBurstGate, behaviorGate, cheapGuard,
+                    )
+                }.onSuccess {
+                    maintenance?.ready()
+                    readiness.force(RuntimeState.READY)
+                    logger.info("AuthGatewayX authentication runtime is READY")
+                }.onFailure { fail("Authentication adapters failed to install", it) }
+            })
+        }
+    }
+
+    private fun installAuthentication(
+        storage: JdbcAccountStorage,
+        dummyHash: String,
+        hasher: Argon2PasswordHasher,
+        messages: MessageHandler,
+        scheduler: PaperPlatformScheduler,
+        sessions: InMemorySessionRegistry,
+        passwordExecutor: BoundedTaskExecutor,
+        mojangExecutor: BoundedTaskExecutor,
+        migrationExecutor: BoundedTaskExecutor,
+        migrationIgnorePolicy: MigrationIgnorePolicy,
+        usernameBurstGate: UsernameBurstGate,
+        behaviorGate: ConnectionBehaviorGate,
+        cheapGuard: PaperLoginCheapGuard,
+    ) {
+        val timeoutBan = messages.stringMessageToComponentNoPrefix("auth", "suspicious_connections")
+        cheapGuard.timeoutMessage = { remaining ->
+            if (remaining == 0) timeoutBan else messages.stringMessageToComponentNoPrefix(
+                "auth", "connection_attempts_remaining", mapOf("remaining" to remaining.toString()),
+            )
+        }
+        val consentGate = ConsentGate()
+        runtime?.consentGate = consentGate
+        val authenticationStatus = PaperAuthenticationStatusProvider(readiness::acceptsAuthentication, { id ->
+            if (consentGate.isPending(id)) null else sessions.getActive(id)
+        })
+        server.servicesManager.register(
+            AuthenticationStatusProvider::class.java,
+            authenticationStatus,
+            plugin,
+            ServicePriority.Normal,
+        )
+        val clientChannel = PaperClientAuthenticationChannel(plugin, authenticationStatus)
+        runtime?.clientChannel = clientChannel
+        clientChannel.register()
+        val access = SessionPreAuthAccess(sessions)
+        val admission = PreAuthAdmission(positive("authentication.maximum-pre-auth-players"))
+        val registrationAttemptGate = RegistrationAttemptGate(
+            FloodLimit(
+                positive("anti-bot.registration-attempts.capacity"),
+                positive("anti-bot.registration-attempts.refill-tokens"),
+                Duration.ofSeconds(positive("anti-bot.registration-attempts.refill-seconds").toLong()),
+            ),
+            positive("anti-bot.maximum-tracked-addresses"),
+            Duration.ofSeconds(positive("anti-bot.registration-attempts.state-ttl-seconds").toLong()),
+        )
+        runtime?.registrationAttemptGate = registrationAttemptGate
+        val isolation = PreAuthIsolationManager(plugin, scheduler, access, positive("authentication.timeout-seconds") * 20L,
+            messages.stringMessageToComponentNoPrefix("auth", "timeout"))
+        val serverMinecraftVersion = org.bukkit.Bukkit.getMinecraftVersion()
+        val consentPresentation = ConsentPresentationSelector.select(
+            minecraftVersion = serverMinecraftVersion,
+            dialogsEnabled = config.getBoolean("privacy.dialogs.enabled", true),
+        )
+        if (config.getBoolean("privacy.enabled", true)) {
+            logger.info("Privacy UI: ${consentPresentation.name} (Minecraft ${serverMinecraftVersion})")
+        }
+        val consent = ConsentController(
+            plugin = plugin,
+            scheduler = scheduler,
+            sessions = sessions,
+            storage = storage,
+            isolation = isolation,
+            gate = consentGate,
+            enabled = config.getBoolean("privacy.enabled", true),
+            dialogsEnabled = consentPresentation == ConsentPresentation.MINECRAFT_DIALOG,
+            policyVersion = config.getString("privacy.policy-version", "1")!!,
+            policyUrl = config.getString("privacy.policy-url", "")!!,
+            timeoutTicks = positiveLong("privacy.timeout-seconds") * 20L,
+            text = ConsentText(
+                title = messages.stringMessageToComponentNoPrefix("privacy", "title"),
+                summary = messages.stringMessageToComponentNoPrefix("privacy", "summary"),
+                version = messages.stringMessageToComponentNoPrefix("privacy", "version"),
+                link = messages.stringMessageToComponentNoPrefix("privacy", "link"),
+                accept = messages.stringMessageToComponentNoPrefix("privacy", "accept_button"),
+                reject = messages.stringMessageToComponentNoPrefix("privacy", "reject_button"),
+                accepted = messages.stringMessageToComponentNoPrefix("privacy", "accepted"),
+                rejected = messages.stringMessageToComponentNoPrefix("privacy", "rejected"),
+                revoked = messages.stringMessageToComponentNoPrefix("privacy", "revoked"),
+                alreadyAccepted = messages.stringMessageToComponentNoPrefix("privacy", "already_accepted"),
+                revokeHint = messages.stringMessageToComponentNoPrefix("privacy", "revoke_hint"),
+                processing = messages.stringMessageToComponentNoPrefix("privacy", "processing"),
+                unavailable = messages.stringMessageToComponentNoPrefix("privacy", "unavailable"),
+                pending = messages.stringMessageToComponentNoPrefix("privacy", "pending"),
+                usage = messages.stringMessageToComponentNoPrefix("privacy", "usage"),
+                timeout = messages.stringMessageToComponentNoPrefix("privacy", "timeout"),
+            ),
+        )
+        consentCommandGateway.delegate = ConsentCommandGateway(consent::command)
+        server.pluginManager.registerEvents(consent, plugin)
+        val offlineAuthenticationSuccess = messages.stringMessageToComponentNoPrefix("auth", "offline_authentication_success")
+        val premiumAuthenticationSuccess = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_success")
+        fun sendAuthenticationSuccess(playerId: UUID, message: Component) {
+            scheduler.global {
+                server.getPlayer(playerId)?.let { player ->
+                    scheduler.entity(player) {
+                        if (player.isOnline && !access.isPreAuth(player.uniqueId)) player.sendMessage(message)
+                    }
+                }
+            }
+        }
+        val proofSecret = System.getenv("AUTHGATEWAYX_STAFF_PROOF_SECRET") ?: config.getString("staff-proof.secret", "")!!
+        if (proofSecret.isNotEmpty() && GlobalConfiguration.get().proxies.velocity.enabled) {
+            val responder = PaperStaffProof(plugin, StaffSessionProof(proofSecret)) {
+                readiness.acceptsAuthentication() && sessions.get(ConnectionId(it.uniqueId))?.state == ConnectionState.ACTIVE
+            }
+            runtime?.staffProof = responder
+            responder.register()
+        }
+        val networkEnabled = config.getBoolean("ip-intelligence.enabled", false)
+        val networkLookup = if (networkEnabled) ProxycheckIpLookup.create(
+            System.getenv("AUTHGATEWAYX_PROXYCHECK_API_KEY") ?: config.getString("ip-intelligence.api-key", "")!!,
+            Duration.ofMillis(config.getLong("ip-intelligence.timeout-millis", 2000)),
+            Duration.ofSeconds(config.getLong("ip-intelligence.cache-ttl-seconds", 3600)),
+            Duration.ofSeconds(config.getLong("ip-intelligence.failure-ttl-seconds", 60)),
+            config.getInt("ip-intelligence.maximum-cache-size", 10_000),
+            config.getInt("ip-intelligence.maximum-concurrent", 2),
+            config.getInt("ip-intelligence.requests-per-minute", 30),
+        ) else null
+        runtime?.networkLookup = networkLookup
+        val alertDelivery = PaperRiskAlertDelivery(
+            recipients = { server.onlinePlayers.toList() },
+            entity = scheduler::entity,
+            active = { sessions.get(ConnectionId(it.uniqueId))?.state == ConnectionState.ACTIVE },
+            current = { readiness.acceptsAuthentication() && sessions.get(it.session.connectionId) === it.session },
+            console = if (config.getBoolean("multi-account.alerts.console", true)) ({ message -> server.consoleSender.sendMessage(message) }) else null,
+            text = RiskAlertText(
+                messages.stringMessageToComponentNoPrefix("risk_alert", "header"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "identity"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "ip"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "accounts"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "network"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "geo"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "network_owner"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "operator"),
+                messages.stringMessageToComponentNoPrefix("risk_alert", "hint"),
+            ),
+            showGeo = networkEnabled && config.getBoolean("ip-intelligence.show-geo", true),
+        )
+        val riskAlerts = OfflineRiskAlerts(
+            storage, networkLookup,
+            config.getBoolean("multi-account.alerts.enabled", true),
+            config.getBoolean("ip-intelligence.notify-on-vpn", true),
+            Duration.ofSeconds(config.getLong("multi-account.alerts.cooldown-seconds", 300)),
+            config.getInt("multi-account.alerts.maximum-tracked-accounts", 10_000),
+            config.getInt("multi-account.alerts.maximum-concurrent", 2),
+            isCurrent = { readiness.acceptsAuthentication() && sessions.get(it.connectionId) === it },
+            emit = { alert -> scheduler.global { alertDelivery.deliver(alert) } },
+        )
+        runtime?.riskAlerts = riskAlerts
+        val login = LoginService(storage, hasher, passwordExecutor,
+            LoginAttemptGate(FloodLimit(5, 1, Duration.ofSeconds(2)), 50_000), storage, dummyHash,
+            LockoutPolicy(positive("authentication.lockout.attempts"), Duration.ofSeconds(positive("authentication.lockout.duration-seconds").toLong())))
+        val registration = RegistrationService(storage, hasher, passwordExecutor,
+            PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
+            attemptGate = registrationAttemptGate, auditSink = storage,
+            maximumAccountsPerAddress = positive("anti-bot.registration-attempts.maximum-accounts-per-address"))
+        val passwordChange = PasswordChangeService(
+            storage, hasher, passwordExecutor,
+            PasswordPolicy(positive("authentication.password.minimum-length"), positive("authentication.password.maximum-length")),
+            storage,
+        )
+        val premiumMigration = PremiumMigrationService(login, storage, storage)
+        val vanillaMigrationProvider = VanillaPlayerDataMigrationProvider(
+            server.worlds.map { it.worldFolder.toPath() },
+            dataFolder.toPath().resolve("migration-backups"),
+            migrationExecutor,
+        )
+        val plotsXMigrationProvider = PlotsXIdentityMigrationProvider(server, migrationExecutor)
+        val horseManagerXMigrationProvider = HorseManagerXIdentityMigrationProvider(server, migrationExecutor)
+        val punisherXMigrationProvider = PunisherXIdentityMigrationProvider(server, migrationExecutor)
+        val luckPermsMigrationProvider = server.pluginManager.getPlugin("LuckPerms")
+            ?.takeIf { it.isEnabled }
+            ?.let {
+                LuckPermsIdentityMigrationProvider(
+                    server,
+                    dataFolder.toPath().resolve("migration-backups").resolve("luckperms"),
+                    migrationExecutor,
+                )
+            }
+        val essentialsXMigrationProvider = EssentialsXIdentityMigrationProvider(
+            dataFolder.parentFile.toPath().resolve("Essentials").resolve("userdata"),
+            dataFolder.toPath().resolve("migration-backups").resolve("essentialsx"),
+            migrationExecutor,
+        )
+        val migrationCoordinator = PremiumMigrationCoordinator(storage, storage, providers = {
+            val external = server.servicesManager
+                .getRegistrations(IdentityMigrationProvider::class.java)
+                .map { it.provider }
+            val builtIn = listOfNotNull(
+                vanillaMigrationProvider,
+                plotsXMigrationProvider,
+                horseManagerXMigrationProvider,
+                punisherXMigrationProvider,
+                luckPermsMigrationProvider,
+                essentialsXMigrationProvider,
+            )
+            val managedOwners = (builtIn + external).flatMap { it.managedDataOwners }.toSet()
+            val providers = builtIn.toMutableList()
+            providers += ExternalIdentityDataGuardProvider(
+                enabledPluginNames = {
+                    server.pluginManager.plugins.filter { it.isEnabled }.mapTo(mutableSetOf()) { it.name }
+                },
+                managedDataOwnersSupplier = { managedOwners },
+            )
+            if (config.getBoolean("migration.unmanaged-plugin-scan.enabled", true)) {
+                val configuredExtensions = config
+                    .getStringList("migration.unmanaged-plugin-scan.generic-uuid-files.extensions")
+                    .map { it.trim().lowercase(java.util.Locale.ROOT).removePrefix(".") }
+                    .filter(String::isNotBlank)
+                    .toSet()
+                providers += UniversalLocalIdentityMigrationProvider(
+                    pluginsRoot = dataFolder.parentFile.toPath(),
+                    authGatewayDataDirectory = dataFolder.toPath(),
+                    backupRoot = dataFolder.toPath().resolve("migration-backups").resolve("universal-local"),
+                    managedDataOwnersSupplier = { managedOwners },
+                    recipeRegistry = MigrationRecipeRegistry(dataFolder.toPath().resolve("migration-recipes")),
+                    executor = migrationExecutor,
+                    maximumFiles = positive("migration.unmanaged-plugin-scan.maximum-files"),
+                    maximumTotalBytes = positiveLong("migration.unmanaged-plugin-scan.maximum-total-bytes"),
+                    genericUuidFilesEnabled = config.getBoolean(
+                        "migration.unmanaged-plugin-scan.generic-uuid-files.enabled",
+                        true,
+                    ),
+                    genericExtensions = configuredExtensions.ifEmpty {
+                        setOf("yml", "yaml", "json", "toml", "properties")
+                    },
+                    ignoredPluginDirectoriesSupplier = migrationIgnorePolicy::snapshot,
+                )
+            }
+            providers += external
+            providers
+        })
+        val premiumRecovery = PremiumMigrationRecoveryService(
+            storage,
+            migrationCoordinator,
+            storage,
+            dispatchInspection = { task -> scheduler.global(task) },
+        )
+        val migrationDisconnect = PremiumMigrationDisconnectCoordinator(
+            migrationCoordinator,
+            scheduler,
+            messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+            messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+        ) { ticket, result, failure ->
+            when {
+                failure != null -> logger.log(
+                    java.util.logging.Level.SEVERE,
+                    "Premium migration pipeline failed for ${ticket.username.value}",
+                    failure,
+                )
+                result is PremiumMigrationRunResult.Completed -> logger.info(
+                    "Premium migration completed for ${ticket.username.value}: " +
+                        "${ticket.sourceMinecraftUuid} -> ${ticket.targetMinecraftUuid}",
+                )
+                result is PremiumMigrationRunResult.Blocked -> logger.warning(
+                    "Premium migration blocked for ${ticket.username.value} by ${result.providerId}: ${result.reasonCode}",
+                )
+                result is PremiumMigrationRunResult.Failed -> logger.warning(
+                    "Premium migration failed for ${ticket.username.value}" +
+                        (result.providerId?.let { " at $it" } ?: "") +
+                        ": ${result.reasonCode}",
+                )
+                result is PremiumMigrationRunResult.AlreadyRunning -> logger.info(
+                    "Premium migration is already running for ${ticket.username.value}",
+                )
+            }
+        }
+        val integrationResolver = PaperIntegrationResolver(server, mojangExecutor)
+        val cleanerMode = config.getString("integrations.cleanerx.mode", "AUTO")!!.uppercase()
+        val punisherMode = config.getString("integrations.punisherx.mode", "AUTO")!!.uppercase()
+        val resolvedCleaner = if (cleanerMode == "DISABLED") null else integrationResolver.usernamePolicy()
+        val resolvedPunisher = if (punisherMode == "DISABLED") null else integrationResolver.punishmentProvider()
+        val loginAdmission = LoginAdmissionService(
+            resolvedCleaner ?: if (cleanerMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.UsernamePolicyProvider {
+                CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.UsernameVerdict.UNAVAILABLE)
+            } else null,
+            resolvedPunisher ?: if (punisherMode == "REQUIRED") pl.syntaxdevteam.authgatewayx.integrations.PunishmentProvider {
+                CompletableFuture.completedFuture(pl.syntaxdevteam.authgatewayx.integrations.LoginPunishmentResult.Unavailable())
+            } else null,
+            FailureStrategy.valueOf(config.getString("integrations.cleanerx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
+            FailureStrategy.valueOf(config.getString("integrations.punisherx.failure-strategy", "FAIL_CLOSED")!!.uppercase()),
+        )
+        val activationGuard = pl.syntaxdevteam.authgatewayx.auth.session.AccountActivationGuard { account, address ->
+            loginAdmission.check(account.username, account.minecraftUuid, address).thenApply { decision ->
+                if (decision is pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionDecision.Deny) {
+                    val type = if (decision.reasonCode.startsWith("CLEANER"))
+                        pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.USERNAME_POLICY_DENY
+                    else pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.PUNISHMENT_DENY
+                    runCatching { storage.record(pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent(
+                        java.time.Instant.now(), account.id.value, account.minecraftUuid, account.username.value,
+                        address, type, decision.reasonCode,
+                    )) }
+                }
+                decision == pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionDecision.Allow
+            }
+        }
+        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationGuard = activationGuard, activationListener = { context ->
+            admission.release(context.connectionId.value)
+            consent.authenticated(context.connectionId.value)
+            sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
+            sessions.get(context.connectionId)?.let { session -> runCatching { riskAlerts.observe(session) } }
+        })
+        val dialogText = AuthenticationDialogText(
+            messages.stringMessageToComponentNoPrefix("auth", "login_title"),
+            messages.stringMessageToComponentNoPrefix("auth", "registration_title"),
+            messages.stringMessageToComponentNoPrefix("auth", "login_prompt"),
+            messages.stringMessageToComponentNoPrefix("auth", "registration_prompt"),
+            messages.stringMessageToComponentNoPrefix("auth", "password_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "repeat_password_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "password_mismatch"),
+            messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+            messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+            messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+            messages.stringMessageToComponentNoPrefix("auth", "account_exists"),
+            messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+            messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+            accessDenied = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"))
+        val dialogs = AuthenticationDialogController(coordinator, scheduler, dialogText,
+            onOutcome = { context, result ->
+                if (result != AuthenticationFormResult.AUTHENTICATED) {
+                    behaviorGate.record(context.sourceAddress, ConnectionBehaviorSignal.AUTHENTICATION_FAILURE)
+                }
+            },
+        )
+        runtime?.migrationCoordinator = migrationCoordinator
+        val premiumMigrationDialogs = PremiumMigrationDialogController(
+            premiumMigration,
+            scheduler,
+            PremiumMigrationDialogText(
+                messages.stringMessageToComponentNoPrefix("migration", "title"),
+                messages.stringMessageToComponentNoPrefix("migration", "prompt"),
+                messages.stringMessageToComponentNoPrefix("migration", "password_label"),
+                messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+                messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+                messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+                messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+                messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+                messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+                messages.stringMessageToComponentNoPrefix("migration", "cancelled"),
+                messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+            ),
+        ) { player, ticket ->
+            if (player.isOnline) migrationDisconnect.begin(player, ticket)
+        }
+        val premiumLookup = MojangProfileLookup(
+            mojangExecutor,
+            Duration.ofMillis(positive("premium.lookup.timeout-millis").toLong()),
+            Duration.ofSeconds(positive("premium.lookup.positive-ttl-seconds").toLong()),
+            Duration.ofSeconds(positive("premium.lookup.negative-ttl-seconds").toLong()),
+            positive("premium.lookup.maximum-cache-size"),
+            onDiagnostic = { diagnostic ->
+                scheduler.async { plugin.loggerX.info(diagnostic.logLine()) }
+            },
+        ).also { runtime?.premiumLookup = it }
+        when (PaperPremiumAuthenticationModeSelector.select(GlobalConfiguration.get().proxies.velocity.enabled)) {
+            PaperPremiumAuthenticationMode.STANDALONE_PROTOCOL -> {
+                val premiumProtocol = StandalonePremiumProtocolInterceptor(
+                    MinecraftServer.getServer(),
+                    premiumLookup,
+                    cheapGuard,
+                    positive("premium.authentication.maximum-concurrent-handshakes"),
+                    messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+                    messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                    messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_overloaded"),
+                    messages.stringMessageToComponentNoPrefix("auth", "premium_session_invalid"),
+                    config.getBoolean("premium.authentication.diagnostics.enabled", false),
+                    config.getInt("premium.authentication.diagnostics.maximum-lines-per-minute", 120).also {
+                        require(it > 0) { "premium.authentication.diagnostics.maximum-lines-per-minute must be positive" }
+                    },
+                    { line -> plugin.loggerX.info(line) },
+                ) { logger.log(java.util.logging.Level.WARNING, "Standalone premium login classification failed", it) }
+                runtime?.premiumProtocol = premiumProtocol
+                premiumProtocol.install()
+                logger.info("AuthGatewayX premium mode: standalone Paper protocol authentication; cheap guards run before profile lookup")
+            }
+            PaperPremiumAuthenticationMode.VELOCITY_FORWARDED -> {
+                logger.info("AuthGatewayX premium mode: Velocity modern forwarding; standalone Paper encryption interceptor disabled")
+            }
+        }
+        val mojangAuthentication = VerifiedMojangAuthenticationService(storage, sessions, storage, activationGuard = activationGuard)
+        val router = AuthenticationDialogRouter(
+            storage, dialogs, premiumMigrationDialogs, access, scheduler,
+            premiumLookup = premiumLookup,
+            mojangAuthentication = mojangAuthentication,
+            loginAdmission = loginAdmission,
+            integrationDeniedMessage = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"),
+            onAdmissionDenied = { username, address, reason ->
+                val type = if (reason.startsWith("CLEANER"))
+                    pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.USERNAME_POLICY_DENY
+                else pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.PUNISHMENT_DENY
+                runCatching { storage.record(pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent(
+                    java.time.Instant.now(), null, null, username.value, address, type, reason,
+                )) }
+            },
+            premiumAuthenticationRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
+            lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+            identityConflictMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+            migrationInProgressMessage = messages.stringMessageToComponentNoPrefix("migration", "in_progress"),
+            internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+            onMojangActivated = { player ->
+                admission.release(player.uniqueId)
+                consent.authenticated(player.uniqueId)
+                sendAuthenticationSuccess(player.uniqueId, premiumAuthenticationSuccess)
+            },
+        ) { logger.log(java.util.logging.Level.WARNING, "Cannot select authentication form", it) }
+        server.pluginManager.registerEvents(dialogs, plugin)
+        server.pluginManager.registerEvents(premiumMigrationDialogs, plugin)
+        server.pluginManager.registerEvents(migrationDisconnect, plugin)
+        val passwordDialogs = PasswordChangeDialogController(passwordChange, scheduler, sessions, PasswordChangeDialogText(
+            messages.stringMessageToComponentNoPrefix("password", "own_title"),
+            messages.stringMessageToComponentNoPrefix("password", "admin_title"),
+            messages.stringMessageToComponentNoPrefix("password", "own_prompt"),
+            messages.stringMessageToComponentNoPrefix("password", "admin_prompt"),
+            messages.stringMessageToComponentNoPrefix("password", "current_label"),
+            messages.stringMessageToComponentNoPrefix("password", "new_label"),
+            messages.stringMessageToComponentNoPrefix("password", "repeat_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "password_mismatch"),
+            messages.stringMessageToComponentNoPrefix("password", "invalid_current"),
+            messages.stringMessageToComponentNoPrefix("password", "account_not_found"),
+            messages.stringMessageToComponentNoPrefix("password", "offline_only"),
+            messages.stringMessageToComponentNoPrefix("password", "success"),
+            messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+        )) { username ->
+            scheduler.global {
+                server.onlinePlayers.firstOrNull { it.name.equals(username.value, ignoreCase = true) }?.let { target ->
+                    scheduler.entity(target) {
+                        if (target.isOnline) target.kick(messages.stringMessageToComponentNoPrefix("password", "admin_target_kick"))
+                    }
+                }
+            }
+        }
+        passwordCommandGateway.delegate = passwordDialogs
+        migrationAdminCommandGateway.delegate = MigrationAdminCommandController(
+            storage = storage,
+            coordinator = migrationCoordinator,
+            recovery = premiumRecovery,
+            dispatch = { sender, task ->
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            },
+            text = MigrationAdminCommandText(
+                title = messages.stringMessageToComponentNoPrefix("migration_admin", "title"),
+                close = messages.stringMessageToComponentNoPrefix("migration_admin", "close"),
+                notFound = messages.stringMessageToComponentNoPrefix("migration_admin", "not_found"),
+                unavailable = messages.stringMessageToComponentNoPrefix("migration_admin", "unavailable"),
+                invalidUuid = messages.stringMessageToComponentNoPrefix("migration_admin", "invalid_uuid"),
+                onlineBlocked = messages.stringMessageToComponentNoPrefix("migration_admin", "online_blocked"),
+                noEvidence = messages.stringMessageToComponentNoPrefix("migration_admin", "no_evidence"),
+                notPremium = messages.stringMessageToComponentNoPrefix("migration_admin", "not_premium"),
+                identityConflict = messages.stringMessageToComponentNoPrefix("migration_admin", "identity_conflict"),
+                status = messages.stringMessageToComponentNoPrefix("migration_admin", "status"),
+                summaryReady = messages.stringMessageToComponentNoPrefix("migration_admin", "summary_ready"),
+                summaryBlocked = messages.stringMessageToComponentNoPrefix("migration_admin", "summary_blocked"),
+                providerReady = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_ready"),
+                providerNoData = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_no_data"),
+                providerBlocked = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_blocked"),
+                reasonFallback = messages.stringMessageToComponentNoPrefix("migration_admin", "reason_fallback"),
+                noTicket = messages.stringMessageToComponentNoPrefix("migration_admin", "no_ticket"),
+                retryStarted = messages.stringMessageToComponentNoPrefix("migration_admin", "retry_started"),
+                completed = messages.stringMessageToComponentNoPrefix("migration_admin", "completed"),
+                failed = messages.stringMessageToComponentNoPrefix("migration_admin", "failed"),
+                blocked = messages.stringMessageToComponentNoPrefix("migration_admin", "blocked"),
+                alreadyRunning = messages.stringMessageToComponentNoPrefix("migration_admin", "already_running"),
+                recoveryPrepared = messages.stringMessageToComponentNoPrefix("migration_admin", "recovery_prepared"),
+                kindUpgrade = messages.stringMessageToComponentNoPrefix("migration_admin", "kind_upgrade"),
+                kindRecovery = messages.stringMessageToComponentNoPrefix("migration_admin", "kind_recovery"),
+                kindCandidate = messages.stringMessageToComponentNoPrefix("migration_admin", "kind_candidate"),
+                stateInspect = messages.stringMessageToComponentNoPrefix("migration_admin", "state_inspect"),
+                statePrepared = messages.stringMessageToComponentNoPrefix("migration_admin", "state_prepared"),
+                stateMigrating = messages.stringMessageToComponentNoPrefix("migration_admin", "state_migrating"),
+                stateCompleted = messages.stringMessageToComponentNoPrefix("migration_admin", "state_completed"),
+                stateFailed = messages.stringMessageToComponentNoPrefix("migration_admin", "state_failed"),
+                providerSystem = messages.stringMessageToComponentNoPrefix("migration_admin", "provider_system"),
+                providerNames = mapOf(
+                    "authgatewayx:vanilla" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_vanilla"),
+                    "authgatewayx:plotsx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_plotsx"),
+                    "authgatewayx:horsemanagerx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_horsemanagerx"),
+                    "authgatewayx:punisherx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_punisherx"),
+                    "authgatewayx:luckperms" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_luckperms"),
+                    "authgatewayx:essentialsx" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_essentialsx"),
+                    "authgatewayx:external-identity-data-guard" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_external_guard"),
+                    "authgatewayx:unmanaged-plugin-scan" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_unmanaged_scan"),
+                    "authgatewayx:universal-local" to messages.stringMessageToComponentNoPrefix("migration_admin", "provider_universal_local"),
+                ),
+                reasonTemplates = mapOf(
+                    "NO_VANILLA_UUID_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_VANILLA_UUID_DATA"),
+                    "VANILLA_FILES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_VANILLA_FILES"),
+                    "VANILLA_SYMLINK_REJECTED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_VANILLA_SYMLINK_REJECTED"),
+                    "PLOTSX_COUNTS" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLOTSX_COUNTS"),
+                    "PLOTSX_MIGRATION_BRIDGE_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLOTSX_MIGRATION_BRIDGE_UNAVAILABLE"),
+                    "PLOTSX_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLOTSX_NOT_INSTALLED"),
+                    "HORSEMANAGERX_COUNTS" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_HORSEMANAGERX_COUNTS"),
+                    "HORSEMANAGERX_MIGRATION_BRIDGE_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_HORSEMANAGERX_MIGRATION_BRIDGE_UNAVAILABLE"),
+                    "HORSEMANAGERX_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_HORSEMANAGERX_NOT_INSTALLED"),
+                    "PUNISHERX_COUNTS" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PUNISHERX_COUNTS"),
+                    "PUNISHERX_MIGRATION_BRIDGE_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PUNISHERX_MIGRATION_BRIDGE_UNAVAILABLE"),
+                    "PUNISHERX_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PUNISHERX_NOT_INSTALLED"),
+                    "LUCKPERMS_SOURCE_ABSENT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_SOURCE_ABSENT"),
+                    "LUCKPERMS_NOT_INSTALLED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_NOT_INSTALLED"),
+                    "LUCKPERMS_API_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_API_UNAVAILABLE"),
+                    "LUCKPERMS_USER_NODES_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_USER_NODES_READY"),
+                    "LUCKPERMS_TARGET_HAS_DIFFERENT_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_LUCKPERMS_TARGET_HAS_DIFFERENT_DATA"),
+                    "ESSENTIALSX_SOURCE_ABSENT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_SOURCE_ABSENT"),
+                    "ESSENTIALSX_USERDATA_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_USERDATA_READY"),
+                    "ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED"),
+                    "ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA"),
+                    "ESSENTIALSX_SYMLINK_REJECTED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_SYMLINK_REJECTED"),
+                    "ESSENTIALSX_TARGET_NOT_REGULAR_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_ESSENTIALSX_TARGET_NOT_REGULAR_FILE"),
+                    "EXTERNAL_IDENTITY_DATA_CLAIMED_OR_ABSENT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_EXTERNAL_IDENTITY_DATA_CLAIMED_OR_ABSENT"),
+                    "IDENTITY_MIGRATION_PROVIDER_REQUIRED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_IDENTITY_MIGRATION_PROVIDER_REQUIRED"),
+                    "NO_UNMANAGED_LOCAL_UUID_REFERENCES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_UNMANAGED_LOCAL_UUID_REFERENCES"),
+                    "UNMANAGED_PLUGIN_SYMLINK" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_PLUGIN_SYMLINK"),
+                    "UNMANAGED_SCAN_FILE_LIMIT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_FILE_LIMIT"),
+                    "UNMANAGED_SCAN_BYTE_LIMIT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_BYTE_LIMIT"),
+                    "UNMANAGED_UUID_REFERENCES" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_UUID_REFERENCES"),
+                    "UNMANAGED_SCAN_LARGE_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNMANAGED_SCAN_LARGE_FILE"),
+                    "PLUGIN_ROOT_UNAVAILABLE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_PLUGIN_ROOT_UNAVAILABLE"),
+                    "NO_UNIVERSAL_LOCAL_UUID_DATA" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_NO_UNIVERSAL_LOCAL_UUID_DATA"),
+                    "UNIVERSAL_LOCAL_READY" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_READY"),
+                    "UNIVERSAL_LOCAL_READY_WITH_IGNORED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_READY_WITH_IGNORED"),
+                    "UNIVERSAL_LOCAL_IGNORED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_IGNORED"),
+                    "UNIVERSAL_LOCAL_REVIEW_REQUIRED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_REVIEW_REQUIRED"),
+                    "UNIVERSAL_LOCAL_RECIPE_INVALID" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_RECIPE_INVALID"),
+                    "UNIVERSAL_LOCAL_UNSAFE_PATH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_UNSAFE_PATH"),
+                    "UNIVERSAL_LOCAL_RECIPE_NOT_UTF8" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_RECIPE_NOT_UTF8"),
+                    "UNIVERSAL_LOCAL_SYMLINK" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_SYMLINK"),
+                    "UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE"),
+                    "UNIVERSAL_LOCAL_TARGET_COLLISION" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_TARGET_COLLISION"),
+                    "UNIVERSAL_LOCAL_SOURCE_CHANGED" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_SOURCE_CHANGED"),
+                    "UNIVERSAL_LOCAL_JOURNAL_MISMATCH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_JOURNAL_MISMATCH"),
+                    "UNIVERSAL_LOCAL_BACKUP_CONFLICT" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_BACKUP_CONFLICT"),
+                    "UNIVERSAL_LOCAL_ROLLBACK_SYMLINK" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_ROLLBACK_SYMLINK"),
+                    "UNIVERSAL_LOCAL_ROLLBACK_BACKUP_MISSING" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_ROLLBACK_BACKUP_MISSING"),
+                    "UNIVERSAL_LOCAL_UNSAFE_BACKUP_PATH" to messages.stringMessageToComponentNoPrefix("migration_admin", "reason_UNIVERSAL_LOCAL_UNSAFE_BACKUP_PATH"),
+                ),
+            ),
+            isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
+            isReady = { readiness.acceptsAuthentication() },
+            isTargetOnline = { uuid -> server.getPlayer(uuid)?.isOnline == true },
+        )
+        val reloadSuccess = messages.stringMessageToComponentNoPrefix("reload", "success")
+        val reloadFailure = messages.stringMessageToComponentNoPrefix("reload", "failure")
+        reloadCommandGateway.delegate = ReloadCommandGateway { sender ->
+            if (!readiness.acceptsAuthentication()) return@ReloadCommandGateway
+            if (sender is Player &&
+                (!sender.isOnline || sessions.get(ConnectionId(sender.uniqueId))?.state != ConnectionState.ACTIVE)
+            ) {
+                return@ReloadCommandGateway
+            }
+            migrationExecutor.submit {
+                val loaded = YamlConfiguration()
+                loaded.load(dataFolder.resolve("config.yml"))
+                migrationIgnorePolicy.replace(
+                    loaded.getStringList("migration.unmanaged-plugin-scan.ignored-plugin-directories"),
+                )
+            }.whenComplete { ignored, failure ->
+                val task = Runnable {
+                    if (sender is Player &&
+                        (!sender.isOnline || sessions.get(ConnectionId(sender.uniqueId))?.state != ConnectionState.ACTIVE)
+                    ) {
+                        return@Runnable
+                    }
+                    if (failure == null && ignored != null) {
+                        sender.sendMessage(
+                            reloadSuccess.replaceText(
+                                TextReplacementConfig.builder()
+                                    .matchLiteral("<count>")
+                                    .replacement(Component.text(ignored.size.toString()))
+                                    .build(),
+                            ),
+                        )
+                    } else {
+                        failure?.let { logger.log(java.util.logging.Level.WARNING, "Cannot reload migration ignore policy", it) }
+                        sender.sendMessage(reloadFailure)
+                    }
+                }
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            }
+        }
+        PremiumMigrationStartupRecovery(
+            storage,
+            migrationCoordinator,
+            scheduler,
+            isTargetOnline = { uuid -> server.getPlayer(uuid)?.isOnline == true },
+            logger = logger,
+            batchLimit = positive("migration.recovery.startup-batch-limit"),
+        ).schedule()
+        accountInfoCommandGateway.delegate = AccountInfoCommandController(
+            inspection = storage,
+            alts = storage,
+            network = networkLookup,
+            mojang = premiumLookup,
+            sessions = sessions,
+            dispatch = { sender, task ->
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            },
+            text = AccountInfoCommandText(
+                messages.stringMessageToComponentNoPrefix("info", "title"),
+                messages.stringMessageToComponentNoPrefix("info", "close"),
+                messages.stringMessageToComponentNoPrefix("info", "not_found"),
+                messages.stringMessageToComponentNoPrefix("info", "unavailable"),
+                messages.stringMessageToComponentNoPrefix("info", "external_identity"),
+                messages.stringMessageToComponentNoPrefix("info", "identity"),
+                messages.stringMessageToComponentNoPrefix("info", "lifecycle"),
+                messages.stringMessageToComponentNoPrefix("info", "session"),
+                messages.stringMessageToComponentNoPrefix("info", "ip"),
+                messages.stringMessageToComponentNoPrefix("info", "ip_history_header"),
+                messages.stringMessageToComponentNoPrefix("info", "ip_history_entry"),
+                messages.stringMessageToComponentNoPrefix("info", "geo"),
+                messages.stringMessageToComponentNoPrefix("info", "network"),
+                messages.stringMessageToComponentNoPrefix("info", "security_header"),
+                messages.stringMessageToComponentNoPrefix("info", "security_summary"),
+                messages.stringMessageToComponentNoPrefix("info", "security_entry"),
+                messages.stringMessageToComponentNoPrefix("info", "alts_header"),
+                messages.stringMessageToComponentNoPrefix("info", "alts_entry"),
+                messages.stringMessageToComponentNoPrefix("info", "no_data"),
+            ),
+            isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
+            isReady = { readiness.acceptsAuthentication() },
+        )
+        multiAccountCommandGateway.delegate = MultiAccountCommandController(
+            storage, { sender, task ->
+                if (sender is Player) scheduler.entity(sender, task) else scheduler.global(task)
+            }, MultiAccountCommandText(
+                messages.stringMessageToComponentNoPrefix("alts", "title"),
+                messages.stringMessageToComponentNoPrefix("alts", "close"),
+                messages.stringMessageToComponentNoPrefix("alts", "header"),
+                messages.stringMessageToComponentNoPrefix("alts", "entry"),
+                messages.stringMessageToComponentNoPrefix("alts", "empty"),
+                messages.stringMessageToComponentNoPrefix("alts", "truncated"),
+                messages.stringMessageToComponentNoPrefix("alts", "unavailable"),
+                messages.stringMessageToComponentNoPrefix("alts", "not_found"),
+            ),
+            isAuthenticated = { player -> sessions.get(ConnectionId(player.uniqueId))?.state == ConnectionState.ACTIVE },
+            isReady = { readiness.acceptsAuthentication() },
+        )
+        val logoutService = LogoutService(sessions, storage)
+        val logoutKick = messages.stringMessageToComponentNoPrefix("auth", "logout_success")
+        val offlineOnly = messages.stringMessageToComponentNoPrefix("password", "offline_only")
+        logoutCommandGateway.delegate = LogoutCommandGateway { player ->
+            val connectionId = ConnectionId(player.uniqueId)
+            when (logoutService.logout(connectionId)) {
+                LogoutResult.LOGGED_OUT -> scheduler.entity(player) { if (player.isOnline) player.kick(logoutKick) }
+                LogoutResult.NOT_ACTIVE, LogoutResult.NOT_OFFLINE_ACCOUNT -> player.sendMessage(offlineOnly)
+            }
+        }
+        server.pluginManager.registerEvents(passwordDialogs, plugin)
+        server.pluginManager.registerEvents(
+            PreAuthIsolationListener(access, isolation, sessions, admission, usernameBurstGate, behaviorGate,
+                consentGate, preJoinOwnsSessionCleanup = config.getBoolean("authentication.prejoin.experimental-enabled", false)
+            ), plugin,
+        )
+        if (config.getBoolean("authentication.prejoin.experimental-enabled", false)) {
+            val preJoinGate = PreJoinConnectionGate(positive("authentication.prejoin.maximum-pending"))
+            val preJoinDialogs = ConfigurationAuthenticationDialogController(
+                coordinator, dialogs, sessions, preJoinGate, dialogText,
+                onOutcome = { context, result ->
+                    if (result != AuthenticationFormResult.AUTHENTICATED) {
+                        behaviorGate.record(context.sourceAddress, ConnectionBehaviorSignal.AUTHENTICATION_FAILURE)
+                    }
+                },
+            )
+            val preJoinMigrationDialogs = ConfigurationPremiumMigrationDialogController(
+                authorization = premiumMigration,
+                renderer = premiumMigrationDialogs,
+                gate = preJoinGate,
+                text = PremiumMigrationDialogText(
+                    messages.stringMessageToComponentNoPrefix("migration", "title"),
+                    messages.stringMessageToComponentNoPrefix("migration", "prompt"),
+                    messages.stringMessageToComponentNoPrefix("migration", "password_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+                    messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
+                    messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
+                    messages.stringMessageToComponentNoPrefix("auth", "rate_limited"),
+                    messages.stringMessageToComponentNoPrefix("migration", "identity_conflict"),
+                    messages.stringMessageToComponentNoPrefix("migration", "prepared"),
+                    messages.stringMessageToComponentNoPrefix("migration", "cancelled"),
+                    messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+                ),
+                onPrepared = { ticket ->
+                    // A short reconnect may overlap the disconnect callback. Keep migration
+                    // pending until neither the source nor target UUID has an in-world player
+                    // or an AuthGatewayX session. Never migrate live player data.
+                    fun attemptAfterDisconnect(attemptsLeft: Int) {
+                        scheduler.delayedGlobal(20L, Runnable {
+                            if (!readiness.acceptsAuthentication()) return@Runnable
+                            val occupied = listOf(ticket.sourceMinecraftUuid, ticket.targetMinecraftUuid).any { id ->
+                                server.getPlayer(id)?.isOnline == true ||
+                                    sessions.get(ConnectionId(id)) != null
+                            }
+                            if (occupied) {
+                                if (attemptsLeft > 0) attemptAfterDisconnect(attemptsLeft - 1)
+                                else logger.warning("Pre-join migration deferred after reconnect collisions; restart recovery can resume ticket")
+                                return@Runnable
+                            }
+                            migrationCoordinator.migrate(ticket).whenComplete { result, failure ->
+                                if (failure != null) logger.log(java.util.logging.Level.WARNING,
+                                    "Pre-join premium migration failed", failure)
+                                else logger.info("Pre-join migration result: " + result?.javaClass?.simpleName)
+                            }
+                        })
+                    }
+                    attemptAfterDisconnect(30)
+                },
+            )
+            val preJoinRouter = ConfigurationAuthenticationRouter(
+                storage = storage,
+                dialogs = preJoinDialogs,
+                migrationDialogs = preJoinMigrationDialogs,
+                sessions = sessions,
+                gate = preJoinGate,
+                lookup = premiumLookup,
+                mojang = mojangAuthentication,
+                admission = loginAdmission,
+                integrationDeniedMessage = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"),
+                premiumRequiredMessage = messages.stringMessageToComponentNoPrefix("auth", "premium_authentication_required"),
+                lookupUnavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "mojang_unavailable"),
+                identityConflictMessage = messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
+                migrationRequiredMessage = messages.stringMessageToComponentNoPrefix("migration", "in_progress"),
+                migrationInProgressMessage = messages.stringMessageToComponentNoPrefix("migration", "in_progress"),
+                internalFailureMessage = messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
+                onMojangActivated = { id ->
+                    admission.release(id)
+                },
+                onAdmissionDenied = { context, reason ->
+                    val type = if (reason.startsWith("CLEANER"))
+                        pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.USERNAME_POLICY_DENY
+                    else pl.syntaxdevteam.authgatewayx.security.audit.SecurityEventType.PUNISHMENT_DENY
+                    runCatching {
+                        storage.record(pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent(
+                            java.time.Instant.now(), null, null, context.username.value, context.sourceAddress,
+                            type, reason,
+                        ))
+                    }
+                },
+                onFailure = { logger.log(java.util.logging.Level.WARNING, "Pre-join authentication routing failed", it) },
+            )
+            val preJoinListener = PreJoinConfigurationListener(
+                sessions = sessions,
+                gate = preJoinGate,
+                dialogs = preJoinDialogs,
+                migrationDialogs = preJoinMigrationDialogs,
+                router = preJoinRouter,
+                isReady = readiness::acceptsAuthentication,
+                timeout = Duration.ofSeconds(positiveLong("authentication.timeout-seconds")),
+                unavailableMessage = messages.stringMessageToComponentNoPrefix("auth", "startup_failed"),
+                capacityMessage = messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
+                timeoutMessage = messages.stringMessageToComponentNoPrefix("auth", "timeout"),
+                onPreAuth = consent::prepareConnection,
+                onPreAuthEnd = consent::discardConnection,
+                onWorldJoin = { id ->
+                    consent.authenticated(id)
+                    val method = sessions.get(ConnectionId(id))?.authenticationMethod
+                    sendAuthenticationSuccess(id, if (method ==
+                        pl.syntaxdevteam.authgatewayx.domain.session.AuthenticationMethod.MOJANG
+                    ) premiumAuthenticationSuccess else offlineAuthenticationSuccess)
+                },
+            )
+            runtime?.preJoinListener = preJoinListener
+            server.pluginManager.registerEvents(preJoinDialogs, plugin)
+            server.pluginManager.registerEvents(preJoinMigrationDialogs, plugin)
+            server.pluginManager.registerEvents(preJoinListener, plugin)
+            logger.warning("EXPERIMENTAL pre-join configuration authentication enabled; real-client, premium migration and 26.x compatibility tests remain open")
+        } else {
+            server.pluginManager.registerEvents(PreAuthEntryListener(
+                sessions, isolation, admission,
+                messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
+                onEntered = { player -> consent.prepare(player.uniqueId); router.route(player) },
+            ), plugin)
+        }
+    }
+
+    private fun positive(path: String): Int = config.getInt(path).also { require(it > 0) { "$path must be positive" } }
+    private fun positiveLong(path: String): Long = config.getLong(path).also { require(it > 0L) { "$path must be positive" } }
+    private fun fail(message: String, failure: Throwable) {
+        readiness.force(RuntimeState.FAILED)
+        maintenance?.stop(CompletableFuture.completedFuture(null),
+            MinecraftServer.getServer().connection.connections.map { it.channel })
+        logger.log(java.util.logging.Level.SEVERE, "$message; authentication remains closed", failure)
+    }
+
+    fun onDisable() {
+        active.set(false)
+        coreUuidManager.stopAccepting()
+        readiness.force(RuntimeState.STOPPING)
+        val cleanup = CompletableFuture<Void>()
+        maintenance?.stop(cleanup, MinecraftServer.getServer().connection.connections.map { it.channel })
+        server.servicesManager.unregisterAll(plugin)
+        passwordCommandGateway.delegate = null
+        logoutCommandGateway.delegate = null
+        multiAccountCommandGateway.delegate = null
+        accountInfoCommandGateway.delegate = null
+        migrationAdminCommandGateway.delegate = null
+        adminHelpCommandGateway.delegate = null
+        reloadCommandGateway.delegate = null
+        consentCommandGateway.delegate = null
+        val retiring = runtime
+        runtime = null
+        retiring?.markClosing()
+        Thread({
+            try {
+                var cleanupFailure: Throwable? = null
+                try {
+                    check(bootstrapExecutor.shutdown(Duration.ofSeconds(5))) { "Bootstrap executor did not terminate" }
+                } catch (failure: Throwable) { cleanupFailure = failure }
+                try { retiring?.close() } catch (failure: Throwable) {
+                    if (cleanupFailure == null) cleanupFailure = failure else cleanupFailure.addSuppressed(failure)
+                }
+                try { coreUuidManager.close() } catch (failure: Throwable) {
+                    if (cleanupFailure == null) cleanupFailure = failure else cleanupFailure.addSuppressed(failure)
+                }
+                plugin.resetMessages()
+                cleanupFailure?.let { throw it }
+                cleanup.complete(null)
+            } catch (failure: Throwable) {
+                cleanup.completeExceptionally(failure)
+                logger.log(java.util.logging.Level.SEVERE, "AuthGatewayX runtime cleanup failed", failure)
+            }
+        }, "authgatewayx-runtime-cleanup").apply { isDaemon = true }.start()
+    }
+}
+
+private class RuntimeComponents(
+    val sessions: InMemorySessionRegistry,
+    val storageExecutor: BoundedTaskExecutor,
+    val passwordExecutor: BoundedTaskExecutor,
+    val mojangExecutor: BoundedTaskExecutor,
+    val migrationExecutor: BoundedTaskExecutor,
+    val floodGate: ConnectionFloodGate,
+    val usernameBurstGate: UsernameBurstGate,
+    val behaviorGate: ConnectionBehaviorGate,
+) : AutoCloseable {
+    private val timeoutPersistence = RetiringResource<pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts>()
+    fun attachTimeoutPersistence(value: pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts) = timeoutPersistence.attach(value)
+    @Volatile var consentGate: ConsentGate? = null
+    @Volatile var clientChannel: PaperClientAuthenticationChannel? = null
+    @Volatile var staffProof: PaperStaffProof? = null
+    @Volatile var riskAlerts: OfflineRiskAlerts? = null
+    @Volatile var networkLookup: ProxycheckIpLookup? = null
+    private val storage = RetiringResource<JdbcAccountStorage>()
+    @Volatile var migrationCoordinator: PremiumMigrationCoordinator? = null
+    private var migrationsDrained: CompletableFuture<Void>? = null
+
+    fun markClosing() {
+        preJoinListener?.shutdown()
+        storage.stopAccepting()
+        timeoutPersistence.stopAccepting()
+        migrationsDrained = migrationCoordinator?.stopAndDrain()
+    }
+
+    fun attachStorage(value: JdbcAccountStorage) = storage.attach(value)
+    @Volatile var registrationAttemptGate: RegistrationAttemptGate? = null
+    @Volatile var premiumProtocol: StandalonePremiumProtocolInterceptor? = null
+    @Volatile var premiumLookup: MojangProfileLookup? = null
+    @Volatile var preJoinListener: PreJoinConfigurationListener? = null
+
+    override fun close() {
+        var failure: Throwable? = null
+        fun attempt(action: () -> Unit) {
+            try { action() } catch (problem: Throwable) {
+                if (failure == null) failure = problem else failure.addSuppressed(problem)
+            }
+        }
+        attempt { clientChannel?.close() }
+        attempt { staffProof?.close() }
+        attempt { riskAlerts?.close() }
+        attempt { networkLookup?.close() }
+        attempt { premiumProtocol?.close() }
+        attempt { premiumLookup?.close() }
+        attempt {
+            check(premiumProtocol?.awaitTermination(Duration.ofSeconds(5)) != false) {
+                "Premium diagnostic writer did not terminate"
+            }
+        }
+        attempt { timeoutPersistence.close() }
+        sessions.clear()
+        consentGate?.clear()
+        attempt { migrationsDrained?.get(30, java.util.concurrent.TimeUnit.SECONDS) }
+        listOf(migrationExecutor, mojangExecutor, passwordExecutor, storageExecutor).forEach { executor ->
+            attempt { check(executor.shutdown(Duration.ofSeconds(5))) { "Runtime executor did not terminate" } }
+        }
+        attempt { storage.close() }
+        floodGate.clear()
+        usernameBurstGate.clear()
+        behaviorGate.clear()
+        registrationAttemptGate?.clear()
+        failure?.let { throw it }
+    }
+}

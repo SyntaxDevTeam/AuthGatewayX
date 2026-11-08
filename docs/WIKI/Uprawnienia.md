@@ -1,0 +1,65 @@
+# Uprawnienia
+
+**Język / Language:** Polski · [English](EN/Permissions.md)
+
+[Home](Home.md) · [Komendy](Komendy.md)
+
+Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejestracja przez okno nie wymagają dodatkowej permisji.
+
+| Uprawnienie | Dostęp | Domyślnie |
+| --- | --- | --- |
+| `authgatewayx.command.changepassword` | Zmiana własnego hasła | Wszyscy gracze |
+| `authgatewayx.command.privacy` | Wyświetlanie polityki i zarządzanie akceptacją | Wszyscy gracze |
+| `authgatewayx.command.logout` | Wylogowanie | Wszyscy gracze |
+| `authgatewayx.admin.info` | Podstawowy raport `/authgatewayx info <nick>` | Operatorzy serwera |
+| `authgatewayx.admin.alerts` | Odbiór automatycznych alertów po zalogowaniu | Operatorzy serwera |
+| `authgatewayx.admin.view-ip` | Pokazywanie źródłowego adresu IP w alertach administracyjnych | Operatorzy serwera |
+| `authgatewayx.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
+| `authgatewayx.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
+| `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
+| `authgatewayx.admin.password` | Ustawianie hasła cudzego konta offline | Operatorzy serwera |
+| `authgatewayx.admin.reload` | Przeładowanie ustawień obsługiwanych w runtime przez `/agx reload` | Operatorzy serwera |
+| `authgatewayx.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
+| `authgatewayx.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
+| `authgatewayx.admin.migration.recover` | Tworzenie recovery dla kont zmigrowanych przez starsze wersje AGX | Operatorzy serwera |
+
+Uprawnienia możesz przypisać w używanym na serwerze pluginie do zarządzania rangami. Zachowaj dokładną pisownię z tabeli.
+
+## Jak rozdzielić dostęp?
+
+Graczom wystarczą domyślne uprawnienia komend gracza. Dostęp do `authgatewayx.admin.password` daj tylko osobom, którym powierzasz odzyskiwanie kont. Nie musi go mieć każdy moderator czatu. Jeśli moderator ma otrzymywać alerty, ale nie powinien widzieć danych sieciowych, nadaj mu samo `authgatewayx.admin.alerts`. `authgatewayx.admin.info` otwiera raport podstawowy, natomiast `view-ip`, `view-geo`, `view-security` i `alts` niezależnie dodają sekcje wrażliwe. Konsola serwera otrzymuje pełny wariant diagnostyczny.
+
+Samo nadanie uprawnienia nie omija logowania i nie zamienia konta premium w offline. Zmiana hasła oraz wylogowanie dotyczą aktywnych kont offline. Administrator także musi najpierw się zalogować.
+
+Obecna wersja nie ma osobnej permisji do omijania logowania, limitów ani ochrony nicków premium.
+
+## VPN i multi-konta na proxy
+
+Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
+`ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
+`show-geo` pozwala przetwarzać i prezentować rozszerzone GeoIP/metadane sieciowe, ale gracz administracji zobaczy je wyłącznie z `authgatewayx.admin.view-geo`. Kontrole odrzucają połączenie przed serwerem gry.
+Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje zmiany IP.
+
+`alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
+proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
+Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
+`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
+Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
+
+Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
+[Konfiguracja Velocity](Velocity.md). Opcje alertów opisane
+powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
+
+
+## Uprawnienia migracji
+
+Rozdzielenie `view`, `execute` i `recover` jest celowe. Osoba mająca wyłącznie
+`authgatewayx.admin.migration.view` może diagnozować stan, ale nie uruchomi operacji
+zmieniającej dane. `recover` jest najbardziej wrażliwą operacją i warto pozostawić ją
+wyłącznie administratorom odpowiedzialnym za dane graczy.
+
+Konsola serwera może wykonywać wszystkie podkomendy migracji. Administrator w grze musi
+mieć aktywną, uwierzytelnioną sesję AuthGatewayX; sama permisja nie omija logowania.

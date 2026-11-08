@@ -1,0 +1,47 @@
+[versions]
+kotlin = "2.4.21"
+java = "25"
+syntaxcore = "1.4.1-R0.3-SNAPSHOT"
+messagehandler = "1.3.0-R0.3-SNAPSHOT"
+luckperms = "5.5"
+gson = "2.15.0"
+snakeyaml = "2.7"
+
+paper-api = "26.3.build.+"
+minecraft = "26.3"
+
+paperweight-userdev = "2.0.0-beta.24"
+shadow = "9.6.1"
+run-task = "3.1.0"
+hikari = "7.1.0"
+sqlite = "3.54.1.0"
+mysql = "26.10.0"
+mariadb = "4.0.0"
+postgresql = "42.7.14"
+argon2 = "2.12"
+jetbrains-annotations = "26.1.0"
+velocity-api = "4.3.1"
+
+[libraries]
+kotlin-stdlib = { module = "org.jetbrains.kotlin:kotlin-stdlib-jdk8", version.ref = "kotlin" }
+hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
+sqlite-jdbc = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+mysql-jdbc = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
+mariadb-jdbc = { module = "org.mariadb.jdbc:mariadb-java-client", version.ref = "mariadb" }
+postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
+argon2-jvm = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
+jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
+velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }
+syntaxcore = { module = "pl.syntaxdevteam:syntaxcore", version.ref = "syntaxcore" }
+messagehandler-paper = { module = "pl.syntaxdevteam:messageHandler-paper", version.ref = "messagehandler" }
+messagehandler-velocity = { module = "pl.syntaxdevteam:messageHandler-velocity", version.ref = "messagehandler" }
+luckperms-api = { module = "net.luckperms:api", version.ref = "luckperms" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
+
+[plugins]
+kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+paperweight-userdev = { id = "io.papermc.paperweight.userdev", version.ref = "paperweight-userdev" }
+shadow = { id = "com.gradleup.shadow", version.ref = "shadow" }
+run-paper = { id = "xyz.jpenilla.run-paper", version.ref = "run-task" }

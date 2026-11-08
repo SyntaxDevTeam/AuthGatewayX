@@ -1,0 +1,224 @@
+@file:Suppress("UnstableApiUsage")
+
+package pl.syntaxdevteam.authgatewayx.paper.command
+
+import com.mojang.brigadier.arguments.StringArgumentType
+import io.papermc.paper.command.brigadier.Commands
+import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
+import org.bukkit.command.CommandSender
+import org.bukkit.command.ConsoleCommandSender
+import org.bukkit.entity.Player
+import org.bukkit.plugin.java.JavaPlugin
+
+fun interface ConsentCommandGateway {
+    fun execute(player: Player, action: String?)
+}
+
+class MutableConsentCommandGateway : ConsentCommandGateway {
+    @Volatile var delegate: ConsentCommandGateway? = null
+    override fun execute(player: Player, action: String?) = delegate?.execute(player, action) ?: Unit
+}
+
+interface PasswordCommandGateway {
+    fun openOwnPasswordChange(player: Player)
+    fun openAdminPasswordChange(player: Player, username: String)
+}
+
+fun interface LogoutCommandGateway {
+    fun logout(player: Player)
+}
+
+fun interface ReloadCommandGateway {
+    fun reload(sender: CommandSender)
+}
+
+class MutableReloadCommandGateway : ReloadCommandGateway {
+    @Volatile var delegate: ReloadCommandGateway? = null
+    override fun reload(sender: CommandSender) = delegate?.reload(sender) ?: Unit
+}
+
+class MutableLogoutCommandGateway : LogoutCommandGateway {
+    @Volatile var delegate: LogoutCommandGateway? = null
+    override fun logout(player: Player) = delegate?.logout(player) ?: Unit
+}
+
+class MutablePasswordCommandGateway : PasswordCommandGateway {
+    @Volatile var delegate: PasswordCommandGateway? = null
+
+    override fun openOwnPasswordChange(player: Player) = delegate?.openOwnPasswordChange(player) ?: Unit
+    override fun openAdminPasswordChange(player: Player, username: String) = delegate?.openAdminPasswordChange(player, username) ?: Unit
+}
+
+class PasswordCommandRegistrar(
+    private val plugin: JavaPlugin,
+    private val gateway: PasswordCommandGateway,
+    private val logoutGateway: LogoutCommandGateway,
+    private val multiAccountGateway: MultiAccountCommandGateway,
+    private val accountInfoGateway: AccountInfoCommandGateway,
+    private val migrationGateway: MigrationAdminCommandGateway,
+    private val helpGateway: AdminHelpCommandGateway,
+    private val reloadGateway: ReloadCommandGateway,
+    private val consentGateway: ConsentCommandGateway,
+    private val canSuggestOnlinePlayers: (CommandSender) -> Boolean,
+) {
+    private fun onlinePlayerArgument() =
+        Commands.argument("username", StringArgumentType.word())
+            .suggests { context, builder ->
+                if (!canSuggestOnlinePlayers(context.source.sender)) {
+                    return@suggests builder.buildFuture()
+                }
+                matchingOnlinePlayerNames(
+                    plugin.server.onlinePlayers.map { it.name },
+                    builder.remaining,
+                ).forEach(builder::suggest)
+                builder.buildFuture()
+            }
+
+    fun register() {
+        plugin.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
+            event.registrar().register(
+                Commands.literal("privacy")
+                    .requires { it.sender.hasPermission("authgatewayx.command.privacy") }
+                    .executes { context ->
+                        (context.source.sender as? Player)?.let { consentGateway.execute(it, null) }
+                        1
+                    }
+                    .then(Commands.argument("action", StringArgumentType.word())
+                        .suggests { _, builder ->
+                            listOf("accept", "reject", "revoke", "status", "show")
+                                .filter { it.startsWith(builder.remaining, ignoreCase = true) }
+                                .forEach(builder::suggest)
+                            builder.buildFuture()
+                        }
+                        .executes { context ->
+                            (context.source.sender as? Player)?.let {
+                                consentGateway.execute(it, StringArgumentType.getString(context, "action"))
+                            }
+                            1
+                        })
+                    .build(),
+            )
+            event.registrar().register(
+                Commands.literal("logout")
+                    .requires { it.sender.hasPermission("authgatewayx.command.logout") }
+                    .executes { context ->
+                        (context.source.sender as? Player)?.let(logoutGateway::logout)
+                        1
+                    }.build(),
+            )
+            event.registrar().register(
+                Commands.literal("changepassword")
+                    .requires { it.sender.hasPermission("authgatewayx.command.changepassword") }
+                    .executes { context ->
+                        (context.source.sender as? Player)?.let(gateway::openOwnPasswordChange)
+                        1
+                    }.build(),
+            )
+            event.registrar().register(
+                Commands.literal("authgatewayx")
+                    .executes { context ->
+                        helpGateway.show(context.source.sender)
+                        1
+                    }
+                    .then(Commands.literal("help").executes { context ->
+                        helpGateway.show(context.source.sender)
+                        1
+                    })
+                    .then(Commands.literal("reload")
+                        .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(RELOAD_PERMISSION) }
+                        .executes { context ->
+                            reloadGateway.reload(context.source.sender)
+                            1
+                        })
+                    .then(Commands.literal("info")
+                        .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission("authgatewayx.admin.info") }
+                        .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                            accountInfoGateway.show(context.source.sender, StringArgumentType.getString(context, "username"))
+                            1
+                        }))
+                    .then(Commands.literal("alts")
+                        .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission("authgatewayx.admin.alts") }
+                        .then(onlinePlayerArgument().executes { context ->
+                            multiAccountGateway.show(context.source.sender, StringArgumentType.getString(context, "username"))
+                            1
+                        }))
+                    .then(Commands.literal("setpassword")
+                        .requires { it.sender.hasPermission("authgatewayx.admin.password") }
+                        .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                            (context.source.sender as? Player)?.let {
+                                gateway.openAdminPasswordChange(it, StringArgumentType.getString(context, "username"))
+                            }
+                            1
+                        }))
+                    .then(Commands.literal("migrate")
+                        .then(Commands.literal("status")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.VIEW_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                                migrationGateway.status(context.source.sender, StringArgumentType.getString(context, "username"))
+                                1
+                            }))
+                        .then(Commands.literal("inspect")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.VIEW_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word())
+                                .executes { context ->
+                                    migrationGateway.inspect(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        null,
+                                    )
+                                    1
+                                }
+                                .then(Commands.argument("source_uuid", StringArgumentType.word()).executes { context ->
+                                    migrationGateway.inspect(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        StringArgumentType.getString(context, "source_uuid"),
+                                    )
+                                    1
+                                })))
+                        .then(Commands.literal("retry")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.EXECUTE_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word()).executes { context ->
+                                migrationGateway.retry(context.source.sender, StringArgumentType.getString(context, "username"))
+                                1
+                            }))
+                        .then(Commands.literal("recover")
+                            .requires { it.sender is ConsoleCommandSender || it.sender.hasPermission(MigrationAdminCommandController.RECOVER_PERMISSION) }
+                            .then(Commands.argument("username", StringArgumentType.word())
+                                .executes { context ->
+                                    migrationGateway.recover(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        null,
+                                    )
+                                    1
+                                }
+                                .then(Commands.argument("source_uuid", StringArgumentType.word()).executes { context ->
+                                    migrationGateway.recover(
+                                        context.source.sender,
+                                        StringArgumentType.getString(context, "username"),
+                                        StringArgumentType.getString(context, "source_uuid"),
+                                    )
+                                    1
+                                }))))
+                    .build(),
+                "AuthGatewayX administration",
+                listOf("agx"),
+            )
+        }
+    }
+
+    companion object {
+        const val RELOAD_PERMISSION = "authgatewayx.admin.reload"
+    }
+}
+
+
+internal fun matchingOnlinePlayerNames(
+    onlinePlayerNames: Iterable<String>,
+    remaining: String,
+): List<String> = onlinePlayerNames
+    .asSequence()
+    .filter { it.startsWith(remaining, ignoreCase = true) }
+    .sortedWith(Comparator { left, right -> left.compareTo(right, ignoreCase = true) })
+    .toList()

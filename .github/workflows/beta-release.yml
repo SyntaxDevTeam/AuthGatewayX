@@ -1,0 +1,68 @@
+name: Package snapshot distributions
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Build ${{ matrix.id }}
+    runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: paper-26.1.2
+            platform: paper
+            bundle: '26.1.2.build.74-stable'
+            minecraft: '26.1.2'
+          - id: paper-26.2
+            platform: paper
+            bundle: '26.2.build.133-stable'
+            minecraft: '26.2'
+          - id: paper-26.3
+            platform: paper
+            bundle: '26.3.build.241-stable'
+            minecraft: '26.3'
+          - id: velocity-4
+            platform: velocity
+            bundle: ''
+            minecraft: ''
+
+    steps:
+      - name: Isolate Gradle user home
+        shell: bash
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/authgatewayx-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Assemble version-specific binary
+        env:
+          PLATFORM: ${{ matrix.platform }}
+          PAPER_BUNDLE: ${{ matrix.bundle }}
+          MC_VERSION: ${{ matrix.minecraft }}
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          mkdir -p dist
+          if [[ "$PLATFORM" == "paper" ]]; then
+            ./gradlew stagePaperCandidate \
+              -PpaperDevBundleVersion="$PAPER_BUNDLE" \
+              --console=plain --no-daemon
+            cp build/compatibility/paper/*.jar dist/
+          else
+            ./gradlew stageVelocityCandidate --console=plain --no-daemon
+            cp build/compatibility/velocity/*.jar dist/
+          fi
+          (cd dist && sha256sum ./*.jar > "sha256-${PLATFORM}-${MC_VERSION:-4}.txt")
+      - uses: actions/upload-artifact@v7
+        with:
+          name: snapshot-${{ matrix.id }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30

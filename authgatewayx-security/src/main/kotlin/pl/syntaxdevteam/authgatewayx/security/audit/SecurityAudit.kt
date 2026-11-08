@@ -1,0 +1,47 @@
+package pl.syntaxdevteam.authgatewayx.security.audit
+
+import java.net.InetAddress
+import java.time.Instant
+import java.util.UUID
+import java.util.concurrent.CompletionStage
+
+enum class SecurityEventType {
+    REGISTER,
+    LOGIN_SUCCESS,
+    LOGIN_FAILURE,
+    ACCOUNT_LOCK,
+    // Retained as part of the documented public contract.
+    @Suppress("unused")
+    ACCOUNT_UNLOCK,
+    PREMIUM_VERIFIED,
+    PREMIUM_AUTH_FAILURE,
+    OFFLINE_TO_PREMIUM_MIGRATION,
+    PREMIUM_MIGRATION_REQUIRED,
+    PREMIUM_MIGRATION_PREPARED,
+    PREMIUM_MIGRATION_FAILED,
+    PREMIUM_RECOVERY_PREPARED,
+    PREMIUM_RECOVERY_COMPLETED,
+    USERNAME_POLICY_DENY,
+    PUNISHMENT_DENY,
+    ANTI_BOT_DENY,
+    // Retained as part of the documented public contract.
+    @Suppress("unused")
+    ANTI_FLOOD_DENY,
+    SESSION_INVALIDATED,
+    PASSWORD_CHANGE,
+    ADMIN_PASSWORD_RESET,
+}
+
+data class SecurityEvent(
+    val timestamp: Instant,
+    val accountId: UUID?,
+    val minecraftUuid: UUID?,
+    val username: String,
+    val sourceAddress: InetAddress,
+    val type: SecurityEventType,
+    val reasonCode: String,
+)
+
+fun interface SecurityAuditSink {
+    fun record(event: SecurityEvent): CompletionStage<Void>
+}
