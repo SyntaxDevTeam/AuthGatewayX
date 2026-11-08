@@ -70,6 +70,7 @@ class JdbcAccountStorage(
     private val databaseType: JdbcDatabaseType = JdbcDatabaseType.fromJdbcUrl(jdbcUrl),
     username: String? = null,
     password: String? = null,
+    private val auditObserver: (SecurityEvent) -> Unit = {},
 ) : pl.syntaxdevteam.authgatewayx.storage.ConnectionTimeoutStorage, AccountStorage, ConsentStorage, SecurityAuditSink, ConnectionAccountLookup, AccountInspectionLookup {
     private val dataSource = HikariDataSource(HikariConfig().apply {
         this.jdbcUrl = jdbcUrl
@@ -775,6 +776,10 @@ class JdbcAccountStorage(
         }
     }
 
+    override fun findByMinecraftUuid(minecraftUuid: UUID): CompletionStage<AuthAccount?> = executor.submit {
+        dataSource.connection.use { connection -> findAccount(connection, "minecraft_uuid", minecraftUuid.toString()) }
+    }
+
     override fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?> = executor.submit {
         dataSource.connection.use { connection ->
             connection.prepareStatement("SELECT * FROM accounts WHERE canonical_username = ?").use { statement ->
@@ -978,7 +983,12 @@ class JdbcAccountStorage(
 
     override fun close() = dataSource.close()
 
-    override fun record(event: SecurityEvent): CompletionStage<Void> = executor.submit {
+    override fun record(event: SecurityEvent): CompletionStage<Void> {
+        runCatching { auditObserver(event) }
+        return persistSecurityEvent(event)
+    }
+
+    private fun persistSecurityEvent(event: SecurityEvent): CompletionStage<Void> = executor.submit {
         dataSource.connection.use { connection ->
             connection.prepareStatement("""INSERT INTO security_events
                 (occurred_at, account_id, minecraft_uuid, username, source_ip, event_type, reason_code)

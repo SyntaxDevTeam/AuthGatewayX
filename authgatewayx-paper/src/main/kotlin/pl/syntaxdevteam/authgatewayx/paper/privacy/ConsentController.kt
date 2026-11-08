@@ -51,6 +51,7 @@ class ConsentController(
     private val policyUrl: String,
     private val timeoutTicks: Long,
     private val text: ConsentText,
+    private val onAllowed: (UUID) -> Unit = {},
 ) : Listener {
     private val writing = ConcurrentHashMap<UUID, Any>()
 
@@ -75,12 +76,14 @@ class ConsentController(
 
     /** Invoked after BOTH offline or verified premium authentication paths succeed. */
     fun authenticated(id: UUID) {
+        val generation = sessions.getActive(id)?.sessionNonce ?: return
         scheduler.global(Runnable {
             val player = plugin.server.getPlayer(id) ?: return@Runnable
             scheduler.entity(player, Runnable {
-                if (!player.isOnline) return@Runnable
+                if (!player.isOnline || sessions.getActive(id)?.sessionNonce != generation) return@Runnable
                 if (!enabled) {
                     isolation.release(player)
+                    runCatching { onAllowed(id) }
                     return@Runnable
                 }
                 val token = gate.token(id) ?: return@Runnable
@@ -190,7 +193,10 @@ class ConsentController(
     }
 
     private fun allow(player: Player, token: Any) {
-        if (gate.release(player.uniqueId, token)) isolation.release(player)
+        if (gate.release(player.uniqueId, token)) {
+            isolation.release(player)
+            runCatching { onAllowed(player.uniqueId) }
+        }
     }
 
     private fun showPending(player: Player) {

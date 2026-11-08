@@ -9,7 +9,7 @@ plugins {
 }
 
 group = "pl.syntaxdevteam"
-version = "1.0.0-R0.1-SNAPSHOT"
+version = "1.0.0"
 description = "Uwierzytelnianie premium i offline dla Paper/Folia oraz Velocity."
 
 val targetJavaVersion = libs.versions.java.get().toInt()
@@ -35,6 +35,41 @@ subprojects {
         dependencies.add("compileOnly", rootProject.libs.jetbrains.annotations)
         dependencies.add("testCompileOnly", rootProject.libs.jetbrains.annotations)
         extensions.configure<KotlinJvmProjectExtension> { jvmToolchain(targetJavaVersion) }
+    }
+    if (name in setOf("authgatewayx-api", "authgatewayx-domain")) {
+        apply(plugin = "maven-publish")
+        plugins.withId("org.jetbrains.kotlin.jvm") {
+            extensions.configure<JavaPluginExtension> { withSourcesJar(); withJavadocJar() }
+            extensions.configure<PublishingExtension> {
+                publications.create<MavenPublication>("api") {
+                    from(components["java"])
+                    pom {
+                        name.set(project.name)
+                        description.set("Platform-independent AuthGatewayX integration contracts")
+                        url.set("https://github.com/SyntaxDevTeam/AuthGatewayX")
+                    }
+                }
+                repositories.maven {
+                    name = "Nexus"
+                    url = uri("https://nexus.syntaxdevteam.pl/repository/" +
+                        if (version.toString().endsWith("-SNAPSHOT")) "maven-snapshots/" else "maven-releases/")
+                    credentials {
+                        username = providers.gradleProperty("nexusUser").orNull?.takeIf { it.isNotBlank() }
+                            ?: providers.environmentVariable("NEXUS_USER").orNull.orEmpty()
+                        password = providers.gradleProperty("nexusPassword").orNull?.takeIf { it.isNotBlank() }
+                            ?: providers.environmentVariable("NEXUS_PASSWORD").orNull.orEmpty()
+                    }
+                }
+            }
+            tasks.withType<org.gradle.api.publish.maven.tasks.PublishToMavenRepository>().configureEach {
+                dependsOn(":authgatewayx-api:check", ":authgatewayx-domain:check")
+                doFirst {
+                    check(!repository.credentials.username.isNullOrBlank() && !repository.credentials.password.isNullOrBlank()) {
+                        "Nexus requires nexusUser/nexusPassword or NEXUS_USER/NEXUS_PASSWORD"
+                    }
+                }
+            }
+        }
     }
     tasks.withType<JavaCompile>().configureEach { options.encoding = "UTF-8" }
     tasks.withType<ProcessResources>().configureEach { filteringCharset = "UTF-8" }
@@ -126,4 +161,10 @@ tasks {
             }
         }
     }
+}
+ tasks.register("publishApiToNexus") {
+    group = "publishing"
+    description = "Verifies and publishes the API and its domain dependency to Nexus."
+    dependsOn(":authgatewayx-api:publishApiPublicationToNexusRepository",
+        ":authgatewayx-domain:publishApiPublicationToNexusRepository")
 }

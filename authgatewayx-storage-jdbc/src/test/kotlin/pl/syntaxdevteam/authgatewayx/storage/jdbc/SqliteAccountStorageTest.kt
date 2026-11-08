@@ -33,6 +33,14 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class SqliteAccountStorageTest {
+    @Test fun uuidLookupReturnsOnlyTheMatchingAccount() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val registration = registration("ApiLookup")
+        val result = assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
+        assertEquals(result.account, storage.findByMinecraftUuid(registration.minecraftUuid).toCompletableFuture().get())
+        assertNull(storage.findByMinecraftUuid(UUID.randomUUID()).toCompletableFuture().get())
+    }
+
     @Test
     fun consentPersistsByAccountIdAndPolicyVersion() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()

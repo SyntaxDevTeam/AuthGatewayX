@@ -20,7 +20,7 @@ class LogoutService(
         if (session.identityType != IdentityType.OFFLINE || accountId == null) {
             return LogoutResult.NOT_OFFLINE_ACCOUNT
         }
-        sessions.disconnect(connectionId) ?: return LogoutResult.NOT_ACTIVE
+        sessions.disconnect(connectionId, session.sessionNonce) ?: return LogoutResult.NOT_ACTIVE
         runCatching {
             auditSink.record(SecurityEvent(
                 clock.instant(), accountId.value, session.minecraftUuid, session.username.value,

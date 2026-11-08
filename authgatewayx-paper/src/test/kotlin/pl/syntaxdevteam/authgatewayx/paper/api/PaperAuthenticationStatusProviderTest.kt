@@ -3,6 +3,8 @@ package pl.syntaxdevteam.authgatewayx.paper.api
 import kotlin.test.Test
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountId
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
 import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
@@ -36,12 +38,20 @@ class PaperAuthenticationStatusProviderTest {
             AuthenticationMethod.PASSWORD, now, now.plusSeconds(60),
         )
         assertTrue(provider.isAuthenticated(uuid))
+        val snapshot = checkNotNull(provider.getAuthentication(uuid))
+        assertEquals(uuid, snapshot.minecraftUuid)
+        assertEquals(IdentityType.OFFLINE, snapshot.identityType)
+        assertEquals(AuthenticationMethod.PASSWORD, snapshot.method)
+        assertEquals(now, snapshot.authenticatedAt)
+        assertEquals(now.plusSeconds(60), snapshot.expiresAt)
+        assertNull(provider.getAuthentication(UUID.randomUUID()))
         assertFalse(provider.isAuthenticated(UUID.randomUUID()))
         ready = false
         assertFalse(provider.isAuthenticated(uuid))
         ready = true
         now = now.plusSeconds(60)
         assertFalse(provider.isAuthenticated(uuid))
+        assertNull(provider.getAuthentication(uuid))
         now = now.minusSeconds(60)
         session = checkNotNull(session).disconnect()
         assertFalse(provider.isAuthenticated(uuid))

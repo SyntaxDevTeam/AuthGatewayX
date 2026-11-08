@@ -72,7 +72,7 @@ class PluginInitializer(
             )
             executor = work
             pending = connections
-            val sessionState = VelocitySessionRegistry(configuration.maximumPending)
+            val sessionState = VelocitySessionRegistry(configuration.maximumPending, observe = plugin::observe)
             sessions = sessionState
             plugin.attachSessions(sessionState)
             floodGate = flood
@@ -163,6 +163,7 @@ class PluginInitializer(
     }
 
     private fun closeResources() {
+        plugin.detachSessions()
         clientChannel?.close()
         staffProof?.close()
         admin?.clear()

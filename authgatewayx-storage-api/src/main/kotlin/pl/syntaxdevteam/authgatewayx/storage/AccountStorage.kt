@@ -149,6 +149,9 @@ interface AccountStorage : AutoCloseable {
 
     fun failPremiumMigration(migrationId: UUID, failedAt: Instant, reason: String): CompletionStage<Unit> =
         CompletableFuture.completedFuture(Unit)
+    fun findByMinecraftUuid(minecraftUuid: UUID): CompletionStage<AuthAccount?> =
+        CompletableFuture.failedFuture(UnsupportedOperationException("UUID lookup unavailable"))
+
     fun findByUsername(username: AccountUsername): CompletionStage<AuthAccount?>
     fun findPasswordHash(accountId: AccountId): CompletionStage<String?>
     fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?>

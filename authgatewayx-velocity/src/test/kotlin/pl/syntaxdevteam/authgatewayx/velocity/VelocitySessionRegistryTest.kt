@@ -5,6 +5,28 @@ import java.util.UUID
 import kotlin.test.*
 
 class VelocitySessionRegistryTest {
+    @Test fun `proxy notifications distinguish admission from backend authentication and ignore stale disconnect`() {
+        val events = mutableListOf<pl.syntaxdevteam.authgatewayx.api.AuthEventType>()
+        val registry = VelocitySessionRegistry(2, observe = { type, _ -> events.add(type) })
+        val player = UUID.randomUUID()
+        val old = UUID.randomUUID()
+        val latest = UUID.randomUUID()
+        assertTrue(registry.record(old, player, "ApiUser", SelectedAuthenticationMode.MOJANG))
+        registry.backend(old, player, "lobby")
+        assertTrue(registry.record(latest, player, "ApiUser", SelectedAuthenticationMode.OFFLINE))
+        registry.discard(old)
+        assertEquals(latest, registry.findPlayer(player)?.sessionId)
+        registry.discard(latest)
+        assertNull(registry.findPlayer(player))
+        assertEquals(listOf(
+            pl.syntaxdevteam.authgatewayx.api.AuthEventType.PROXY_SESSION_STARTED,
+            pl.syntaxdevteam.authgatewayx.api.AuthEventType.PROXY_BACKEND_CHANGED,
+            pl.syntaxdevteam.authgatewayx.api.AuthEventType.PROXY_SESSION_ENDED,
+            pl.syntaxdevteam.authgatewayx.api.AuthEventType.PROXY_SESSION_STARTED,
+            pl.syntaxdevteam.authgatewayx.api.AuthEventType.PROXY_SESSION_ENDED,
+        ), events)
+    }
+
     @Test fun `backend switches preserve identity and do not imply Paper authentication`() {
         val registry = VelocitySessionRegistry(2) { Instant.EPOCH }
         val session = UUID.randomUUID()

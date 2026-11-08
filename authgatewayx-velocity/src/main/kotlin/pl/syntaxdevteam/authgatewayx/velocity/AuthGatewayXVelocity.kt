@@ -11,6 +11,8 @@ import org.slf4j.Logger
 import pl.syntaxdevteam.authgatewayx.velocity.loader.PluginInitializer
 import pl.syntaxdevteam.message.MessageHandler
 import java.nio.file.Path
+import pl.syntaxdevteam.authgatewayx.api.*
+import pl.syntaxdevteam.authgatewayx.integrations.api.BoundedAuthEventBus
 
 class AuthGatewayXVelocity @Inject constructor(
     proxy: ProxyServer,
@@ -26,7 +28,20 @@ class AuthGatewayXVelocity @Inject constructor(
     fun session(player: Player): ProxySessionSnapshot? = sessionRegistry?.find(VelocitySessionIds.id(player), player.uniqueId)
 
     internal fun attachSessions(registry: VelocitySessionRegistry) { sessionRegistry = registry }
-    internal fun detachSessions() { sessionRegistry = null }
+    internal fun detachSessions() { sessionRegistry = null; apiEvents.close() }
+
+    private val apiEvents = BoundedAuthEventBus()
+    val api: ProxyGatewayApi = object : ProxyGatewayApi {
+        override fun getProxySession(minecraftUuid: java.util.UUID): ProxyAdmissionSnapshot? =
+            sessionRegistry?.findPlayer(minecraftUuid)?.let {
+                ProxyAdmissionSnapshot(it.sessionId, it.playerId, it.username,
+                    it.mode == SelectedAuthenticationMode.MOJANG, it.connectedAt, it.backend)
+            }
+        override fun events(): AuthEventSource = apiEvents
+    }
+    internal fun observe(type: AuthEventType, session: ProxySessionSnapshot) {
+        apiEvents.publish(AuthEvent(type, java.time.Instant.now(), session.playerId, session.username, session.sessionId, null))
+    }
 
     private val initializer = PluginInitializer(this, proxy, logger, dataDirectory)
 

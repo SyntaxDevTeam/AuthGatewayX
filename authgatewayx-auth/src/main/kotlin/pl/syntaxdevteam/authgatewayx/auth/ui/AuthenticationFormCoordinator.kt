@@ -53,6 +53,7 @@ class AuthenticationFormCoordinator(
     private val clock: Clock = Clock.systemUTC(),
     private val activationListener: AuthenticationActivationListener = AuthenticationActivationListener {},
     private val activationGuard: AccountActivationGuard = AccountActivationGuard.ALLOW,
+    private val completionObserver: (AuthenticationFormContext, AuthenticationFormResult?) -> Unit = { _, _ -> },
 ) : AuthenticationFormHandler {
     override fun submitLogin(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
         loginService.login(context.username, context.sourceAddress, password).thenCompose { result ->
@@ -65,7 +66,7 @@ class AuthenticationFormCoordinator(
                 LoginResult.AccountLocked -> completed(AuthenticationFormResult.ACCOUNT_LOCKED)
                 LoginResult.RateLimited -> completed(AuthenticationFormResult.RATE_LIMITED)
             }
-        }
+        }.whenComplete { result, _ -> runCatching { completionObserver(context, result) } }
 
     override fun submitRegistration(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
         registrationService.register(context.username, context.sourceAddress, password).thenCompose { result ->
@@ -78,7 +79,7 @@ class AuthenticationFormCoordinator(
                 RegistrationOutcome.IdentityConflict -> completed(AuthenticationFormResult.IDENTITY_CONFLICT)
                 RegistrationOutcome.RateLimited -> completed(AuthenticationFormResult.RATE_LIMITED)
             }
-        }
+        }.whenComplete { result, _ -> runCatching { completionObserver(context, result) } }
 
     private fun activate(context: AuthenticationFormContext, account: AuthAccount): CompletionStage<AuthenticationFormResult> =
         activationGuard.allows(account, context.sourceAddress).thenApply { allowed ->

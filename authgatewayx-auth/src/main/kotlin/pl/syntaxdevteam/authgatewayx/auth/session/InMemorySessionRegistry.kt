@@ -10,7 +10,10 @@ import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 
-class InMemorySessionRegistry : SessionRegistry {
+class InMemorySessionRegistry(
+    private val observe: (AuthSession) -> Unit = {},
+) : SessionRegistry {
+    private fun observed(session: AuthSession) { runCatching { observe(session) } }
     private val sessions = ConcurrentHashMap<ConnectionId, AtomicReference<AuthSession>>()
     private val activeAccounts = ConcurrentHashMap<AccountId, ConnectionId>()
     private val activeMinecraftIds = ConcurrentHashMap<UUID, ConnectionId>()
@@ -77,6 +80,7 @@ class InMemorySessionRegistry : SessionRegistry {
             current.accountId?.let { activeAccounts.remove(it, connectionId) }
             current.minecraftUuid?.let { activeMinecraftIds.remove(it, connectionId) }
             sessions.remove(connectionId, ref)
+            observed(disconnected)
             return disconnected
         }
     }
@@ -96,6 +100,7 @@ class InMemorySessionRegistry : SessionRegistry {
             val current = ref.get()
             val updated = transition(current)
             ref.set(updated)
+            observed(updated)
             return updated
         }
     }

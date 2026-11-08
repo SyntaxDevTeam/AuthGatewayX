@@ -1,5 +1,6 @@
 package pl.syntaxdevteam.authgatewayx.paper.loader
 
+import pl.syntaxdevteam.authgatewayx.integrations.api.BoundedAuthEventBus
 import pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.PaperConnectionMaintenanceGate
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.closeTransport
@@ -13,6 +14,11 @@ import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.TextReplacementConfig
 import pl.syntaxdevteam.authgatewayx.paper.client.PaperClientAuthenticationChannel
 import org.bukkit.plugin.ServicePriority
+import pl.syntaxdevteam.authgatewayx.api.AuthGatewayApi
+import pl.syntaxdevteam.authgatewayx.api.AuthEvent
+import pl.syntaxdevteam.authgatewayx.api.AuthEventType
+import pl.syntaxdevteam.authgatewayx.auth.api.*
+import pl.syntaxdevteam.authgatewayx.api.AuthenticationSnapshotProvider
 import pl.syntaxdevteam.authgatewayx.api.AuthenticationStatusProvider
 import pl.syntaxdevteam.authgatewayx.paper.api.PaperAuthenticationStatusProvider
 import org.bukkit.command.ConsoleCommandSender
@@ -277,7 +283,15 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             ),
             description.version,
         )
-        val sessions = InMemorySessionRegistry()
+        val apiEvents = BoundedAuthEventBus()
+        val sessions = InMemorySessionRegistry(apiEvents::observeSession)
+        cheapGuard.observeDenial = { username, decision ->
+            apiEvents.publish(AuthEvent(
+                if (decision == pl.syntaxdevteam.authgatewayx.paper.security.PaperLoginGuardDecision.DENY_FLOOD)
+                    AuthEventType.FLOOD_CONNECTION_DENIED else AuthEventType.BOT_CONNECTION_DENIED,
+                java.time.Instant.now(), null, username.take(16), null, null,
+            ))
+        }
         val storageExecutor = BoundedTaskExecutor(positive("executors.storage-threads"), positive("executors.storage-queue"), "authgatewayx-storage")
         val passwordExecutor = BoundedTaskExecutor(positive("executors.password-threads"), positive("executors.password-queue"), "authgatewayx-password")
         val mojangExecutor = BoundedTaskExecutor(positive("executors.mojang-threads"), positive("executors.mojang-queue"), "authgatewayx-mojang")
@@ -289,6 +303,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             sessions, storageExecutor, passwordExecutor, mojangExecutor, migrationExecutor,
             floodGate, usernameBurstGate, behaviorGate,
         )
+        components.apiEvents = apiEvents
         runtime = components
         val hasher = Argon2PasswordHasher(Argon2Parameters(
             positive("authentication.password.argon2.iterations"), positive("authentication.password.argon2.memory-kib"),
@@ -311,6 +326,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 jdbcUrl, positive("storage.pool-size"), storageExecutor, databaseType,
                 config.getString("storage.remote.username"),
                 System.getenv("AUTHGATEWAYX_DB_PASSWORD") ?: config.getString("storage.remote.password"),
+                auditObserver = apiEvents::observeSecurity,
             ).also { components.attachStorage(it) }
         }.thenCompose { storage ->
             storage.migrate().thenCompose {
@@ -386,6 +402,36 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             plugin,
             ServicePriority.Normal,
         )
+        server.servicesManager.register(
+            AuthenticationSnapshotProvider::class.java, authenticationStatus, plugin, ServicePriority.Normal,
+        )
+        val eventBus = requireNotNull(runtime?.apiEvents)
+        val api = RuntimeAuthGatewayApi(
+            readiness::acceptsAuthentication,
+            { id -> if (consentGate.isPending(id)) null else sessions.getActive(id) },
+            storage::findByMinecraftUuid, storage::findByUsername,
+            revoke = { captured ->
+                val result = CompletableFuture<Boolean>().orTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                scheduler.global {
+                    val player = server.getPlayer(captured.connectionId.value)
+                    if (player == null) result.complete(false)
+                    else scheduler.entity(player) {
+                        if (result.isDone) return@entity
+                        if (!readiness.acceptsAuthentication() || !player.isOnline ||
+                            sessions.get(captured.connectionId)?.sessionNonce != captured.sessionNonce) {
+                            result.complete(false)
+                        } else {
+                            val revoked = sessions.disconnect(captured.connectionId, captured.sessionNonce) != null
+                            if (revoked) player.kick(messages.stringMessageToComponentNoPrefix("auth", "logout_success"))
+                            result.complete(revoked)
+                        }
+                    }
+                }
+                result
+            }, bus = eventBus,
+        )
+        runtime?.publicApi = api
+        server.servicesManager.register(AuthGatewayApi::class.java, api, plugin, ServicePriority.Normal)
         val clientChannel = PaperClientAuthenticationChannel(plugin, authenticationStatus)
         runtime?.clientChannel = clientChannel
         clientChannel.register()
@@ -423,6 +469,12 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             policyVersion = config.getString("privacy.policy-version", "1")!!,
             policyUrl = config.getString("privacy.policy-url", "")!!,
             timeoutTicks = positiveLong("privacy.timeout-seconds") * 20L,
+            onAllowed = { id ->
+                sessions.getActive(id)?.takeIf { authenticationStatus.isAuthenticated(id) }?.let { session ->
+                    eventBus.publish(AuthEvent(AuthEventType.AUTHENTICATION_SUCCESS, java.time.Instant.now(),
+                        id, session.username.value, session.sessionNonce, session.snapshot()))
+                }
+            },
             text = ConsentText(
                 title = messages.stringMessageToComponentNoPrefix("privacy", "title"),
                 summary = messages.stringMessageToComponentNoPrefix("privacy", "summary"),
@@ -651,7 +703,15 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 decision == pl.syntaxdevteam.authgatewayx.integrations.LoginAdmissionDecision.Allow
             }
         }
-        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationGuard = activationGuard, activationListener = { context ->
+        val coordinator = AuthenticationFormCoordinator(login, registration, sessions, activationGuard = activationGuard,
+            completionObserver = { context, result ->
+                if (result != AuthenticationFormResult.AUTHENTICATED) eventBus.publish(AuthEvent(
+                    AuthEventType.AUTHENTICATION_FAILED, java.time.Instant.now(), context.minecraftUuid,
+                    context.username.value, context.sessionNonce, null,
+                    if (result == null) pl.syntaxdevteam.authgatewayx.api.AuthFailureReason.INTERNAL_ERROR
+                    else pl.syntaxdevteam.authgatewayx.api.AuthFailureReason.valueOf(result.name),
+                ))
+            }, activationListener = { context ->
             admission.release(context.connectionId.value)
             consent.authenticated(context.connectionId.value)
             sendAuthenticationSuccess(context.connectionId.value, offlineAuthenticationSuccess)
@@ -1194,6 +1254,8 @@ private class RuntimeComponents(
 ) : AutoCloseable {
     private val timeoutPersistence = RetiringResource<pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts>()
     fun attachTimeoutPersistence(value: pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts) = timeoutPersistence.attach(value)
+    @Volatile var apiEvents: BoundedAuthEventBus? = null
+    @Volatile var publicApi: RuntimeAuthGatewayApi? = null
     @Volatile var consentGate: ConsentGate? = null
     @Volatile var clientChannel: PaperClientAuthenticationChannel? = null
     @Volatile var staffProof: PaperStaffProof? = null
@@ -1204,6 +1266,8 @@ private class RuntimeComponents(
     private var migrationsDrained: CompletableFuture<Void>? = null
 
     fun markClosing() {
+        publicApi?.close()
+        apiEvents?.close()
         preJoinListener?.shutdown()
         storage.stopAccepting()
         timeoutPersistence.stopAccepting()
@@ -1223,6 +1287,8 @@ private class RuntimeComponents(
                 if (failure == null) failure = problem else failure.addSuppressed(problem)
             }
         }
+        attempt { publicApi?.close() }
+        attempt { apiEvents?.close() }
         attempt { clientChannel?.close() }
         attempt { staffProof?.close() }
         attempt { riskAlerts?.close() }

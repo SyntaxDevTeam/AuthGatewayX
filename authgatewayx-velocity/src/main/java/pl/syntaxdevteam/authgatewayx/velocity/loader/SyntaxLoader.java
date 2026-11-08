@@ -60,6 +60,14 @@ public final class SyntaxLoader {
         initialized = true;
     }
 
+    /** Returns the platform-independent ProxyGatewayApi after runtime initialization, otherwise null.
+     * Object keeps the bootstrap entry point independent of Kotlin before runtime libraries load.
+     */
+    public Object getApi() throws ReflectiveOperationException {
+        Object current = runtime;
+        return initialized && current != null ? current.getClass().getMethod("getApi").invoke(current) : null;
+    }
+
     @Subscribe
     public void shutdown(ProxyShutdownEvent event) throws Exception {
         initialized = false;

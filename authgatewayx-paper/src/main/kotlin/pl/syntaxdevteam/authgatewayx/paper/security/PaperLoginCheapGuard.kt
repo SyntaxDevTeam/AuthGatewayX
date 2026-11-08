@@ -44,6 +44,11 @@ class PaperLoginCheapGuard(
     @Volatile var durableTimeouts: pl.syntaxdevteam.authgatewayx.security.login.DurableConnectionTimeouts? = null
     @Volatile var timeoutMessage: ((Int) -> net.kyori.adventure.text.Component)? = null
 
+    @Volatile var observeDenial: ((String, PaperLoginGuardDecision) -> Unit)? = null
+    private fun observed(rawUsername: String, result: PaperLoginGuardResult): PaperLoginGuardResult {
+        if (result.decision != PaperLoginGuardDecision.ALLOW) runCatching { observeDenial?.invoke(rawUsername, result.decision) }
+        return result
+    }
     private val standaloneProtocolOwner = AtomicBoolean(false)
 
     fun activateStandaloneProtocolOwnership() {
@@ -55,9 +60,12 @@ class PaperLoginCheapGuard(
     }
 
     fun evaluateProtocol(address: InetAddress, rawUsername: String): PaperLoginGuardResult =
-        evaluateStateful(address, rawUsername)
+        observed(rawUsername, evaluateStateful(address, rawUsername))
 
-    fun evaluatePreLogin(address: InetAddress, rawUsername: String): PaperLoginGuardResult {
+    fun evaluatePreLogin(address: InetAddress, rawUsername: String): PaperLoginGuardResult =
+        observed(rawUsername, evaluatePreLoginInternal(address, rawUsername))
+
+    private fun evaluatePreLoginInternal(address: InetAddress, rawUsername: String): PaperLoginGuardResult {
         if (timeoutGate?.admit(address) == false) {
             return PaperLoginGuardResult(PaperLoginGuardDecision.DENY_SUSPICIOUS)
         }
