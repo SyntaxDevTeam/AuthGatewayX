@@ -185,6 +185,7 @@ jobs:
             properties_task: :authgatewayx-paper:properties
             jar_dir: authgatewayx-paper/build/libs
             artifact_prefix: AuthGatewayX-
+            version_source: authgatewayx-paper/src/main/kotlin/pl/syntaxdevteam/authgatewayx/paper/compatibility/VersionChecker.kt
             compatible_platforms: paper,purpur,folia
           - name: Velocity
             platform: velocity
@@ -193,6 +194,7 @@ jobs:
             properties_task: :authgatewayx-velocity:properties
             jar_dir: authgatewayx-velocity/build/libs
             artifact_prefix: authgatewayx-velocity-
+            version_source: ""
             compatible_platforms: velocity
     env:
       BUILD_PLATFORM: ${{ matrix.platform }}
@@ -201,6 +203,7 @@ jobs:
       BUILD_GRADLE_PROPERTIES_TASK: ${{ matrix.properties_task }}
       BUILD_JAR_DIR: ${{ matrix.jar_dir }}
       BUILD_ARTIFACT_PREFIX: ${{ matrix.artifact_prefix }}
+      BUILD_VERSION_SOURCE: ${{ matrix.version_source }}
       BUILD_COMPATIBLE_PLATFORMS: ${{ matrix.compatible_platforms }}
 
     steps:
@@ -305,6 +308,8 @@ jobs:
             exit 1
           fi
 
+          BUILD_GAME_VERSIONS="$(python3 tools/build_game_versions.py "${BUILD_VERSION_SOURCE}")"
+          export BUILD_GAME_VERSIONS
           export BUILD_VERSION="${version}"
           export BUILD_FILENAME="${filename}"
           export BUILD_SHA256="${sha256}"
@@ -346,6 +351,7 @@ jobs:
               "platform": os.environ["BUILD_PLATFORM"],
               "platform_family": os.environ["BUILD_PLATFORM_FAMILY"],
               "compatible_platforms": compatible_platforms,
+              "game_versions": json.loads(os.environ["BUILD_GAME_VERSIONS"]),
               "version": os.environ["BUILD_VERSION"],
               "build_number": os.environ["GITHUB_RUN_NUMBER_VALUE"],
               "filename": os.environ["BUILD_FILENAME"],
