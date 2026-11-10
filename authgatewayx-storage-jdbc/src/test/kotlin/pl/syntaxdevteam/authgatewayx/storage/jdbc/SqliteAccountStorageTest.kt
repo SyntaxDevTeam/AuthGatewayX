@@ -370,6 +370,47 @@ class SqliteAccountStorageTest {
         )
     }
 
+    @Test
+    fun verifiedAccountRegistersServerPasswordWithoutChangingOfficialUuid() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val identity = verifiedIdentity("VerifiedUser", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+        val bound = assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+        assertEquals(identity.minecraftUuid, bound.account.minecraftUuid)
+        assertNull(storage.findCredentials(identity.username).toCompletableFuture().get())
+
+        val registered = assertIs<RegistrationResult.Created>(
+            storage.registerVerifiedPassword(
+                identity.username, identity.minecraftUuid, "server-hash",
+                identity.sourceAddress, identity.verifiedAt.plusSeconds(1),
+            ).toCompletableFuture().get(),
+        )
+        assertEquals(IdentityType.MOJANG, registered.account.identityType)
+        assertEquals(identity.minecraftUuid, registered.account.minecraftUuid)
+        assertEquals("server-hash", storage.findCredentials(identity.username).toCompletableFuture().get()?.passwordHash)
+        assertIs<RegistrationResult.UsernameAlreadyExists>(
+            storage.registerVerifiedPassword(
+                identity.username, identity.minecraftUuid, "other-hash",
+                identity.sourceAddress, identity.verifiedAt.plusSeconds(2),
+            ).toCompletableFuture().get(),
+        )
+        assertIs<RegistrationResult.MinecraftUuidAlreadyExists>(
+            storage.registerVerifiedPassword(
+                identity.username, UUID.randomUUID(), "other-hash",
+                identity.sourceAddress, identity.verifiedAt.plusSeconds(3),
+            ).toCompletableFuture().get(),
+        )
+        assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+        assertEquals("server-hash", storage.findCredentials(identity.username).toCompletableFuture().get()?.passwordHash)
+        storage.recordLoginSuccess(registered.account.id, identity.sourceAddress, identity.verifiedAt.plusSeconds(4))
+            .toCompletableFuture().get()
+        assertTrue(storage.replacePasswordHash(registered.account.id, "server-hash", "new-hash").toCompletableFuture().get())
+        assertEquals("new-hash", storage.findCredentials(identity.username).toCompletableFuture().get()?.passwordHash)
+    }
+
     private fun registration(usernameValue: String, maximumAccountsPerAddress: Int = 3): OfflineRegistration {
         val username = AccountUsername.parse(usernameValue)
         return OfflineRegistration(
