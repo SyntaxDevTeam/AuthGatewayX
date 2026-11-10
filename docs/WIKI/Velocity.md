@@ -57,8 +57,8 @@ W folderze danych AuthGatewayX na proxy znajduje się `authgatewayx.yml`. To oso
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
 | `premium.lookup.timeout-millis` | `3000` | Łączny czas kolejki i sprawdzenia nicku |
-| `premium.lookup.positive-ttl-seconds` | `21600` | Czas pamiętania profilu premium |
-| `premium.lookup.negative-ttl-seconds` | `300` | Czas pamiętania braku profilu premium |
+| `premium.lookup.positive-ttl-seconds` | `21600` | Czas pamiętania oficjalnego profilu Minecraft |
+| `premium.lookup.negative-ttl-seconds` | `300` | Czas pamiętania braku oficjalnego profilu Minecraft |
 | `premium.lookup.maximum-cache-size` | `50000` | Limit zapamiętanych wyników |
 | `connections.admission-timeout-millis` | `20000` | Maksymalny czas asynchronicznej weryfikacji przed logowaniem (mniej niż limit Velocity) |
 | `connections.pending-ttl-seconds` | `30` | Jak długo czeka decyzja dotycząca rozpoczętego połączenia |
@@ -76,7 +76,7 @@ Po zmianach wykonaj restart odpowiedniego serwera lub proxy.
 
 ## Próba działania
 
-Sprawdź wejście premium i offline przez Velocity, ponowne połączenie oraz odmowę wejścia bezpośrednio na Paper spoza proxy. Przetestuj również zmianę serwera, jeśli Twoja sieć z niej korzysta. Nie zakładaj, że konto raz zalogowane będzie automatycznie zalogowane na każdym serwerze — wspólne sesje całej sieci nie są gotową funkcją tego wydania.
+Sprawdź rejestrację i logowanie obu rodzajów tożsamości przez Velocity, ponowne połączenie oraz odmowę wejścia bezpośrednio na Paper spoza proxy. Przetestuj również zmianę serwera, jeśli Twoja sieć z niej korzysta. Nie zakładaj, że konto raz zalogowane będzie automatycznie zalogowane na każdym serwerze — wspólne sesje całej sieci nie są gotową funkcją tego wydania.
 
 Komunikat `Backend server is online-mode` może oznaczać, że serwer gry używa niewłaściwego trybu. Sprawdź `online-mode=false` w `server.properties`, włączenie Velocity w `paper-global.yml` i zgodność sekretu.
 
@@ -92,7 +92,7 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
 Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
 `/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
-Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
 
@@ -145,15 +145,15 @@ a nie bezterminowo blokować przyjęcia kolejnych graczy.
 Ochrona Velocity 4.3.0 przed nadmiernymi pakietami i floodem działa **w samym
 proxy**, niezależnie od filtrów AuthGatewayX. AGX utrzymuje swoje limity
 weryfikacji i ryzyka, nie próbuje zastępować mechanizmów Netty ani modyfikować
-limitów pakietów Velocity. Przy aktualizacji zrób test logowania premium,
-offline, ponownego połączenia oraz przełączenia backendu.
+limitów pakietów Velocity. Przy aktualizacji zrób test rejestracji i logowania każdego gracza,
+ponownego połączenia oraz przełączenia backendu.
 
 ### Komenda diagnostyczna sesji proxy
 
 `/authgatewayx session <nick>` (uprawnienie Velocity `authgatewayx.admin.session`)
 wyświetla identyfikator bieżącej sesji, tryb weryfikacji proxy oraz nazwę
 backendu. Tak jak raport `alts`, wymaga potwierdzonej tożsamości
-administratora: dla konta offline weryfikacji `staff-proof` przez Paper.
+administratora: dla lokalnie przypisanego konta weryfikacji `staff-proof` przez Paper.
 Nie przekazuje hasła ani sekretów; identyfikator sesji nie jest kluczem
 autoryzacyjnym. Działa tylko dla graczy aktualnie połączonych z proxy.
 
@@ -164,7 +164,7 @@ znany sekret `staff-proof`. **Nie używaj go w produkcji.** Wygeneruj
 własną losową wartość (co najmniej 32 bajty, najlepiej 32 bajty z CSPRNG
 zakodowane hex/base64), ustaw identyczną na Velocity i Paper lub przekaż
 ją obu procesom przez `AUTHGATEWAYX_STAFF_PROOF_SECRET`.
-W nowych instalacjach ustawienie jest domyślnie puste: pracownicy offline
+W nowych instalacjach ustawienie jest domyślnie puste: pracownicy z lokalnie przypaną tożsamością
 nie przejdą proof, dopóki administrator świadomie nie włączy bezpiecznej
 integracji. Zmiana szablonu nie modyfikuje istniejącego pliku na serwerze:
 sekret użyty wcześniej należy wymienić ręcznie na każdej instancji.
