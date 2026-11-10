@@ -10,7 +10,7 @@ To wydanie korzysta z automatycznego okna Minecrafta. Hasło wpisujesz w jego po
 
 ## Nie widzę okna logowania
 
-Przy poprawnie sprawdzonym koncie premium okno nie jest potrzebne. Jeśli konto offline nie widzi formularza, administrator powinien sprawdzić wersję klienta, zgodność z serwerem, uruchomienie pluginu i błędy w konsoli. W pierwszej próbie użyj klienta zgodnego z wersją serwera, bez dodatków zmieniających ekran gry.
+Domyślnie każdy gracz korzysta z rejestracji i logowania hasłem. Tylko uprawnione konto po weryfikacji tożsamości Minecraft może pominąć hasło. Jeśli nie pojawia się formularz, administrator powinien sprawdzić wersję klienta, zgodność z serwerem, uruchomienie pluginu i błędy w konsoli. W pierwszej próbie użyj klienta zgodnego z wersją serwera, bez dodatków zmieniających ekran gry.
 
 ## Hasła nie są identyczne
 
@@ -30,11 +30,11 @@ Odczekaj przed następną próbą. Ochrona może reagować na szybkie wejścia, 
 
 ## Nie mogę utworzyć kolejnego konta
 
-Domyślny limit wynosi 3 konta offline na IP. Ten limit jest trwały, więc samo czekanie go nie usuwa. Przyczyną odmowy może być też czasowy limit prób albo zajęty nick. Zgłoś problem administracji.
+Domyślny limit wynosi 3 rejestracje na IP. Ten limit jest trwały, więc samo czekanie go nie usuwa. Przyczyną odmowy może być też czasowy limit prób albo zajęty nick. Zgłoś problem administracji.
 
-## Nie potwierdzono sesji premium
+## Nie potwierdzono sesji Minecraft
 
-Zamknij grę i zaloguj się w launcherze na konto Microsoft będące właścicielem nicku. Uruchom Minecrafta ponownie. Więcej na stronie [Premium](Premium.md).
+Zamknij grę i zaloguj się w launcherze na konto Microsoft będące właścicielem nicku. Uruchom Minecrafta ponownie. Więcej na stronie [weryfikacji konta](Premium.md).
 
 ## Nie można sprawdzić statusu nicku
 
@@ -50,7 +50,7 @@ Podczas uruchamiania serwer może jeszcze przygotowywać logowanie. Jeśli komun
 
 ## Komenda zmiany hasła nic nie otwiera
 
-Wykonaj ją w grze po zalogowaniu na konto offline. Sprawdź [uprawnienia](Uprawnienia.md). Konsola nie obsłuży okna, a konto premium nie ma hasła serwerowego do zmiany.
+Wykonaj ją w grze po zalogowaniu. Sprawdź [uprawnienia](Uprawnienia.md). Konsola nie obsłuży okna; zweryfikowane konto z pominięciem hasła musi najpierw ustawić hasło serwerowe, aby móc je później zmienić.
 
 ## Czy mogę przeładować plugin bez restartu?
 
@@ -67,7 +67,7 @@ Podaj wersję AuthGatewayX, wersję serwera i klienta, informację o Velocity or
 ## „Nie można bezpiecznie zweryfikować statusu nicku”
 
 Plugin nie dostał wiarygodnej odpowiedzi pozwalającej ustalić status nicku. To inny
-etap niż potwierdzenie sesji premium. Administrator powinien odszukać w konsoli wpisy
+etap niż potwierdzenie sesji Minecraft. Administrator powinien odszukać w konsoli wpisy
 `[mojang-lookup]`:
 
 | Przyczyna | Znaczenie |
@@ -90,7 +90,7 @@ sprawdzenie. Ważne wyniki z cache działają także podczas przerwy.
 Każda kategoria ma limit jednej linii na 30 sekund. `suppressed` w kolejnej linii tej
 kategorii podaje liczbę pominiętych powtórzeń. Wpisy nie zawierają danych graczy i nie
 wymagają włączenia diagnostyki handshake. Brak odpowiedzi nadal blokuje połączenie;
-plugin nie uznaje błędu usługi za potwierdzenie konta offline.
+plugin nie uznaje błędu usługi za potwierdzenie niezweryfikowanej tożsamości.
 
 Angielskie wpisy Paper `Failed to verify username` / `invalid session` dotyczą
 natywnego potwierdzenia sesji. Mogą pozostać angielskie w konsoli mimo polskiego
