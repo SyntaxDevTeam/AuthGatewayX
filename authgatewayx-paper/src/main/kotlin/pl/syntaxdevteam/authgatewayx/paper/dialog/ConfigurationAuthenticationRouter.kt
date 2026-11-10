@@ -46,6 +46,9 @@ class ConfigurationAuthenticationRouter(
     private val onMojangActivated: (java.util.UUID) -> Unit,
     private val onAdmissionDenied: (AuthenticationFormContext, String) -> Unit,
     private val onFailure: (Throwable) -> Unit,
+    private val premiumPasswordBypass: (java.util.UUID) -> java.util.concurrent.CompletionStage<Boolean> = {
+        java.util.concurrent.CompletableFuture.completedFuture(false)
+    },
 ) {
     fun route(
         connection: PlayerConfigurationConnection,
@@ -112,9 +115,18 @@ class ConfigurationAuthenticationRouter(
             return
         }
         try {
-            mojang.authenticate(VerifiedMojangAuthenticationContext(
-                context.connectionId, context.username, context.sourceAddress, officialUuid, context.sessionNonce,
-            )).whenComplete { result, failure ->
+            premiumPasswordBypass(officialUuid).toCompletableFuture().orTimeout(
+                3, java.util.concurrent.TimeUnit.SECONDS,
+            ).exceptionally { false }.thenCompose { skipPassword ->
+                if (!current(connection, ticket, context)) {
+                    java.util.concurrent.CompletableFuture.failedFuture(
+                        IllegalStateException("Connection is no longer awaiting authentication"),
+                    )
+                } else mojang.authenticate(VerifiedMojangAuthenticationContext(
+                    context.connectionId, context.username, context.sourceAddress, officialUuid,
+                    context.sessionNonce, passwordRequired = !skipPassword,
+                ))
+            }.whenComplete { result, failure ->
                 if (!liveConnection(connection, ticket, context)) return@whenComplete
                 if (failure != null || result == null) {
                     if (failure != null) runCatching { onFailure(failure) }
@@ -122,6 +134,21 @@ class ConfigurationAuthenticationRouter(
                     return@whenComplete
                 }
                 when (result) {
+                    is VerifiedMojangAuthenticationResult.PasswordRequired -> {
+                        storage.findPasswordHash(result.account.id).whenComplete { hash, passwordFailure ->
+                            if (!current(connection, ticket, context)) return@whenComplete
+                            if (passwordFailure != null) {
+                                runCatching { onFailure(passwordFailure) }
+                                deny(connection, ticket, internalFailureMessage)
+                            } else {
+                                val verifiedContext = context.copy(verifiedMojang = true)
+                                val shown = if (hash == null) {
+                                    dialogs.showRegistration(connection, ticket, verifiedContext)
+                                } else dialogs.showLogin(connection, ticket, verifiedContext)
+                                if (!shown) deny(connection, ticket, internalFailureMessage)
+                            }
+                        }
+                    }
                     is VerifiedMojangAuthenticationResult.Success -> {
                         val active = sessions.get(context.connectionId)
                         if (active?.state == ConnectionState.ACTIVE && active.minecraftUuid == officialUuid) {
