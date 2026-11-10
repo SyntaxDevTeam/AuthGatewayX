@@ -11,7 +11,7 @@ Whether you run a server for friends or a growing community, start with a local 
 ## What do you get?
 
 - **Registration and sign-in for everyone:** create an account and enter a password in a Minecraft dialog without typing it into chat or a command.
-- **Verified identity protection:** choosing someone else's name in a launcher does not grant access to their account.
+- **Premium username impersonation protection:** choosing someone else's protected name in a launcher does not grant access to their account. Ownership must be confirmed through official Minecraft session verification.
 - **Protected gameplay:** players waiting for authentication cannot interact with the world.
 - **Abuse controls:** limits on connections, password attempts, registrations and reconnects.
 - **Your server's style:** customizable text, colors and dialog labels.
