@@ -45,7 +45,7 @@ Before upgrading an account, back up player data and check `/agx migrate inspect
 
 ## EssentialsX and LuckPerms
 
-EssentialsX copies `userdata/<old-uuid>.yml`, updates embedded UUIDs and retains the source. Existing destination data is backed up before replacement and restored on rollback. See [Premium accounts](Premium.md).
+EssentialsX copies `userdata/<old-uuid>.yml`, updates embedded UUIDs and retains the source. Existing destination data is backed up before replacement and restored on rollback. See [Account identity verification](Premium.md).
 
 LuckPerms uses its public API independently of storage type. It copies persistent user nodes: direct permissions, group inheritance, prefixes, suffixes, metadata, contexts, negations and expiry times. Global groups do not need copying. A conflicting nonempty target is not overwritten. Rollback clears the target only while it remains an exact copy; later edits fail closed.
 
