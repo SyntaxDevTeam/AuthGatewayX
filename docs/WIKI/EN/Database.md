@@ -2,7 +2,7 @@
 
 **Language / Język:** English · [Polski](../Baza-danych.md)
 
-[Home](Home.md) · [Configuration](Configuration.md) · [Premium accounts](Premium.md)
+[Home](Home.md) · [Configuration](Configuration.md) · [Account identity verification](Premium.md)
 
 ## Start with SQLite
 
@@ -47,4 +47,4 @@ If the data format changed, reverting only the JAR may be insufficient. Restore 
 
 Changing `storage.type` does not migrate accounts. A newly connected empty database looks like a fresh installation; do not expose it before moving and verifying existing records.
 
-There is no ready-made account importer or migration command for other authentication plugins. Do not copy their tables blindly. Offline-to-premium identity migration is a separate operation described in [Premium accounts](Premium.md).
+There is no ready-made account importer or migration command for other authentication plugins. Do not copy their tables blindly. Account UUID migration following verified Minecraft identity linking is a separate operation described in [Premium accounts](Premium.md).
