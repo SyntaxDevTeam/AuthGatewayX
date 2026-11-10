@@ -53,7 +53,8 @@ class AuthenticationDialogController(
     private val text: AuthenticationDialogText,
     private val onOutcome: (AuthenticationFormContext, AuthenticationFormResult) -> Unit = { _, _ -> },
 ) : Listener {
-    private val expectedForms = ConcurrentHashMap<UUID, FormType>()
+    private data class ExpectedForm(val type: FormType, val verifiedMojang: Boolean)
+    private val expectedForms = ConcurrentHashMap<UUID, ExpectedForm>()
     private val submissions = ConcurrentHashMap.newKeySet<UUID>()
 
     /** Configuration-phase renderer: no Player entity or world access required. */
@@ -64,13 +65,13 @@ class AuthenticationDialogController(
     fun registrationDialog(username: String, feedback: Component? = null): Dialog =
         createDialog(FormType.REGISTER, username, feedback)
 
-    fun showLogin(player: Player, feedback: Component? = null) {
-        expectedForms[player.uniqueId] = FormType.LOGIN
+    fun showLogin(player: Player, feedback: Component? = null, verifiedMojang: Boolean = false) {
+        expectedForms[player.uniqueId] = ExpectedForm(FormType.LOGIN, verifiedMojang)
         player.showDialog(createDialog(FormType.LOGIN, player.name, feedback))
     }
 
-    fun showRegistration(player: Player, feedback: Component? = null) {
-        expectedForms[player.uniqueId] = FormType.REGISTER
+    fun showRegistration(player: Player, feedback: Component? = null, verifiedMojang: Boolean = false) {
+        expectedForms[player.uniqueId] = ExpectedForm(FormType.REGISTER, verifiedMojang)
         player.showDialog(createDialog(FormType.REGISTER, player.name, feedback))
     }
 
@@ -79,10 +80,12 @@ class AuthenticationDialogController(
         val connection = event.commonConnection as? PlayerGameConnection ?: return
         val player = connection.player
         if (event.identifier == CANCEL) {
-            when (expectedForms[player.uniqueId]) {
-                FormType.LOGIN -> scheduler.entity(player) { showLogin(player) }
-                FormType.REGISTER -> scheduler.entity(player) { showRegistration(player) }
+            when (val expected = expectedForms[player.uniqueId]) {
                 null -> Unit
+                else -> when (expected.type) {
+                    FormType.LOGIN -> scheduler.entity(player) { showLogin(player, verifiedMojang = expected.verifiedMojang) }
+                    FormType.REGISTER -> scheduler.entity(player) { showRegistration(player, verifiedMojang = expected.verifiedMojang) }
+                }
             }
             return
         }
@@ -91,17 +94,18 @@ class AuthenticationDialogController(
             REGISTER_SUBMIT -> FormType.REGISTER
             else -> return
         }
-        if (expectedForms[player.uniqueId] != type) return
+        val expected = expectedForms[player.uniqueId] ?: return
+        if (expected.type != type) return
         val response = event.dialogResponseView ?: return
         val password = response.getText(PASSWORD_KEY)?.toCharArray() ?: return
-        val context = context(player)
+        val context = context(player, expected.verifiedMojang)
 
         if (type == FormType.REGISTER) {
             val repeated = response.getText(REPEAT_PASSWORD_KEY)?.toCharArray()
             if (repeated == null || !PasswordConfirmation.matches(password, repeated)) {
                 password.fill('\u0000')
                 repeated?.fill('\u0000')
-                scheduler.entity(player) { showRegistration(player, text.passwordMismatch) }
+                scheduler.entity(player) { showRegistration(player, text.passwordMismatch, expected.verifiedMojang) }
                 return
             }
             repeated.fill('\u0000')
@@ -116,7 +120,8 @@ class AuthenticationDialogController(
         } catch (_: Throwable) {
             submissions.remove(player.uniqueId)
             password.fill('\u0000')
-            if (type == FormType.REGISTER) showRegistration(player, text.internalFailure) else showLogin(player, text.internalFailure)
+            if (type == FormType.REGISTER) showRegistration(player, text.internalFailure, expected.verifiedMojang)
+            else showLogin(player, text.internalFailure, expected.verifiedMojang)
             return
         }
 
@@ -129,9 +134,9 @@ class AuthenticationDialogController(
                     expectedForms.remove(player.uniqueId)
                     player.closeDialog()
                 } else if (type == FormType.LOGIN) {
-                    showLogin(player, if (failure == null) feedback(result) else text.internalFailure)
+                    showLogin(player, if (failure == null) feedback(result) else text.internalFailure, expected.verifiedMojang)
                 } else {
-                    showRegistration(player, if (failure == null) feedback(result) else text.internalFailure)
+                    showRegistration(player, if (failure == null) feedback(result) else text.internalFailure, expected.verifiedMojang)
                 }
             })
         }
@@ -143,11 +148,12 @@ class AuthenticationDialogController(
         submissions.remove(event.player.uniqueId)
     }
 
-    private fun context(player: Player) = AuthenticationFormContext(
+    private fun context(player: Player, verifiedMojang: Boolean) = AuthenticationFormContext(
         ConnectionId(player.uniqueId),
         AccountUsername.parse(player.name),
         player.address.address,
         player.uniqueId,
+        verifiedMojang = verifiedMojang,
     )
 
     private fun createDialog(type: FormType, username: String, feedback: Component?): Dialog = Dialog.create { builder ->
