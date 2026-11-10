@@ -54,4 +54,4 @@ Jeśli aktualizacja zmieniła zapis danych, cofnięcie samego pliku pluginu moż
 
 Zmiana `storage.type` nie przenosi automatycznie kont. Podłączenie pustej bazy może wyglądać dla graczy jak nowa instalacja. Nie udostępniaj jej publicznie, zanim dane zostaną poprawnie przeniesione i sprawdzone.
 
-Obecna wersja nie ma gotowego importera kont z innych pluginów logowania ani komendy do takiej migracji. Nie kopiuj ich tabel w ciemno. Przejście offline → premium opisuje strona [Premium](Premium.md).
+Obecna wersja nie ma gotowego importera kont z innych pluginów logowania ani komendy do takiej migracji. Nie kopiuj ich tabel w ciemno. Migrację UUID po weryfikacji tożsamości Minecraft opisuje strona [weryfikacja konta](Premium.md).
