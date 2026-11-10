@@ -8,13 +8,13 @@ Poniższe komendy działają na serwerze gry. Używa się ich po zalogowaniu, be
 
 | Komenda | Dla kogo | Co robi |
 | --- | --- | --- |
-| `/changepassword` | Zalogowane konto offline | Otwiera okno zmiany własnego hasła |
-| `/logout` | Zalogowane konto offline | Kończy sesję i rozłącza gracza |
+| `/changepassword` | Zalogowany gracz | Otwiera okno zmiany własnego hasła |
+| `/logout` | Zalogowany gracz | Kończy sesję i rozłącza gracza |
 | `/agx`, `/agx help` | Zalogowany gracz lub konsola | Pokazuje sformatowaną listę komend dostępnych dla bieżącego nadawcy |
 | `/agx reload` | Zalogowany administrator lub konsola | Przeładowuje ustawienia obsługiwane w runtime, obecnie listę pomijanych katalogów migracji |
 | `/agx info <nick>` | Zalogowany administrator lub konsola | Pokazuje raport konta, sesji, bezpieczeństwa i danych dostępnych dla uprawnień administratora |
-| `/agx alts <nick>` | Zalogowany administrator lub konsola | Pokazuje powiązania kont premium i offline przez historię wspólnych adresów |
-| `/agx setpassword <nick>` | Administrator z odpowiednim uprawnieniem | Otwiera okno ustawienia nowego hasła konta offline |
+| `/agx alts <nick>` | Zalogowany administrator lub konsola | Pokazuje powiązania kont przez historię wspólnych adresów |
+| `/agx setpassword <nick>` | Administrator z odpowiednim uprawnieniem | Otwiera okno ustawienia nowego hasła konta gracza |
 | `/agx migrate status <nick>` | Administrator lub konsola | Pokazuje ostatni trwały ticket migracji UUID |
 | `/agx migrate inspect <nick> [stare-uuid]` | Administrator lub konsola | Sprawdza providery i potencjalne dane starego UUID bez wykonywania migracji |
 | `/agx migrate retry <nick>` | Administrator lub konsola | Ponawia istniejący `FAILED/PREPARED/MIGRATING` ticket przy użyciu tych samych backupów |
@@ -39,7 +39,7 @@ udostępniana konsoli albo zalogowanemu graczowi; sama gałąź `alts` nadal wym
 
 Podstawowy raport pokazuje nick, ID konta AuthGatewayX, Minecraft UUID, typ i stan konta,
 daty, aktywną sesję, sposób logowania oraz aktualny wynik sprawdzenia nicku Mojang.
-Nick bez konta w bazie nadal może otrzymać klasyfikację premium/non-premium.
+Nick bez konta w bazie nadal może otrzymać wynik weryfikacji tożsamości Minecraft.
 
 Dodatkowe uprawnienia dodają historię IP, GeoIP i reputację sieci, stan blokady, licznik
 błędnych logowań, najwyżej 10 najnowszych zdarzeń audytu oraz powiązane konta. Pełna
@@ -54,7 +54,7 @@ skali interfejsu Minecrafta. Konsola nadal otrzymuje ten sam raport tekstowy.
 
 Najpierw upewnij się, że pomagasz właścicielowi konta. Zaloguj się na serwerze, wpisz komendę z nickiem, a nowe hasło podaj w otwartym oknie. Operacja zostaje zapisana w historii zdarzeń. Jeśli wskazany gracz jest online, zostanie rozłączony i będzie musiał zalogować się nowym hasłem.
 
-Przekaż nowe hasło prywatnie i poproś gracza o zmianę przez `/changepassword`. Ta komenda nie zmienia hasła konta Microsoft i nie służy do resetowania kont premium.
+Przekaż nowe hasło prywatnie i poproś gracza o zmianę przez `/changepassword`. Ta komenda nie zmienia hasła konta Microsoft.
 
 ## A gdzie `/login` i `/register`?
 
@@ -84,7 +84,7 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
 Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
 `/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
-Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
 
@@ -93,10 +93,10 @@ Pełne ustawienia, zachowanie przy awarii i kolejność wdrożenia:
 powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować powiadomień.
 
 
-## Migracja OFFLINE → PREMIUM
+## Migracja UUID po weryfikacji tożsamości
 
 Dla nowych przypadków migracja uruchamia się automatycznie po poprawnej weryfikacji Mojang
-i podaniu starego hasła konta non-premium. Gracz jest rozłączany przed kopiowaniem danych.
+i podaniu poprzedniego hasła serwerowego. Gracz jest rozłączany przed kopiowaniem danych.
 
 Komendy `migrate` służą przede wszystkim administracji:
 
