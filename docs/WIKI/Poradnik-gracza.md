@@ -6,7 +6,7 @@
 
 ## Pierwsze wejście
 
-Jeśli grasz na koncie offline, po wejściu zobaczysz okno rejestracji z Twoim nickiem. Wpisz wybrane hasło w oba pola i kliknij „Potwierdź”. Po udanej rejestracji możesz grać.
+Jeśli wchodzisz pierwszy raz, zobaczysz okno rejestracji z Twoim nickiem. Wpisz wybrane hasło w oba pola i kliknij „Potwierdź”. Po udanej rejestracji możesz grać.
 
 Domyślnie hasło ma od 8 do 128 znaków. Wybierz długie, własne hasło, którego nie używasz do poczty, Discorda ani konta Microsoft.
 
@@ -30,9 +30,9 @@ Nie dopisuj hasła do komendy. Hasła wpisuj wyłącznie w przeznaczonych do teg
 
 Wpisz `/logout`, aby zakończyć logowanie i rozłączyć się z serwerem. Konto zostaje zachowane. Po ponownym wejściu wpiszesz hasło jeszcze raz.
 
-## Masz premium?
+## Weryfikacja konta Minecraft
 
-Zaloguj się w launcherze na swoje konto Microsoft i uruchom grę. Po poprawnym sprawdzeniu konta premium nie wpisujesz dodatkowego hasła serwerowego. Więcej na stronie [konta premium](Premium.md).
+Jeśli posiadasz oficjalne konto Minecraft, zaloguj się na nie w launcherze. Serwer zweryfikuje Twoją tożsamość, a następnie domyślnie poprosi o hasło do konta serwerowego. Administrator może przyznać zweryfikowanym graczom uprawnienie do pomijania tego hasła. Hasła do konta Microsoft nie wpisuj w oknie serwera. Szczegóły na stronie [tożsamości konta](Premium.md).
 
 ## Pamiętaj o swoim ekranie
 
