@@ -105,6 +105,14 @@ data class FailedLoginUpdate(
 interface AccountStorage : AutoCloseable {
     fun migrate(): CompletionStage<Unit>
     fun registerOffline(registration: OfflineRegistration): CompletionStage<RegistrationResult>
+    fun registerVerifiedPassword(
+        username: AccountUsername,
+        minecraftUuid: UUID,
+        passwordHash: String,
+        sourceAddress: InetAddress,
+        registeredAt: Instant,
+    ): CompletionStage<RegistrationResult> =
+        CompletableFuture.completedFuture(RegistrationResult.MinecraftUuidAlreadyExists)
     fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity): CompletionStage<MojangIdentityBindingResult>
     fun preparePremiumMigration(
         accountId: AccountId,
