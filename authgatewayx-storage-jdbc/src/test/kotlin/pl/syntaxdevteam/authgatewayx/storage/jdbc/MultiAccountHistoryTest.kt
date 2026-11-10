@@ -128,9 +128,9 @@ class MultiAccountHistoryTest {
                 }
             }
         }
-        assertFailsWith<java.util.concurrent.ExecutionException> {
-            storage.recordLoginSuccess(second.accountId, ip(1), now).toCompletableFuture().get()
-        }
+        // Officially verified identities may also authenticate with a server password.
+        storage.recordLoginSuccess(second.accountId, ip(1), now).toCompletableFuture().get()
+        assertEquals(listOf("First"), storage.report("Second")!!.accounts.map { it.username.value })
     }
 
     @Test
