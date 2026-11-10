@@ -24,7 +24,7 @@ Domyślnie użycie więcej niż 5 różnych nicków z jednego IP w ciągu 30 sek
 
 ## Kilka osób w jednym domu
 
-Rodzeństwo lub znajomi korzystający z tego samego Wi-Fi mogą mieć wspólne IP. Domyślny limit to 3 zarejestrowane konta offline na adres. To limit zapisanych kont, więc samo odczekanie lub restart serwera go nie zeruje.
+Rodzeństwo lub znajomi korzystający z tego samego Wi-Fi mogą mieć wspólne IP. Domyślny limit to 3 zarejestrowane konta na adres. To limit zapisanych kont, więc samo odczekanie lub restart serwera go nie zeruje.
 
 Jeśli prowadzisz serwer dla większej grupy korzystającej z jednego internetu, uwzględnij to w ustawieniach. Zmieniaj jeden limit naraz i obserwuj efekty.
 
@@ -37,7 +37,7 @@ AuthGatewayX pomaga ograniczać nadużycia w logowaniu. Nie zastępuje ochrony h
 ## Detektor podejrzanych multi-kont
 
 Administrator może użyć `/authgatewayx alts <nick>`. Raport porównuje historię
-poprawnych uwierzytelnień kont premium i offline, więc wcześniejsze wspólne IP może
+poprawnych uwierzytelnień kont, więc wcześniejsze wspólne IP może
 pozostać widoczne po zmianie adresu. Nie zapisuje powiązań na podstawie błędnych haseł
 ani samego wejścia pod cudzym nickiem. Nie nakłada automatycznie kar.
 
@@ -49,7 +49,7 @@ Brak wyników nie jest potwierdzeniem braku multi-konta.
 Plugin pamięta do 16 ostatnich różnych adresów na konto. Raport obejmuje obserwacje
 obu kont z ostatnich 30 dni, maksymalnie 20 wyników. Historia zaczyna się od instalacji
 wersji z tą funkcją i przetrwa restart. Wygasłe wpisy są pomijane; fizyczne usunięcie
-następuje przy kolejnym zapisie tego konta. Migracja konta do premium zachowuje jego
+następuje przy kolejnym zapisie tego konta. Migracja UUID zachowuje jego
 historię w detektorze. Te limity nie zmieniają limitu rejestracji na IP.
 
 Raport działa na Paper/Purpur/Folia, także na backendzie za poprawnie skonfigurowanym
@@ -58,7 +58,7 @@ Velocity modern forwarding. Komendę wykonuje się na serwerze gry lub w jego ko
 ## Automatyczne powiadomienia i VPN/GeoIP
 
 `multi-account.alerts.enabled: true` włącza powiadomienia o podejrzanych kontach po
-poprawnym logowaniu/rejestracji offline. Odbiorcy muszą być zalogowani i mieć
+poprawnym logowaniu/rejestracji hasłem. Odbiorcy muszą być zalogowani i mieć
 `authgatewayx.admin.alerts` (domyślnie operatorzy). `multi-account.alerts.console`
 steruje kopią w konsoli. Domyślny cooldown jednego konta to 300 sekund.
 Alert pokazuje do pięciu powiązanych nicków; pełniejszy raport daje `/authgatewayx alts`.
@@ -93,7 +93,7 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
 Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
 `/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
-Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
 
