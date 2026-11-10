@@ -36,7 +36,7 @@ Permissions never bypass Minecraft session verification or world protection. Pas
 
 Assign `authgatewayx.admin.alerts` and `authgatewayx.admin.alts` on the proxy for alerts and related-account reports. The connected-session report uses `authgatewayx.admin.session`. Geo details require `authgatewayx.admin.view-geo`; IP visibility requires `authgatewayx.admin.view-ip`.
 
-Administrators with a locally assigned identity need successful backend login and matching, separate `staff-proof.secret` values on Paper and Velocity. Console and Mojang-authenticated administrators do not require offline staff proof. See [Velocity setup](Velocity.md).
+Administrators with a locally assigned identity need successful backend login and matching, separate `staff-proof.secret` values on Paper and Velocity. Console and Mojang-verified administrators do not require the separate backend staff proof. See [Velocity setup](Velocity.md).
 
 ## Migration access
 
