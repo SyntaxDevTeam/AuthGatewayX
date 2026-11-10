@@ -94,6 +94,7 @@ class AuthenticationDialogRouter(
         mojangAuthentication.authenticate(
             VerifiedMojangAuthenticationContext(
                 ConnectionId(player.uniqueId), username, sourceAddress, officialUuid,
+                passwordRequired = !player.hasPermission(PREMIUM_PASSWORD_BYPASS_PERMISSION),
             ),
         ).whenComplete { authenticationResult, authenticationFailure ->
             scheduler.entity(player, Runnable {
@@ -105,6 +106,19 @@ class AuthenticationDialogRouter(
                 }
                 when (authenticationResult) {
                     is VerifiedMojangAuthenticationResult.Success -> onMojangActivated(player)
+                    is VerifiedMojangAuthenticationResult.PasswordRequired -> {
+                        if (!access.isPreAuth(player.uniqueId)) return@Runnable
+                        storage.findPasswordHash(authenticationResult.account.id).whenComplete { hash, failure ->
+                            scheduler.entity(player, Runnable {
+                                if (!player.isOnline || !access.isPreAuth(player.uniqueId)) return@Runnable
+                                if (failure != null) {
+                                    onFailure(failure)
+                                    player.kick(internalFailureMessage)
+                                } else if (hash == null) dialogs.showRegistration(player, verifiedMojang = true)
+                                else dialogs.showLogin(player, verifiedMojang = true)
+                            })
+                        }
+                    }
                     is VerifiedMojangAuthenticationResult.MigrationRequired -> {
                         if (!access.isPreAuth(player.uniqueId)) return@Runnable
                         migrationDialogs.show(
@@ -120,6 +134,10 @@ class AuthenticationDialogRouter(
                 }
             })
         }
+    }
+
+    private companion object {
+        const val PREMIUM_PASSWORD_BYPASS_PERMISSION = "authgatewayx.auth.skip-password"
     }
 
     private fun routeOffline(player: Player, username: AccountUsername) {
