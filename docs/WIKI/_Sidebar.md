@@ -9,7 +9,7 @@
 - [Komendy](Komendy.md)
 - [Uprawnienia](Uprawnienia.md)
 - [Konfiguracja](Konfiguracja.md)
-- [Konta premium](Premium.md)
+- [Weryfikacja tożsamości](Premium.md)
 - [Ochrona serwera](Ochrona-serwera.md)
 - [Wiadomości i wygląd](Wiadomosci.md)
 - [Baza danych i kopie](Baza-danych.md)
