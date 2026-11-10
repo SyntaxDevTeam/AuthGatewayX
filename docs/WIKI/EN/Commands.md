@@ -45,7 +45,7 @@ Registration and login open automatically. There are no `/login`, `/register`, `
 
 A UUID upgrade starts after successful Minecraft session verification and confirmation of the old server password. The player disconnects before data is copied. Administrative `inspect` accepts an optional historical UUID to handle old capitalization differences. `recover` requires actual evidence of old identity data, rather than trusting a name alone.
 
-Targets must be offline for `retry` and `recover`. Unfinished recovery blocks premium login until safe completion or successful rollback. See [Premium accounts](Premium.md).
+Targets must be offline for `retry` and `recover`. Unfinished recovery blocks account login until safe completion or rollback. See [Account identity verification](Premium.md).
 
 ## Proxy commands
 
