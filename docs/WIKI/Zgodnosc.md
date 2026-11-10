@@ -20,7 +20,7 @@ Gracze potrzebują klientów obsługujących formularze logowania. Samo dopuszcz
 
 ## Logowanie przed wejściem do świata
 
-Domyślnie gracz czekający na logowanie pozostaje odizolowany od rozgrywki. Opcjonalny tryb `authentication.prejoin.experimental-enabled` przenosi logowanie przed wejście do świata. Jest domyślnie wyłączony; na publicznym serwerze pozostaw go wyłączonym. Przy przejściu offline → premium gracz potwierdza stare hasło serwerowe i zostaje rozłączony na czas przenoszenia danych.
+Domyślnie gracz czekający na logowanie pozostaje odizolowany od rozgrywki. Opcjonalny tryb `authentication.prejoin.experimental-enabled` przenosi logowanie przed wejście do świata. Jest domyślnie wyłączony; na publicznym serwerze pozostaw go wyłączonym. Przy migracji UUID na oficjalnie zweryfikowaną tożsamość Minecraft gracz potwierdza dotychczasowe hasło serwerowe i zostaje rozłączony na czas przenoszenia danych.
 
 ## PlugManX i restarty
 
