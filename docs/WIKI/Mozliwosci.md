@@ -8,16 +8,16 @@ Poznaj funkcje AuthGatewayX. Wymagania serwera i dobór pliku pluginu opisuje [Z
 
 ## Logowanie graczy
 
-- Konto non-premium rejestruje się i loguje w oknie Minecrafta. Hasło nie trafia do
-  czatu ani do argumentu komendy.
-- Konto premium jest sprawdzane przez usługi Minecraft. Po poprawnej weryfikacji nie
-  podaje hasła serwerowego.
-- Nick premium jest chroniony. Nieudana weryfikacja właściciela kończy połączenie —
-  plugin nie wpuszcza wtedy gracza jako konta offline.
+- Każdy gracz rejestruje konto i loguje się w oknie Minecrafta, również przy `online-mode=false`.
+  Hasło nie trafia do czatu ani do argumentu komendy.
+- Tożsamość powiązana z oficjalnym kontem Minecraft jest dodatkowo weryfikowana.
+  Wyłącznie uprawniony gracz ze zweryfikowaną tożsamością może pominąć hasło serwerowe.
+- Chronionego nicku nie można przejąć poprzez wpisanie go w launcherze. Nieudana
+  weryfikacja właściciela kończy połączenie.
 - Plugin pilnuje jednej aktywnej sesji konta i pozwala graczowi bezpiecznie zakończyć ją
   komendą `/logout`.
 - Gracz może zmienić własne hasło, a uprawniony administrator może ustawić nowe hasło
-  konta offline bez umieszczania go w historii komend.
+  konta gracza bez umieszczania go w historii komend.
 
 ## Ochrona świata przed zalogowaniem
 
@@ -32,7 +32,7 @@ zapełnieniem sesjami, które nigdy nie kończą uwierzytelniania.
 
 ## Hasła i nadużycia
 
-- Hasła kont offline są zabezpieczane algorytmem Argon2id, a kosztowne obliczenia mają
+- Hasła kont są zabezpieczane algorytmem Argon2id, a kosztowne obliczenia mają
   ograniczoną liczbę wątków i kolejkę.
 - Kolejne błędne hasła uruchamiają limit prób i czasową blokadę konta.
 - Ochrona połączeń ogranicza ruch z jednego adresu i całego serwera, zanim rozpocznie się
