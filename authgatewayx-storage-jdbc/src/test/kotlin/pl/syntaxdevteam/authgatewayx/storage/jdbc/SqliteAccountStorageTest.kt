@@ -201,7 +201,7 @@ class SqliteAccountStorageTest {
     }
 
     @Test
-    fun `explicit premium migration preserves account id and only then removes offline credentials`() = withStorage { storage ->
+    fun `explicit identity migration preserves account id and server password credentials`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         val registration = registration("ExplicitUpgrade")
         assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
@@ -229,8 +229,10 @@ class SqliteAccountStorageTest {
         assertEquals(registration.accountId, completed.account.id)
         assertEquals(IdentityType.MOJANG, completed.account.identityType)
         assertEquals(targetUuid, completed.account.minecraftUuid)
-        assertNull(storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
-        assertNull(storage.findCredentials(registration.username).toCompletableFuture().get())
+        assertEquals(registration.passwordHash, storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
+        val credentials = assertNotNull(storage.findCredentials(registration.username).toCompletableFuture().get())
+        assertEquals(IdentityType.MOJANG, credentials.account.identityType)
+        assertEquals(targetUuid, credentials.account.minecraftUuid)
     }
 
     @Test
