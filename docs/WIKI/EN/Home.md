@@ -4,14 +4,14 @@
 
 ## Your account. Your name. Your game.
 
-AuthGatewayX brings premium and offline authentication together on Minecraft Java Edition servers. Players sign in through an in-game form, while administrators get tools to protect accounts, control connection abuse and investigate problems.
+AuthGatewayX authenticates every player on Minecraft Java Edition servers, including servers with `online-mode=false`. Registration and sign-in use in-game dialogs, while administrators get tools for protecting accounts, controlling connection abuse and investigating problems.
 
 Whether you run a server for friends or a growing community, start with a local SQLite database, customize your messages and manage authentication in one place.
 
 ## What do you get?
 
-- **Convenient sign-in:** enter a password in a Minecraft dialog without typing it into chat or a command.
-- **Premium username protection:** choosing someone else's name in a launcher does not grant access to their account.
+- **Registration and sign-in for everyone:** create an account and enter a password in a Minecraft dialog without typing it into chat or a command.
+- **Premium username impersonation protection:** choosing someone else's protected name in a launcher does not grant access to their account. Ownership must be confirmed through official Minecraft session verification.
 - **Protected gameplay:** players waiting for authentication cannot interact with the world.
 - **Abuse controls:** limits on connections, password attempts, registrations and reconnects.
 - **Your server's style:** customizable text, colors and dialog labels.
@@ -30,7 +30,7 @@ Follow [Download and installation](Installation.md), or use the [Administrator g
 | [Commands](Commands.md) | Player and administrative commands |
 | [Permissions](Permissions.md) | Access for players and staff |
 | [Configuration](Configuration.md) | Paper settings and defaults |
-| [Premium accounts](Premium.md) | Verification and identity migration |
+| [Account identities](Premium.md) | Verification and UUID migration |
 | [Server protection](Server-protection.md) | Passwords, bots, limits and quarantine |
 | [Messages](Messages.md) | Text, colors and privacy dialogs |
 | [Database and backups](Database.md) | Storage, updates and recovery |

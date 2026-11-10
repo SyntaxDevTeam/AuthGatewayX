@@ -1,4 +1,4 @@
-# Premium accounts
+# Account verification and UUID migration
 
 **Language / Język:** English · [Polski](../Premium.md)
 
@@ -6,17 +6,17 @@
 
 ## Sign in and play
 
-AuthGatewayX checks whether a username belongs to a premium account, then requires Minecraft to verify ownership of that account's session. Successful premium authentication needs no extra server password. Sign in to Microsoft in your launcher; never enter your Microsoft password in a server form.
+AuthGatewayX requires every player to register and sign in, including on servers with `online-mode=false`. If a username belongs to an official Minecraft account, session ownership is also verified. By default, this player still uses a server password; the administrator may grant `authgatewayx.auth.skip-password` to exempt verified accounts from that extra password. Sign in to Microsoft in your launcher; never enter your Microsoft password in a server form.
 
-Offline users cannot access a protected premium name by choosing it in a launcher. Failed verification means denial, never an uncontrolled switch to offline authentication. Offline players using a name owned by a premium account must choose a different, unclaimed name.
+Choosing another player's protected Minecraft username in a launcher never grants access. Failed ownership verification denies access rather than switching to an unverified identity. Use another, unclaimed name if you do not own the official account.
 
-If session verification fails, close Minecraft, sign in again to the correct account in your launcher and restart the game. If many players are affected, staff should check connectivity to Minecraft services. Outages can also prevent classification of a new offline username.
+If session verification fails, close Minecraft, sign in again to the correct account in your launcher and restart the game. If many players are affected, staff should check connectivity to Minecraft services. Outages can also prevent classification of a new username.
 
-## Keep your name when buying Minecraft
+## Keep your name when linking a verified Minecraft identity
 
-If an offline account already exists under your name, the first verified premium connection does not immediately overwrite its UUID. A separate migration dialog asks for the **old AuthGatewayX server password**, proving access to both the verified premium identity and the previous offline account.
+If a server account already exists under your name, the first officially verified connection does not immediately overwrite its UUID. A separate migration dialog asks for the **existing AuthGatewayX server password**, proving access to both the verified Minecraft identity and the previous server identity.
 
-After confirmation, a persistent migration ticket is created. Until dependent data has been migrated, the AuthGatewayX record retains its OFFLINE type, old UUID and password hash. Finalization changes it to `MOJANG` only after controlled migration providers succeed. Players disconnect before data is copied.
+After confirmation, a persistent migration ticket is created. Until dependent data has been migrated, the AuthGatewayX record retains its previous UUID and password hash. Finalization switches to the verified Minecraft UUID only after controlled migration providers succeed. Players disconnect before data is copied.
 
 Never delete player files or manually edit account UUIDs without backups. Contact staff when migration is unfinished.
 
@@ -50,9 +50,9 @@ After editing this list, run `/agx reload`. This one setting does not require a 
 
 ## Staff recovery tools
 
-Use `migrate status` and `inspect` to diagnose, `retry` to resume an existing ticket and `recover` for an identity already switched by an older version. An optional old UUID handles historical username capitalization differences. Recovery requires actual evidence of old data, not merely a name. Targets must be offline for retry and recovery. Unfinished recovery blocks premium login until safe completion or successful rollback.
+Use `migrate status` and `inspect` to diagnose, `retry` to resume an existing ticket and `recover` for an identity already switched by an older version. An optional old UUID handles historical username capitalization differences. Recovery requires actual evidence of old data, not merely a name. Targets must be offline for retry and recovery. Unfinished recovery blocks login until safe completion or successful rollback.
 
-See [Commands](Commands.md), [Permissions](Permissions.md) and [Premium account migration](Premium.md).
+See [Commands](Commands.md), [Permissions](Permissions.md) and [Account UUID migration](Premium.md).
 
 ## Custom local recipe example
 

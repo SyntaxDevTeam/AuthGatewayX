@@ -8,16 +8,16 @@ Poznaj funkcje AuthGatewayX. Wymagania serwera i dobór pliku pluginu opisuje [Z
 
 ## Logowanie graczy
 
-- Konto non-premium rejestruje się i loguje w oknie Minecrafta. Hasło nie trafia do
-  czatu ani do argumentu komendy.
-- Konto premium jest sprawdzane przez usługi Minecraft. Po poprawnej weryfikacji nie
-  podaje hasła serwerowego.
-- Nick premium jest chroniony. Nieudana weryfikacja właściciela kończy połączenie —
-  plugin nie wpuszcza wtedy gracza jako konta offline.
+- Każdy gracz rejestruje konto i loguje się w oknie Minecrafta, również przy `online-mode=false`.
+  Hasło nie trafia do czatu ani do argumentu komendy.
+- Tożsamość powiązana z oficjalnym kontem Minecraft jest dodatkowo weryfikowana.
+  Wyłącznie uprawniony gracz ze zweryfikowaną tożsamością może pominąć hasło serwerowe.
+- Chronionego nicku nie można przejąć poprzez wpisanie go w launcherze. Nieudana
+  weryfikacja właściciela kończy połączenie.
 - Plugin pilnuje jednej aktywnej sesji konta i pozwala graczowi bezpiecznie zakończyć ją
   komendą `/logout`.
 - Gracz może zmienić własne hasło, a uprawniony administrator może ustawić nowe hasło
-  konta offline bez umieszczania go w historii komend.
+  konta gracza bez umieszczania go w historii komend.
 
 ## Ochrona świata przed zalogowaniem
 
@@ -32,7 +32,7 @@ zapełnieniem sesjami, które nigdy nie kończą uwierzytelniania.
 
 ## Hasła i nadużycia
 
-- Hasła kont offline są zabezpieczane algorytmem Argon2id, a kosztowne obliczenia mają
+- Hasła kont są zabezpieczane algorytmem Argon2id, a kosztowne obliczenia mają
   ograniczoną liczbę wątków i kolejkę.
 - Kolejne błędne hasła uruchamiają limit prób i czasową blokadę konta.
 - Ochrona połączeń ogranicza ruch z jednego adresu i całego serwera, zanim rozpocznie się
@@ -43,10 +43,9 @@ zapełnieniem sesjami, które nigdy nie kończą uwierzytelniania.
   adresu IP. Limity mogą dotknąć także prawdziwych graczy we wspólnej sieci, dlatego
   administrator powinien dobierać je do swojej społeczności.
 
-## Konta premium i zmiana UUID
+## Weryfikacja konta i zmiana UUID
 
-Gdy dotychczasowy gracz non-premium kupi Minecraft i zachowa nick, plugin prosi o stare
-hasło serwerowe i tworzy kontrolowaną migrację `OFFLINE -> PREMIUM`. Dane nie są
+Gdy dotychczasowy gracz zacznie korzystać z oficjalnej tożsamości Minecraft pod tym samym nickiem, plugin prosi o dotychczasowe hasło serwerowe i przygotowuje kontrolowaną migrację UUID. Dane nie są
 przenoszone przez ślepą zamianę UUID. Wbudowane migratory obsługują dane vanilla,
 EssentialsX, LuckPerms, HorseManagerX, PunisherX oraz PlotsX, jeśli wymagana integracja
 jest dostępna. Niezarządzane dane mogą zatrzymać zmianę zamiast ryzykować ich utratę.
@@ -54,7 +53,7 @@ jest dostępna. Niezarządzane dane mogą zatrzymać zmianę zamiast ryzykować 
 Migracja tworzy kopie, potrafi wycofać wykonane kroki i jest wznawiana po restarcie.
 Administracja może sprawdzić jej stan, wykonać inspekcję, ponowić ticket lub przygotować
 recovery dla konta zmienionego przez starszą wersję. Szczegóły opisują strony
-[Konta premium](Premium.md) i [Komendy](Komendy.md).
+[Weryfikacja konta](Premium.md) i [Komendy](Komendy.md).
 
 ## Narzędzia administracji
 
@@ -72,7 +71,7 @@ recovery dla konta zmienionego przez starszą wersję. Szczegóły opisują stro
 
 - Dostępne są SQLite, MySQL, MariaDB i PostgreSQL. Hasło zdalnej bazy może pochodzić ze
   zmiennej środowiskowej zamiast z pliku.
-- Osobny moduł Velocity wybiera tryb premium lub offline przed backendem. Opcjonalnie
+- Osobny moduł Velocity weryfikuje tożsamość Minecraft przed połączeniem z backendem. Opcjonalnie
   sprawdza wspólną historię kont oraz VPN/proxy/Tor przed wpuszczeniem gracza.
 - CleanerX może stosować politykę nazw, a PunisherX — sprawdzać dostępne przez publiczne
   API aktywne kary. Awaria integracji może blokować albo przepuszczać połączenie zgodnie
@@ -91,7 +90,7 @@ uznaje wspólnego IP lub wyniku usługi VPN za niepodważalny dowód nadużycia.
 
 ## Polityka prywatności / RODO — Paper
 
-Po poprawnym logowaniu konta offline lub premium gracz pozostaje w izolacji do zaakceptowania aktualnej polityki. Ustawienie `privacy.dialogs.enabled: false` pozwala wyświetlać ją na czacie zamiast w oknie.
+Po poprawnym uwierzytelnieniu konta gracz pozostaje w izolacji do zaakceptowania aktualnej polityki. Ustawienie `privacy.dialogs.enabled: false` pozwala wyświetlać ją na czacie zamiast w oknie.
 
 Decyzja jest zapisywana razem z datą i wersją polityki oraz zachowywana po migracji do premium. Zwiększenie `privacy.policy-version` wymaga ponownej akceptacji przy kolejnym wejściu. Przekroczenie `privacy.timeout-seconds` lub błąd zapisu kończy połączenie. Odmowa i wycofanie nie nakładają automatycznej kary PunisherX.
 

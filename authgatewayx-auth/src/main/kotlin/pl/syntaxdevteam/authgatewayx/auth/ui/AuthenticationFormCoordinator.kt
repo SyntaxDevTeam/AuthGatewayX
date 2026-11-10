@@ -23,6 +23,7 @@ data class AuthenticationFormContext(
     val sourceAddress: InetAddress,
     val minecraftUuid: UUID,
     val sessionNonce: UUID? = null,
+    val verifiedMojang: Boolean = false,
 )
 
 enum class AuthenticationFormResult {
@@ -69,7 +70,11 @@ class AuthenticationFormCoordinator(
         }.whenComplete { result, _ -> runCatching { completionObserver(context, result) } }
 
     override fun submitRegistration(context: AuthenticationFormContext, password: CharArray): CompletionStage<AuthenticationFormResult> =
-        registrationService.register(context.username, context.sourceAddress, password).thenCompose { result ->
+        (if (context.verifiedMojang) {
+            registrationService.registerVerified(context.username, context.sourceAddress, context.minecraftUuid, password)
+        } else {
+            registrationService.register(context.username, context.sourceAddress, password)
+        }).thenCompose { result ->
             when (result) {
                 null -> error("Async authentication operation returned null: result")
                 is RegistrationOutcome.Created -> {
@@ -83,10 +88,14 @@ class AuthenticationFormCoordinator(
 
     private fun activate(context: AuthenticationFormContext, account: AuthAccount): CompletionStage<AuthenticationFormResult> =
         activationGuard.allows(account, context.sourceAddress).thenApply { allowed ->
-            if (allowed != true) AuthenticationFormResult.ACCESS_DENIED
+            val requiredIdentity = if (context.verifiedMojang) IdentityType.MOJANG else IdentityType.OFFLINE
+            if (allowed != true || account.identityType != requiredIdentity ||
+                account.minecraftUuid != context.minecraftUuid ||
+                account.username.canonical != context.username.canonical
+            ) AuthenticationFormResult.ACCESS_DENIED
             else {
                 sessions.activate(context.connectionId, account.id, account.minecraftUuid,
-                    IdentityType.OFFLINE, AuthenticationMethod.PASSWORD, clock.instant(),
+                    account.identityType, AuthenticationMethod.PASSWORD, clock.instant(),
                     expectedSessionNonce = context.sessionNonce)
                 activationListener.activated(context)
                 AuthenticationFormResult.AUTHENTICATED

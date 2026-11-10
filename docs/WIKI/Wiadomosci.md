@@ -62,7 +62,7 @@ To fragment, nie zamiennik całego pliku. Zachowaj pozostałe wpisy i nie twórz
 
 Zrób kopię, edytuj teksty przy wyłączonym serwerze i uruchom go ponownie. Sprawdź rejestrację, logowanie, błędne hasło i zmianę hasła. Nie usuwaj nazw wpisów po lewej stronie dwukropka.
 
-Komunikat o błędzie powinien nadal mówić prawdę. Przy nieudanym logowaniu premium pozostaw informację o potrzebie zalogowania się na właściwe konto w launcherze.
+Komunikat o błędzie powinien nadal mówić prawdę. Przy nieudanej weryfikacji sesji Minecraft pozostaw informację o potrzebie zalogowania się na właściwe konto w launcherze.
 
 Velocity ma osobny plik `lang/messages_pl.yml` w swoim folderze danych. Zmiana tekstów Paper nie zmienia automatycznie komunikatów proxy.
 

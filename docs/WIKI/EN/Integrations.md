@@ -23,7 +23,7 @@ Neither plugin is required for basic authentication in the default `AUTO` mode.
 | `FAIL_CLOSED` | Deny login if the check cannot complete |
 | `FAIL_OPEN` | Continue without a result from this check |
 
-`FAIL_OPEN` does not override a confirmed ban, an explicit username rejection or premium verification.
+`FAIL_OPEN` does not override a confirmed ban, an explicit username rejection or Minecraft session verification.
 
 To require PunisherX, edit the existing section and restart:
 
@@ -39,13 +39,13 @@ integrations:
 
 Test with both punished and unpunished accounts. `REQUIRED` combined with `FAIL_OPEN` permits continuation when the service is missing or fails.
 
-## Offline-to-premium migration
+## Account UUID migration
 
-Before upgrading an account, back up player data and check `/agx migrate inspect <name>`. Plugins storing data under a player's UUID need a compatible migration integration. If a required integration is missing, resolve the reported block before retrying; do not manually replace UUIDs. See [Premium accounts](Premium.md).
+Before upgrading an account, back up player data and check `/agx migrate inspect <name>`. Plugins storing data under a player's UUID need a compatible migration integration. If a required integration is missing, resolve the reported block before retrying; do not manually replace UUIDs. See [Account identity verification](Premium.md).
 
 ## EssentialsX and LuckPerms
 
-EssentialsX copies `userdata/<old-uuid>.yml`, updates embedded UUIDs and retains the source. Existing destination data is backed up before replacement and restored on rollback. See [Premium accounts](Premium.md).
+EssentialsX copies `userdata/<old-uuid>.yml`, updates embedded UUIDs and retains the source. Existing destination data is backed up before replacement and restored on rollback. See [Account identity verification](Premium.md).
 
 LuckPerms uses its public API independently of storage type. It copies persistent user nodes: direct permissions, group inheritance, prefixes, suffixes, metadata, contexts, negations and expiry times. Global groups do not need copying. A conflicting nonempty target is not overwritten. Rollback clears the target only while it remains an exact copy; later edits fail closed.
 

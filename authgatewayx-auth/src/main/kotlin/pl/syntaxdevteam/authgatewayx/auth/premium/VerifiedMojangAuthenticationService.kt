@@ -39,9 +39,11 @@ data class VerifiedMojangAuthenticationContext(
     val sourceAddress: InetAddress,
     val minecraftUuid: UUID,
     val sessionNonce: UUID? = null,
+    val passwordRequired: Boolean = false,
 )
 
 sealed interface VerifiedMojangAuthenticationResult {
+    data class PasswordRequired(val account: AuthAccount) : VerifiedMojangAuthenticationResult
     data class Success(val account: AuthAccount, val migratedFromOffline: Boolean) : VerifiedMojangAuthenticationResult
     data class MigrationRequired(
         val account: AuthAccount,
@@ -74,7 +76,9 @@ class VerifiedMojangAuthenticationService(
             val result = when (binding) {
                 null -> error("Async authentication operation returned null: binding")
                 is MojangIdentityBindingResult.Bound ->
-                    return@thenCompose activateVerified(context, binding, verifiedAt)
+                    return@thenCompose if (context.passwordRequired) {
+                        CompletableFuture.completedFuture(VerifiedMojangAuthenticationResult.PasswordRequired(binding.account))
+                    } else activateVerified(context, binding, verifiedAt)
                 is MojangIdentityBindingResult.MigrationRequired -> {
                     audit(
                         context,

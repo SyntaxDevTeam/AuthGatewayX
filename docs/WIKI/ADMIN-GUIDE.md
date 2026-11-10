@@ -60,7 +60,7 @@ Nadaj konkretne uprawnienia przez swój system rang. Nie każdy moderator potrze
 | Odbieranie alertów | `authgatewayx.admin.alerts` |
 | Analiza wspólnych adresów | `authgatewayx.admin.alts` |
 | Podgląd IP, GeoIP lub audytu | Osobno `authgatewayx.admin.view-ip`, `authgatewayx.admin.view-geo`, `authgatewayx.admin.view-security` |
-| Reset hasła offline | `authgatewayx.admin.password` |
+| Reset hasła konta | `authgatewayx.admin.password` |
 | Diagnostyka migracji UUID | `authgatewayx.admin.migration.view` |
 
 Operatorzy mają domyślnie uprawnienia administracyjne. Nadając rolę z ograniczonym dostępem, sprawdź również dziedziczone permisje i status operatora. Uprawnienie nie zastępuje uwierzytelnionej sesji.
@@ -71,11 +71,11 @@ Operatorzy mają domyślnie uprawnienia administracyjne. Nadając rolę z ograni
 
 Przeprowadź te próby na prywatnym serwerze testowym przed otwarciem dostępu. Checkboxy służą Twojemu wdrożeniu — zaznacz je po rzeczywistym sprawdzeniu.
 
-- [ ] Nowy gracz offline otrzymuje formularz rejestracji, a istniejący formularz logowania.
+- [ ] Każdy nowy gracz otrzymuje formularz rejestracji, a powracający gracz formularz logowania.
 - [ ] Błędne hasło nie otwiera dostępu do gry; poprawne pozwala przejść dalej.
 - [ ] Przed zakończeniem logowania i wymaganej akceptacji nie można wpływać na świat.
-- [ ] Własne konto premium przechodzi oficjalną weryfikację.
-- [ ] `/changepassword`, `/logout` i ponowne logowanie działają dla konta offline.
+- [ ] Własne oficjalne konto Minecraft przechodzi weryfikację i domyślnie wymaga również hasła serwerowego.
+- [ ] `/changepassword`, `/logout` i ponowne logowanie działają dla uwierzytelnionego konta.
 - [ ] Akceptacja polityki jest zapisana, a odmowa kończy połączenie.
 - [ ] Po restarcie konta nadal istnieją i można się zalogować.
 - [ ] Administrator widzi tylko dane, do których otrzymał dostęp.
@@ -85,13 +85,13 @@ Hasła w polach Minecraft Dialog są widoczne na ekranie. Uprzedź graczy, by uk
 
 ## 6. Codzienna obsługa
 
-**Gracz zapomniał hasła offline:** najpierw potwierdź własność konta. Zalogowany administrator używa `/agx setpassword <nick>` i podaje nowe hasło w formularzu. Reset rozłącza aktywnego gracza. Przekaż hasło prywatnie i poproś o zmianę przez `/changepassword`. Nie jest to reset konta Microsoft.
+**Gracz zapomniał hasła serwerowego:** najpierw potwierdź własność konta. Zalogowany administrator używa `/agx setpassword <nick>` i podaje nowe hasło w formularzu. Reset rozłącza aktywnego gracza. Przekaż hasło prywatnie i poproś o zmianę przez `/changepassword`. Nie jest to reset konta Microsoft.
 
-**Gracz nie może wejść:** sprawdź komunikat, `/agx info <nick>` oraz stan usług i bazy w konsoli. Przy błędzie sesji premium poproś o ponowne zalogowanie w oficjalnym launcherze. Nie wyłączaj weryfikacji premium w celu obejścia problemu.
+**Gracz nie może wejść:** sprawdź komunikat, `/agx info <nick>` oraz stan usług i bazy w konsoli. Przy błędzie sesji Minecraft poproś o ponowne zalogowanie w oficjalnym launcherze. Nie wyłączaj weryfikacji tożsamości w celu obejścia problemu.
 
 **Podejrzenie multi-kont:** sprawdź `/agx alts <nick>`. Wspólny IP jest poszlaką — sieci domowe, szkoły i CGNAT mogą łączyć różne osoby. Raport nie nakłada automatycznie kar.
 
-**Przejście offline → premium:** gracz musi potwierdzić stare hasło po oficjalnej weryfikacji premium. Migracja danych odbywa się po rozłączeniu. Użyj `/agx migrate status <nick>` i `inspect`, aby sprawdzić stan; nie zamieniaj UUID ręcznie w bazie. [Procedura migracji](Premium.md).
+**Migracja UUID po weryfikacji konta Minecraft:** gracz musi potwierdzić stare hasło po oficjalnej weryfikacji Minecraft. Migracja danych odbywa się po rozłączeniu. Użyj `/agx migrate status <nick>` i `inspect`, aby sprawdzić stan; nie zamieniaj UUID ręcznie w bazie. [Procedura migracji](Premium.md).
 
 ## 7. Zabezpieczenia i integracje
 

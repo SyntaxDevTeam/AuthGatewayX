@@ -6,12 +6,12 @@
 
 AuthGatewayX to plugin do logowania na serwerach Minecraft Java Edition. Pomaga chronić konta graczy i pilnuje, żeby osoba, która jeszcze się nie zalogowała, nie mogła grzebać w skrzynkach, niszczyć budowli ani przeszkadzać innym.
 
-Masz serwer dla znajomych albo rozwijasz własną społeczność? AuthGatewayX łączy wygodne okno logowania, obsługę kont premium i zabezpieczenia przed spamem połączeń.
+Masz serwer dla znajomych albo rozwijasz własną społeczność? AuthGatewayX zapewnia rejestrację i logowanie wszystkim graczom, również przy `online-mode=false`, oraz zabezpieczenia przed spamem połączeń.
 
 ## Co zyskujesz?
 
-- **Wygodne logowanie.** Gracz wpisuje hasło w oknie Minecrafta. Nie musi pamiętać komendy ani wpisywać hasła na czacie.
-- **Ochronę nicków premium.** Samo wpisanie cudzego nicku nie wystarcza do wejścia na jego konto.
+- **Rejestracja i logowanie dla każdego.** Gracz wpisuje hasło w oknie Minecrafta. Nie musi pamiętać komendy ani wpisywać hasła na czacie.
+- **Ochronę nicków graczy premium przed podszywaniem się.** Samo wpisanie cudzego nicku w launcherze nie daje dostępu do konta. Właściciel chronionego nicku musi pomyślnie przejść oficjalną weryfikację sesji Minecraft.
 - **Spokojniejszy start gry.** Przed zalogowaniem gracz jest oddzielony od normalnej rozgrywki.
 - **Mniej nadużyć.** Plugin ogranicza masowe połączenia, zgadywanie haseł i tworzenie wielu kont.
 - **Własny styl.** Możesz zmienić teksty, kolory i ustawienia, żeby pasowały do Twojego serwera.
@@ -34,7 +34,7 @@ Wolisz przejść przez całą konfigurację krok po kroku? Otwórz [przewodnik a
 | [Komendy](Komendy.md) | Wszystkie dostępne komendy |
 | [Uprawnienia](Uprawnienia.md) | Dostęp dla graczy i administracji |
 | [Konfiguracja](Konfiguracja.md) | Pełna lista ustawień Paper |
-| [Konta premium](Premium.md) | Automatyczne logowanie i ochrona nicków |
+| [Tożsamość konta](Premium.md) | Weryfikacja tożsamości i zarządzanie UUID |
 | [Ochrona serwera](Ochrona-serwera.md) | Hasła, boty, limity i blokady |
 | [Wiadomości](Wiadomosci.md) | Własne teksty, kolory i okna |
 | [Baza danych i kopie](Baza-danych.md) | Zapis kont, aktualizacje i przywracanie |

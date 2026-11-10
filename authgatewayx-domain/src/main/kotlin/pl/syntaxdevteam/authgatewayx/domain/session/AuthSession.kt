@@ -82,8 +82,10 @@ data class AuthSession private constructor(
         require(authenticationMethod != AuthenticationMethod.MOJANG || identityType == IdentityType.MOJANG) {
             "Mojang authentication can activate only a Mojang identity"
         }
-        require(authenticationMethod != AuthenticationMethod.PASSWORD || identityType == IdentityType.OFFLINE) {
-            "Password authentication can activate only an offline identity"
+        require(authenticationMethod != AuthenticationMethod.PASSWORD ||
+            identityType == IdentityType.OFFLINE || identityType == IdentityType.MOJANG
+        ) {
+            "Password authentication requires a supported account identity"
         }
 
         return copy(

@@ -1,5 +1,5 @@
 name: AuthGatewayX
-description: Secure mixed-mode authentication gateway for Paper, Purpur, Folia and Velocity.
+description: Secure Minecraft player authentication gateway for Paper, Purpur, Folia and Velocity.
 prefix: AuthGatewayX
 version: '${version}'
 
@@ -21,17 +21,20 @@ authors: [ SyntaxDevTeam ]
 website: https://syntaxdevteam.pl
 
 permissions:
+  authgatewayx.auth.skip-password:
+    description: Allows a Mojang-verified account to skip the additional server password.
+    default: false
   authgatewayx.command.privacy:
     description: Allows showing, accepting, rejecting, and revoking the privacy policy after login.
     default: true
   authgatewayx.command.changepassword:
-    description: Allows an authenticated offline player to change their password.
+    description: Allows authenticated players to change their password.
     default: true
   authgatewayx.command.logout:
-    description: Allows an authenticated offline player to invalidate their session.
+    description: Allows authenticated players to invalidate their session.
     default: true
   authgatewayx.admin.password:
-    description: Allows setting the password of an offline account through a secure dialog.
+    description: Allows setting an account password through a secure dialog.
     default: op
   authgatewayx.admin.reload:
     description: Allows reloading configuration settings explicitly supported at runtime.

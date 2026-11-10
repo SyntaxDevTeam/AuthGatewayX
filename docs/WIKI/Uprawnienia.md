@@ -9,6 +9,7 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | Uprawnienie | Dostęp | Domyślnie |
 | --- | --- | --- |
 | `authgatewayx.command.changepassword` | Zmiana własnego hasła | Wszyscy gracze |
+| `authgatewayx.auth.skip-password` | Pominięcie hasła serwerowego po potwierdzeniu tożsamości Minecraft | Domyślnie wyłączone |
 | `authgatewayx.command.privacy` | Wyświetlanie polityki i zarządzanie akceptacją | Wszyscy gracze |
 | `authgatewayx.command.logout` | Wylogowanie | Wszyscy gracze |
 | `authgatewayx.admin.info` | Podstawowy raport `/authgatewayx info <nick>` | Operatorzy serwera |
@@ -17,7 +18,7 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | `authgatewayx.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
 | `authgatewayx.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
 | `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
-| `authgatewayx.admin.password` | Ustawianie hasła cudzego konta offline | Operatorzy serwera |
+| `authgatewayx.admin.password` | Ustawianie hasła konta wskazanego gracza | Operatorzy serwera |
 | `authgatewayx.admin.reload` | Przeładowanie ustawień obsługiwanych w runtime przez `/agx reload` | Operatorzy serwera |
 | `authgatewayx.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
 | `authgatewayx.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
@@ -29,9 +30,7 @@ Uprawnienia możesz przypisać w używanym na serwerze pluginie do zarządzania 
 
 Graczom wystarczą domyślne uprawnienia komend gracza. Dostęp do `authgatewayx.admin.password` daj tylko osobom, którym powierzasz odzyskiwanie kont. Nie musi go mieć każdy moderator czatu. Jeśli moderator ma otrzymywać alerty, ale nie powinien widzieć danych sieciowych, nadaj mu samo `authgatewayx.admin.alerts`. `authgatewayx.admin.info` otwiera raport podstawowy, natomiast `view-ip`, `view-geo`, `view-security` i `alts` niezależnie dodają sekcje wrażliwe. Konsola serwera otrzymuje pełny wariant diagnostyczny.
 
-Samo nadanie uprawnienia nie omija logowania i nie zamienia konta premium w offline. Zmiana hasła oraz wylogowanie dotyczą aktywnych kont offline. Administrator także musi najpierw się zalogować.
-
-Obecna wersja nie ma osobnej permisji do omijania logowania, limitów ani ochrony nicków premium.
+Samo nadanie uprawnienia nie omija weryfikacji tożsamości Minecraft, zabezpieczeń przed wejściem do świata ani limitów połączeń. Zmiana hasła oraz wylogowanie dotyczą uwierzytelnionych kont. Uprawnienie `authgatewayx.auth.skip-password` umożliwia pominięcie dodatkowego hasła wyłącznie graczowi z już zweryfikowaną oficjalną tożsamością Minecraft. Domyślnie każdy gracz korzysta z rejestracji i logowania hasłem.
 
 ## VPN i multi-konta na proxy
 
@@ -45,7 +44,7 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
 Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
 `/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
-Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
 

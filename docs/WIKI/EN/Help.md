@@ -10,7 +10,7 @@ This version automatically opens a Minecraft form. Enter passwords there; comman
 
 ## No login dialog appears
 
-Verified premium accounts do not need a password dialog. For offline accounts, check client/server compatibility, plugin readiness and console errors. First test with a matching vanilla client without screen-changing mods.
+By default, every player must register and log in with the server password. Only specifically authorized, officially verified identities can bypass it. If a dialog does not appear, check client/server compatibility, plugin readiness and console errors. First test with a matching vanilla client without screen-changing mods.
 
 ## Passwords do not match or credentials are incorrect
 
@@ -22,15 +22,15 @@ The default lockout after failed passwords lasts ten minutes. Wait and try again
 
 ## Too many attempts or accounts
 
-Wait before reconnecting. Rapid connections, leaving before login and many names from one shared IP can trigger protection. The default three-offline-accounts-per-IP limit is persistent: waiting does not remove it. Staff should review legitimate shared-network cases.
+Wait before reconnecting. Rapid connections, leaving before login and many names from one shared IP can trigger protection. The default three-registrations-per-IP limit is persistent: waiting does not remove it. Staff should review legitimate shared-network cases.
 
-## Premium session verification failed
+## Minecraft session verification failed
 
-Close the game, sign in again to the Microsoft account owning the name in your launcher and restart Minecraft. See [Premium accounts](Premium.md). Never disable premium protection to work around an outage.
+Close the game, sign in again to the Microsoft account owning the name in your launcher and restart Minecraft. See [Account identities](Premium.md). Never disable identity protection to work around an outage.
 
 ## Username status cannot be verified
 
-Check server internet access and Minecraft service availability. This is different from verifying an already classified premium session. Find `[mojang-lookup]` diagnostics:
+Check server internet access and Minecraft service availability. This is different from verifying an already classified Minecraft session. Find `[mojang-lookup]` diagnostics:
 
 | Reason | Meaning |
 | --- | --- |
@@ -45,7 +45,7 @@ Check server internet access and Minecraft service availability. This is differe
 
 `retry_after_seconds` shows the remaining pause. HTTP 429 honors `Retry-After` as seconds or a date, capped at 24 hours; missing/invalid values use 60 seconds. Other service/transport failures pause for two seconds. Lookups do not retry automatically; another connection after the pause can try again. Valid cached results remain usable.
 
-Each category logs at most once per 30 seconds. `suppressed` reports skipped repetitions. These lines contain no player data and do not require handshake diagnostics. A missing answer still denies admission; service failure is never treated as evidence of an offline account.
+Each category logs at most once per 30 seconds. `suppressed` reports skipped repetitions. These lines contain no player data and do not require handshake diagnostics. A missing answer still denies admission; service failure is never treated as evidence of an unverified identity.
 
 Native Paper console messages such as `Failed to verify username` or `invalid session` may remain English even when player messages use another language.
 
@@ -59,7 +59,7 @@ Startup may still be preparing services. If the message persists, inspect the fi
 
 ## Password-change command opens nothing
 
-Run it in-game after authenticating an offline account. Check [Permissions](Permissions.md). Console cannot open forms; premium accounts have no offline server password to change.
+Run it in-game after authenticating. Check [Permissions](Permissions.md). Console cannot open forms. A newly verified player must register a server password before using this command unless exempted.
 
 ## Can I reload without restarting?
 

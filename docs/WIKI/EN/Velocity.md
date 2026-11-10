@@ -16,7 +16,7 @@ player-info-forwarding-mode = "modern"
 forwarding-secret-file = "forwarding.secret"
 ```
 
-AuthGatewayX selects premium or offline verification separately for each connection. On Paper, set `online-mode=false` in `server.properties` and edit the existing `proxies` section in `config/paper-global.yml`:
+AuthGatewayX verifies official Minecraft session ownership when applicable and requires server authentication for every player by default. On Paper, set `online-mode=false` in `server.properties` and edit the existing `proxies` section in `config/paper-global.yml`:
 
 ```yaml
 proxies:
@@ -37,7 +37,7 @@ Velocity uses `authgatewayx.yml` in its AuthGatewayX data folder, separately fro
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `premium.lookup.timeout-millis` | `3000` | Total lookup queue and HTTP deadline |
-| `premium.lookup.positive-ttl-seconds` | `21600` | Premium profile cache lifetime |
+| `premium.lookup.positive-ttl-seconds` | `21600` | Official Minecraft profile cache lifetime |
 | `premium.lookup.negative-ttl-seconds` | `300` | Missing profile cache lifetime |
 | `premium.lookup.maximum-cache-size` | `50000` | Cached-result limit |
 | `connections.admission-timeout-millis` | `20000` | Overall async admission deadline, shorter than Velocity's login timeout |
@@ -58,9 +58,9 @@ The full setting reference, failure policies and rollout order are in [Velocity 
 
 ## Staff authentication and secrets
 
-Assign `authgatewayx.admin.alerts` and `authgatewayx.admin.alts` on the proxy. Offline staff additionally need authenticated backend sessions and matching separate `staff-proof.secret` values on Paper and Velocity. Console and Mojang-authenticated staff do not require offline proof.
+Assign `authgatewayx.admin.alerts` and `authgatewayx.admin.alts` on the proxy. Staff with locally assigned identities additionally need authenticated backend sessions and matching separate `staff-proof.secret` values on Paper and Velocity. Console and Mojang-authenticated staff do not require offline proof.
 
-Generate your own cryptographically random secret of at least 32 bytes, preferably 32 random bytes encoded as hex/base64. Set it on both processes or supply `AUTHGATEWAYX_STAFF_PROOF_SECRET` to both. Never reuse the old publicly known example or the Velocity forwarding secret. New installs default to an empty proof secret; offline staff proof stays unavailable until configured. Updating the JAR does not replace secrets in existing files.
+Generate your own cryptographically random secret of at least 32 bytes, preferably 32 random bytes encoded as hex/base64. Set it on both processes or supply `AUTHGATEWAYX_STAFF_PROOF_SECRET` to both. Never reuse the old publicly known example or the Velocity forwarding secret. New installs default to an empty proof secret; staff proof for locally assigned identities stays unavailable until configured. Updating the JAR does not replace secrets in existing files.
 
 ## Session diagnostics
 
@@ -82,4 +82,4 @@ For username lookup/backoff errors see [Help](Help.md). `Backend server is onlin
 
 ## Verify your network
 
-Test premium and offline login, reconnects, backend switches and rejection of direct backend connections from outside the proxy. Do not assume authentication automatically follows players across every backend.
+Test registration and login for both officially verified and locally assigned identities, reconnects, backend switches and rejection of direct backend connections from outside the proxy. Do not assume authentication automatically follows players across every backend.

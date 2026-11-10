@@ -37,7 +37,7 @@ Minimum długości hasła nie może być większe od maksimum. Wiadomości opisa
 
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
-| `privacy.enabled` | `true` | Wymagaj decyzji po uwierzytelnieniu konta premium lub offline |
+| `privacy.enabled` | `true` | Wymagaj decyzji po uwierzytelnieniu konta |
 | `privacy.policy-version` | `1` | Wersja zasad, zmiana wymusza ponowną akceptację |
 | `privacy.policy-url` | pusty | Opcjonalny adres HTTPS nadpisujący link z `privacy.link` w pliku językowym; pusty zachowuje link z wiadomości |
 | `privacy.timeout-seconds` | `120` | Czas na decyzję po zalogowaniu |
@@ -45,14 +45,14 @@ Minimum długości hasła nie może być większe od maksimum. Wiadomości opisa
 
 Wybór interfejsu wynika z wersji Minecraft uruchomionej na serwerze Paper i nie wymaga ręcznego ustawiania progu. Jest niezależny od wersji klienta gracza. Ten mechanizm dotyczy wyświetlania polityki; obecny plik JAR nadal deklaruje `api-version: 26.1` i nie staje się zgodny ze starszymi Paper przez samo przełączenie na czat.
 
-## Sprawdzanie premium
+## Weryfikacja tożsamości Minecraft
 
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
-| `premium.authentication.maximum-concurrent-handshakes` | `32` | Ile kont premium może być jednocześnie weryfikowanych na samodzielnym serwerze |
+| `premium.authentication.maximum-concurrent-handshakes` | `32` | Ile oficjalnych sesji Minecraft może być jednocześnie weryfikowanych na samodzielnym serwerze |
 | `premium.lookup.timeout-millis` | `3000` | Łączny czas oczekiwania na sprawdzenie nicku, razem z kolejką i odpowiedzią usługi |
-| `premium.lookup.positive-ttl-seconds` | `21600` | Jak długo pamiętać, że nick należy do premium: 6 godzin |
-| `premium.lookup.negative-ttl-seconds` | `300` | Jak długo pamiętać brak profilu premium: 5 minut |
+| `premium.lookup.positive-ttl-seconds` | `21600` | Jak długo pamiętać istnienie oficjalnego profilu Minecraft: 6 godzin |
+| `premium.lookup.negative-ttl-seconds` | `300` | Jak długo pamiętać brak profilu Minecraft: 5 minut |
 | `premium.lookup.maximum-cache-size` | `50000` | Maksymalna liczba zapamiętanych wyników |
 
 Zapamiętywanie wyniku ogranicza powtarzanie zapytań. Nie zastępuje potwierdzenia, że łączący się gracz jest właścicielem konta. Dłuższy czas pamiętania oznacza wolniejsze zauważanie zmian nazw.
@@ -88,7 +88,7 @@ Niższy próg lub większe punkty oznaczają szybsze blokowanie. Weź pod uwagę
 | `anti-bot.username-burst.window-seconds` | `30` | Długość tego okna |
 | `anti-bot.username-burst.quarantine-seconds` | `600` | Blokada za przekroczenie limitu |
 | `anti-bot.reconnect-loop.maximum-pre-auth-disconnects` | `5` | Limit wyjść przed logowaniem; korzysta z okna i blokady ochrony nicków |
-| `anti-bot.registration-attempts.maximum-accounts-per-address` | `3` | Trwały limit kont offline utworzonych z jednego IP |
+| `anti-bot.registration-attempts.maximum-accounts-per-address` | `3` | Trwały limit rejestracji z jednego IP |
 | `anti-bot.registration-attempts.capacity` | `3` | Maksymalny zapas prób rejestracji na adres |
 | `anti-bot.registration-attempts.refill-tokens` | `1` | Ile prób wraca po każdym okresie odnowienia |
 | `anti-bot.registration-attempts.refill-seconds` | `60` | Czas odnowienia prób |
@@ -183,7 +183,7 @@ ip-intelligence:
 Wklej brakujące sekcje do istniejącego configu, bez duplikowania kluczy. Włączenie
 `ip-intelligence` wysyła publiczne IP do proxycheck.io. Klucz z
 `AUTHGATEWAYX_PROXYCHECK_API_KEY` ma pierwszeństwo nad YAML. Sprawdzenia obejmują tylko
-udane uwierzytelnienia offline; alerty są informacyjne. Obie opcje `enabled` są
+udane uwierzytelnienia hasłem; alerty są informacyjne. Obie opcje `enabled` są
 niezależne: aby wyłączyć wszystkie sprawdzenia, ustaw obie na `false`.
 
 `show-geo` dodaje kraj i ASN do alertów, nie raportuje wszystkich wejść. `notify-on-vpn`
@@ -208,7 +208,7 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
 Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
 `/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
-Administrator offline wymaga poprawnego zalogowania na backendzie i wspólnego,
+Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
 
@@ -219,15 +219,15 @@ powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować 
 
 Diagnostyka samodzielnego Paper: ustaw `premium.authentication.diagnostics.enabled: true`
 i zrestartuj serwer. `maximum-lines-per-minute` domyślnie wynosi 120. Linie
-`[premium-diag]` pokazują etapy i czas weryfikacji premium, wykorzystanie limitów oraz przyczyny odmów,
+`[premium-diag]` pokazują etapy i czas weryfikacji sesji Minecraft, wykorzystanie limitów oraz przyczyny odmów,
 bez nicków, IP, UUID i sekretów. Podsumowania co 30 s zawierają także suppressed/dropped.
 Przy zgłoszeniu problemu dołącz odpowiedni fragment logu bez danych prywatnych. Zobacz [Pomoc i diagnostyka](Pomoc.md).
 
 ### Krótkie awarie uwierzytelniania na samodzielnym Paper
 
-AuthGatewayX utrzymuje połączenie premium i ponawia weryfikację sesji przy błędzie
+AuthGatewayX utrzymuje połączenie z oficjalnym kontem Minecraft i ponawia weryfikację sesji przy błędzie
 dostępności usługi: maksymalnie 3 próby, przerwy 1 s i 2 s. Cały etap ma limit 12 s.
-Niepoprawna sesja jest odrzucana od razu, bez przejścia na offline. Dłuższa awaria
+Niepoprawna sesja jest odrzucana od razu, bez przejścia na niezweryfikowaną tożsamość. Dłuższa awaria
 nadal kończy się odmową. Mechanizm działa automatycznie na Paper/Purpur/Folia
 standalone; nie ma osobnej opcji i nie obejmuje Velocity. Limit równoległych handshake
 obejmuje również oczekiwanie na ponowienie. `premium.lookup.timeout-millis` steruje

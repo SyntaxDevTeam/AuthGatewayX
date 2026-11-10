@@ -7,32 +7,14 @@
 language: "PL"
 
 # /********************************************/
-#    Premium account authentication
+#    Minecraft identity verification
 # /********************************************/
 
 premium:
   authentication:
-  # Experimental: authenticates during Paper's Configuration Phase, before PlayerJoinEvent.
-  # This preview is OFF by default. Do not enable on production until runtime testing,
-  # premium migration handling and cross-version 26.1–26.3 validation are complete.
-  # Premium accounts requiring offline->premium identity migration are currently rejected.
-  prejoin:
-    experimental-enabled: false
-    # The CONFIG event is held until authentication completes; keep this bounded
-    # separately from the old in-world PRE_AUTH pool to avoid exhausting login workers.
-    maximum-pending: 64
-
-    # Maximum number of premium authentication handshakes that may be processed at the same time
-    # when AuthGatewayX works directly on a standalone Paper server.
-    # Connections above this limit are rejected instead of allowing an unbounded amount of
-    # expensive authentication work to accumulate.
-    # Increase only when the server has enough CPU/network capacity and legitimate login bursts require it.
-    # Includes session-service retries: at most 3 attempts, backoff 1s/2s, total deadline 12s.
-    # Only temporary service unavailability is retried; invalid sessions are denied immediately.
-    # This fixed policy applies to standalone Paper/Purpur/Folia, not Velocity forwarding.
+    # Maximum concurrent official Minecraft session handshakes on standalone Paper.
     maximum-concurrent-handshakes: 32
-    # Opt-in handshake traces and aggregate counters. Requires restart.
-    # No usernames, addresses, UUIDs or authentication secrets are logged.
+    # Diagnostic counters and bounded trace output; never include player secrets.
     diagnostics:
       enabled: false
       maximum-lines-per-minute: 120
@@ -46,7 +28,7 @@ premium:
     # Other service/transport failures pause them for 2s. Valid cached results remain usable.
     # Rate-limited [mojang-lookup] diagnostics explain the reason without player data.
 
-    # How long, in seconds, a successful premium-profile lookup remains cached.
+    # How long, in seconds, a successful official Minecraft profile lookup remains cached.
     # Default: 21600 seconds = 6 hours.
     # A longer TTL reduces requests to Minecraft Services at the cost of slower refreshes.
     positive-ttl-seconds: 21600
@@ -54,10 +36,10 @@ premium:
     # How long, in seconds, a negative lookup result remains cached.
     # Default: 300 seconds = 5 minutes.
     # Keeping this significantly shorter than the positive TTL reduces the chance of retaining
-    # outdated "not premium" information after an account/name change.
+    # outdated missing-profile information after an account/name change.
     negative-ttl-seconds: 300
 
-    # Maximum number of username lookup results stored in the premium lookup cache.
+    # Maximum number of username lookup results stored in the identity lookup cache.
     # The limit prevents the cache from growing without bounds during scans or bot attacks.
     maximum-cache-size: 50000
 
@@ -125,9 +107,9 @@ anti-bot:
     # before the username/reconnect protection treats the behavior as abusive.
     maximum-pre-auth-disconnects: 5
 
-  # Limits creation of offline accounts from one source address.
+  # Limits new account registrations from one source address.
   registration-attempts:
-    # Maximum total number of offline accounts that one address may register.
+    # Maximum total number of accounts that one address may register.
     # This is an account-abuse limit, separate from the temporary token-bucket rate limit below.
     maximum-accounts-per-address: 3
 
@@ -150,6 +132,12 @@ anti-bot:
 # /********************************************/
 
 authentication:
+  # Experimental pre-world authentication during Minecraft Configuration Phase.
+  # Leave disabled in production until runtime compatibility is confirmed.
+  prejoin:
+    experimental-enabled: false
+    maximum-pending: 64
+
   # Maximum time, in seconds, an unauthenticated player may remain in the protected pre-auth state.
   # If authentication is not completed before the timeout, the player is disconnected.
   timeout-seconds: 120
@@ -159,7 +147,7 @@ authentication:
   maximum-pre-auth-players: 500
 
   password:
-    # Minimum password length accepted for offline accounts.
+    # Minimum password length accepted for player accounts.
     minimum-length: 8
 
     # Maximum accepted password length.
@@ -181,7 +169,7 @@ authentication:
       parallelism: 1
 
   lockout:
-    # Number of failed password attempts allowed before the offline account is temporarily locked.
+    # Number of failed password attempts allowed before an account is temporarily locked.
     attempts: 5
 
     # Account lock duration after reaching the failed-attempt limit, in seconds.
@@ -192,7 +180,7 @@ authentication:
 #    Privacy / RODO: shown only after account authentication
 # /********************************************/
 privacy:
-  # Both verified premium and registered offline accounts must accept the current policy.
+  # All authenticated players must accept the current policy.
   enabled: true
   # Increase after changes to the policy to require a new decision from existing players.
   policy-version: "1"
@@ -326,7 +314,7 @@ integrations:
     mode: AUTO
     failure-strategy: FAIL_CLOSED
 
-# Advisory alerts after successful OFFLINE login/registration. No automatic bans.
+# Advisory alerts after successful password login/registration. No automatic bans.
 multi-account:
   alerts:
     # Notify authenticated staff with authgatewayx.admin.alerts about shared IP history.
@@ -341,7 +329,7 @@ multi-account:
 
 # Optional proxycheck.io v3: enabling sends the player's public IP to this provider.
 # No username, UUID or password is sent. Geo describes the exit IP, not the person.
-# Disabled means no external requests. This feature only observes successful offline auth.
+# Disabled means no external requests. This feature observes successful password authentication.
 ip-intelligence:
   enabled: false
   # AUTHGATEWAYX_PROXYCHECK_API_KEY overrides this value. Empty uses anonymous provider quota.
@@ -361,7 +349,7 @@ ip-intelligence:
   # Local quota guard, reset on restart; provider daily plan limits still apply.
   requests-per-minute: 30
 
-# Optional proof of ACTIVE status for OFFLINE proxy administrators; no auth bypass.
+# Optional proof of ACTIVE status for proxy administrators with locally assigned identities; no auth bypass.
 # Use the same independent random secret (at least 32 bytes) on Velocity and Paper.
 # AUTHGATEWAYX_STAFF_PROOF_SECRET overrides this value. Empty disables the responder.
 # Only used when Paper runs behind Velocity modern forwarding.

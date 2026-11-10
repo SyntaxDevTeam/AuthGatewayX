@@ -1,6 +1,5 @@
 package pl.syntaxdevteam.authgatewayx.auth.session
 
-import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityAuditSink
 import pl.syntaxdevteam.authgatewayx.security.audit.SecurityEvent
@@ -17,7 +16,7 @@ class LogoutService(
     fun logout(connectionId: ConnectionId): LogoutResult {
         val session = sessions.get(connectionId) ?: return LogoutResult.NOT_ACTIVE
         val accountId = session.accountId
-        if (session.identityType != IdentityType.OFFLINE || accountId == null) {
+        if (accountId == null) {
             return LogoutResult.NOT_OFFLINE_ACCOUNT
         }
         sessions.disconnect(connectionId, session.sessionNonce) ?: return LogoutResult.NOT_ACTIVE

@@ -201,7 +201,7 @@ class SqliteAccountStorageTest {
     }
 
     @Test
-    fun `explicit premium migration preserves account id and only then removes offline credentials`() = withStorage { storage ->
+    fun `explicit identity migration preserves account id and server password credentials`() = withStorage { storage ->
         storage.migrate().toCompletableFuture().get()
         val registration = registration("ExplicitUpgrade")
         assertIs<RegistrationResult.Created>(storage.registerOffline(registration).toCompletableFuture().get())
@@ -229,8 +229,10 @@ class SqliteAccountStorageTest {
         assertEquals(registration.accountId, completed.account.id)
         assertEquals(IdentityType.MOJANG, completed.account.identityType)
         assertEquals(targetUuid, completed.account.minecraftUuid)
-        assertNull(storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
-        assertNull(storage.findCredentials(registration.username).toCompletableFuture().get())
+        assertEquals(registration.passwordHash, storage.findPasswordHash(registration.accountId).toCompletableFuture().get())
+        val credentials = assertNotNull(storage.findCredentials(registration.username).toCompletableFuture().get())
+        assertEquals(IdentityType.MOJANG, credentials.account.identityType)
+        assertEquals(targetUuid, credentials.account.minecraftUuid)
     }
 
     @Test
@@ -368,6 +370,47 @@ class SqliteAccountStorageTest {
                 verifiedIdentity("ProtectedName", "aaaaaaaa-bbbb-cccc-dddd-ffffffffffff"),
             ).toCompletableFuture().get(),
         )
+    }
+
+    @Test
+    fun verifiedAccountRegistersServerPasswordWithoutChangingOfficialUuid() = withStorage { storage ->
+        storage.migrate().toCompletableFuture().get()
+        val identity = verifiedIdentity("VerifiedUser", "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+        val bound = assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+        assertEquals(identity.minecraftUuid, bound.account.minecraftUuid)
+        assertNull(storage.findCredentials(identity.username).toCompletableFuture().get())
+
+        val registered = assertIs<RegistrationResult.Created>(
+            storage.registerVerifiedPassword(
+                identity.username, identity.minecraftUuid, "server-hash",
+                identity.sourceAddress, identity.verifiedAt.plusSeconds(1),
+            ).toCompletableFuture().get(),
+        )
+        assertEquals(IdentityType.MOJANG, registered.account.identityType)
+        assertEquals(identity.minecraftUuid, registered.account.minecraftUuid)
+        assertEquals("server-hash", storage.findCredentials(identity.username).toCompletableFuture().get()?.passwordHash)
+        assertIs<RegistrationResult.UsernameAlreadyExists>(
+            storage.registerVerifiedPassword(
+                identity.username, identity.minecraftUuid, "other-hash",
+                identity.sourceAddress, identity.verifiedAt.plusSeconds(2),
+            ).toCompletableFuture().get(),
+        )
+        assertIs<RegistrationResult.MinecraftUuidAlreadyExists>(
+            storage.registerVerifiedPassword(
+                identity.username, UUID.randomUUID(), "other-hash",
+                identity.sourceAddress, identity.verifiedAt.plusSeconds(3),
+            ).toCompletableFuture().get(),
+        )
+        assertIs<MojangIdentityBindingResult.Bound>(
+            storage.bindVerifiedMojangIdentity(identity).toCompletableFuture().get(),
+        )
+        assertEquals("server-hash", storage.findCredentials(identity.username).toCompletableFuture().get()?.passwordHash)
+        storage.recordLoginSuccess(registered.account.id, identity.sourceAddress, identity.verifiedAt.plusSeconds(4))
+            .toCompletableFuture().get()
+        assertTrue(storage.replacePasswordHash(registered.account.id, "server-hash", "new-hash").toCompletableFuture().get())
+        assertEquals("new-hash", storage.findCredentials(identity.username).toCompletableFuture().get()?.passwordHash)
     }
 
     private fun registration(usernameValue: String, maximumAccountsPerAddress: Int = 3): OfflineRegistration {

@@ -6,7 +6,7 @@
 
 ## First visit
 
-Offline players receive a registration dialog. Choose a password, enter it in both fields and confirm. The default length is 8–128 characters. Use a long, unique password that you do not use for email, Discord or Microsoft.
+New players receive a registration dialog. Choose a password, enter it in both fields and confirm. The default length is 8–128 characters. Use a long, unique password that you do not use for email, Discord or Microsoft.
 
 On later visits, enter that password in the login dialog. There are no `/login` or `/register` commands in this version. By default, you have two minutes to authenticate before disconnection. Repeated rapid attempts may trigger abuse controls.
 
@@ -16,15 +16,15 @@ Until authentication completes, movement, chat, commands, containers and world i
 
 ## Change your password
 
-After signing in to an offline account, run `/changepassword`. Enter your current password and the new password twice in the dialog, then wait for confirmation. Never append a password to the command.
+After signing in, run `/changepassword`. Enter your current password and the new password twice in the dialog, then wait for confirmation. Never append a password to the command.
 
 ## Sign out
 
-Use `/logout` to end your offline session and disconnect. Your account is retained; the next connection requires login again.
+Use `/logout` to end your session and disconnect. Your account is retained; the next connection requires login again.
 
-## Premium accounts
+## Verified Minecraft identity
 
-Sign in to your Microsoft account in the launcher. After successful premium verification, no extra server password is needed. Never enter your Microsoft password in a server dialog. See [Premium accounts](Premium.md) if you previously used an offline account with the same name.
+If you own an official Minecraft account, sign in to it in your launcher. Your identity is verified during connection, but by default you still use your own server password. An administrator can explicitly allow verified accounts to skip the additional password. Never enter your Microsoft password in a server dialog. See [Account identities](Premium.md) for UUID migration information.
 
 ## Privacy choices
 

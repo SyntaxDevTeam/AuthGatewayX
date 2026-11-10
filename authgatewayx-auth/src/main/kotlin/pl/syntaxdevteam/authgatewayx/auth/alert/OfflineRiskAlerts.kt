@@ -1,6 +1,6 @@
 package pl.syntaxdevteam.authgatewayx.auth.alert
 
-import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
+import pl.syntaxdevteam.authgatewayx.domain.session.AuthenticationMethod
 import pl.syntaxdevteam.authgatewayx.domain.session.AuthSession
 import pl.syntaxdevteam.authgatewayx.domain.session.ConnectionState
 import pl.syntaxdevteam.authgatewayx.integrations.network.IpIntelligence
@@ -36,7 +36,7 @@ class OfflineRiskAlerts(
 
     /** Advisory work is never awaited by authentication and never throws into the auth pipeline. */
     fun observe(session: AuthSession) {
-        if (session.state != ConnectionState.ACTIVE || session.identityType != IdentityType.OFFLINE ||
+        if (session.state != ConnectionState.ACTIVE || session.authenticationMethod != AuthenticationMethod.PASSWORD ||
             (!multiAccountEnabled && (network == null || !vpnAlertsEnabled))) return
         synchronized(this) {
             if (closed || !isCurrent(session) || inFlight >= maximumConcurrent) return

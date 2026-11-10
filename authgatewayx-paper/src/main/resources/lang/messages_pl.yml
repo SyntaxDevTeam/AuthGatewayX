@@ -3,7 +3,7 @@ help:
   header: '<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline><gradient:#55ffff:#5555ff><b>AuthGatewayX</b></gradient> <gray>v<version></gray> <dark_gray>•</dark_gray> <white>Lista komend</white>'
   player_section: '<yellow><b>Komendy gracza</b></yellow>'
   admin_section: '<gold><b>Administracja</b></gold>'
-  change_password: '<dark_gray>›</dark_gray> <aqua>/changepassword</aqua> <dark_gray>—</dark_gray> <gray>zmiana hasła konta offline</gray>'
+  change_password: '<dark_gray>›</dark_gray> <aqua>/changepassword</aqua> <dark_gray>—</dark_gray> <gray>zmiana hasła konta serwerowego</gray>'
   logout: '<dark_gray>›</dark_gray> <aqua>/logout</aqua> <dark_gray>—</dark_gray> <gray>bezpieczne zakończenie sesji</gray>'
   info: '<dark_gray>›</dark_gray> <aqua>/agx info ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>pełny raport konta gracza</gray>'
   alts: '<dark_gray>›</dark_gray> <aqua>/agx alts ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>powiązania kont przez wspólne IP</gray>'
@@ -33,9 +33,9 @@ auth:
   cancel_label: "Wróć"
   timeout: "<red>Przekroczono czas uwierzytelnienia.</red>"
   startup_failed: "<red>Uwierzytelnianie jest chwilowo niedostępne.</red>"
-  premium_authentication_required: "<red>Konto premium zostało rozpoznane, ale backend nie otrzymał zgodnej zweryfikowanej tożsamości premium z gatewaya.</red>"
-  premium_authentication_overloaded: "<red>Zbyt wiele równoczesnych uwierzytelnień premium. Spróbuj ponownie za chwilę.</red>"
-  premium_session_invalid: "<red><b>AuthGatewayX: nie potwierdzono sesji konta premium.</b></red><newline><gray>Ten nick jest chroniony jako premium, ale Minecraft Services nie potwierdził, że klient jest zalogowany na właściwe konto. Zaloguj się w launcherze na konto Microsoft/Mojang będące właścicielem tego nicku, uruchom ponownie grę i spróbuj ponownie. Konto offline nie może użyć tego nicku.</gray>"
+  premium_authentication_required: "<red>Konto Minecraft zostało rozpoznane, ale backend nie otrzymał zgodnej zweryfikowanej tożsamości z proxy.</red>"
+  premium_authentication_overloaded: "<red>Zbyt wiele równoczesnych weryfikacji sesji Minecraft. Spróbuj ponownie za chwilę.</red>"
+  premium_session_invalid: "<red><b>AuthGatewayX: nie potwierdzono sesji Minecraft.</b></red><newline><gray>Ten nick jest chroniony, ale usługi Minecraft nie potwierdziły, że klient jest zalogowany na konto właściciela. Zaloguj się w launcherze na konto Microsoft/Mojang będące właścicielem tego nicku, uruchom ponownie grę i spróbuj ponownie. Nie można użyć tego nicku bez potwierdzenia własności konta Minecraft.</gray>"
   mojang_unavailable: "<red>Nie można bezpiecznie zweryfikować statusu nicku. Spróbuj ponownie później.</red>"
   pre_auth_full: "<red>Serwer osiągnął limit trwających uwierzytelnień. Spróbuj ponownie za chwilę.</red>"
   password_mismatch: "<red>Podane hasła nie są identyczne.</red>"
@@ -46,17 +46,17 @@ auth:
   identity_conflict: "<red>Nie można bezpiecznie powiązać tej tożsamości z kontem.</red>"
   internal_failure: "<red>Operacja uwierzytelniania nie powiodła się. Spróbuj ponownie.</red>"
   offline_authentication_success: "<green>Pomyślnie zalogowano na serwerze!</green>"
-  premium_authentication_success: "<green>Logowanie konta premium przebiegło pomyślnie!</green>"
+  premium_authentication_success: "<green>Pomyślnie zweryfikowano konto i zalogowano na serwerze!</green>"
   logout_success: "<green>Sesja została bezpiecznie zakończona. Połącz się ponownie, aby się zalogować.</green>"
   integration_denied: "<red>Połączenie zostało odrzucone przez politykę bezpieczeństwa nazwy lub aktywną karę.</red>"
 migration:
-  title: "<gold>Migracja konta premium — <white><username></white></gold>"
-  prompt: "<yellow>Wykryto istniejące konto non-premium o tym samym nicku.</yellow><newline><gray>Stare UUID:</gray> <white><old_uuid></white><newline><gray>Nowe UUID premium:</gray> <white><new_uuid></white><newline><newline><gray>Aby potwierdzić, że oba profile należą do Ciebie, wpisz hasło używane dotychczas do konta non-premium. AuthGatewayX nie zmieni UUID konta, dopóki migracja danych nie zostanie bezpiecznie zakończona.</gray>"
-  password_label: "Hasło starego konta non-premium"
+  title: "<gold>Migracja UUID konta — <white><username></white></gold>"
+  prompt: "<yellow>Wykryto istniejące konto serwerowe o tym samym nicku.</yellow><newline><gray>Stare UUID:</gray> <white><old_uuid></white><newline><gray>Oficjalne UUID Minecraft:</gray> <white><new_uuid></white><newline><newline><gray>Aby potwierdzić, że oba profile należą do Ciebie, wpisz dotychczasowe hasło serwerowe. AuthGatewayX nie zmieni UUID konta, dopóki migracja danych nie zostanie bezpiecznie zakończona.</gray>"
+  password_label: "Dotychczasowe hasło serwerowe"
   identity_conflict: "<red>Stan konta zmienił się lub docelowe UUID jest już używane. Migracja została zatrzymana.</red>"
-  in_progress: "<yellow>Migracja danych tego konta premium nie została jeszcze bezpiecznie zakończona. Poczekaj na automatyczne wznowienie albo poproś administratora o sprawdzenie /authgatewayx migrate status.</yellow>"
+  in_progress: "<yellow>Migracja danych tego konta nie została jeszcze bezpiecznie zakończona. Poczekaj na automatyczne wznowienie albo poproś administratora o sprawdzenie /authgatewayx migrate status.</yellow>"
   prepared: "<yellow>Potwierdzono własność starego i nowego konta. Zostaniesz rozłączony, aby AuthGatewayX mógł bezpiecznie przenieść dane poza aktywną sesją. Po zakończeniu migracji połącz się ponownie. Jeśli wykryte zostaną dane pluginu bez bezpiecznego migratora, zmiana UUID zostanie zatrzymana.</yellow>"
-  cancelled: "<yellow>Migracja konta premium została anulowana. Konto non-premium i jego dane pozostały bez zmian.</yellow>"
+  cancelled: "<yellow>Migracja UUID została anulowana. Poprzednie konto i jego dane pozostały bez zmian.</yellow>"
 
 migration_admin:
   title: '<aqua>AuthGatewayX — migracja <username></aqua>'
@@ -66,7 +66,7 @@ migration_admin:
   invalid_uuid: '<red>Podane źródłowe UUID ma nieprawidłowy format.</red>'
   online_blocked: '<red>Docelowe konto jest teraz online. Migrację można uruchomić dopiero po jego pełnym rozłączeniu.</red>'
   no_evidence: '<yellow>Nie znaleziono wiarygodnego śladu danych dla starego UUID <source_uuid>. Recovery nie zostanie utworzone tylko na podstawie nicku.</yellow>'
-  not_premium: '<red>Recovery dotyczy kont już przełączonych do MOJANG. Wskazane konto nie jest obecnie kontem premium.</red>'
+  not_premium: '<red>Recovery dotyczy kont już przełączonych do MOJANG. Wskazane konto nie ma obecnie oficjalnie zweryfikowanej tożsamości Minecraft.</red>'
   identity_conflict: '<red>Stan tożsamości jest sprzeczny z bezpiecznym recovery. Niczego nie zmieniono.</red>'
   status: '<gold><b>Plan migracji</b></gold><newline><gray>Tryb:</gray> <white><kind></white><newline><gray>Stan:</gray> <white><status></white><newline><gray>Stare UUID:</gray> <white><source_uuid></white><newline><gray>Nowe UUID:</gray> <white><target_uuid></white><newline><gray>Ostatni problem:</gray> <white><failure></white>'
   summary_ready: '<green><b>✓ Nie wykryto blokad migracji.</b></green><newline><gray>Gotowe:</gray> <green><ready></green> <dark_gray>•</dark_gray> <gray>bez danych:</gray> <white><no_data></white> <dark_gray>•</dark_gray> <gray>blokady:</gray> <green><blocked></green>'
@@ -81,8 +81,8 @@ migration_admin:
   failed: '<red>Migracja nie powiodła się w: <provider>.</red><newline><gray><reason></gray><newline><dark_gray>Kod techniczny: <code></dark_gray>'
   blocked: '<yellow>Migracja została bezpiecznie zatrzymana przez: <provider>.</yellow><newline><gray><reason></gray><newline><dark_gray>Kod techniczny: <code></dark_gray>'
   already_running: '<yellow>Ta migracja jest już wykonywana.</yellow>'
-  recovery_prepared: '<yellow>Utworzono recovery po potwierdzeniu śladów starego UUID. Bieżąca tożsamość premium nie zostanie cofnięta do OFFLINE.</yellow>'
-  kind_upgrade: '<white>OFFLINE → PREMIUM</white>'
+  recovery_prepared: '<yellow>Utworzono recovery po potwierdzeniu śladów starego UUID. Bieżąca zweryfikowana tożsamość Minecraft pozostanie bez zmian.</yellow>'
+  kind_upgrade: '<white>MIGRACJA UUID</white>'
   kind_recovery: '<white>odzyskanie danych po wcześniejszej zmianie UUID</white>'
   kind_candidate: '<white>kandydat do odzyskania danych</white>'
   state_inspect: '<aqua>tylko analiza — niczego nie zmieniono</aqua>'
@@ -154,13 +154,13 @@ password:
   own_title: "<aqua>Zmiana hasła</aqua>"
   admin_title: "<red>Administracyjne ustawienie hasła</red>"
   own_prompt: "<gray>Podaj obecne hasło oraz dwukrotnie nowe hasło.</gray>"
-  admin_prompt: "<yellow>Ustaw nowe hasło konta offline. Operacja zostanie zapisana w audycie.</yellow>"
+  admin_prompt: "<yellow>Ustaw nowe hasło konta gracza. Operacja zostanie zapisana w audycie.</yellow>"
   current_label: "Obecne hasło"
   new_label: "Nowe hasło"
   repeat_label: "Powtórz nowe hasło"
   invalid_current: "<red>Obecne hasło jest nieprawidłowe.</red>"
   account_not_found: "<red>Nie znaleziono konta o tej nazwie.</red>"
-  offline_only: "<red>Hasło można zmienić wyłącznie dla konta offline.</red>"
+  offline_only: "<red>Hasło może zmienić wyłącznie zalogowany gracz z ustawionym hasłem serwerowym.</red>"
   success: "<green>Hasło zostało bezpiecznie zmienione.</green>"
   admin_target_kick: "<red>Administrator zmienił hasło tego konta. Zaloguj się ponownie przy użyciu nowego hasła.</red>"
 
@@ -171,7 +171,7 @@ info:
   unavailable: '<red>Raport konta jest chwilowo niedostępny. Spróbuj ponownie później.</red>'
   external_identity: '<gold><b>Status Mojang</b></gold><newline><gray>Klasyfikacja nicku:</gray> <white><status></white><newline><gray>Oficjalny UUID:</gray><newline><white><uuid></white>'
   identity: '<gold><b>Tożsamość</b></gold><newline><gray>Nick:</gray> <white><username></white><newline><gray>ID konta AGX:</gray><newline><white><account_id></white><newline><gray>Minecraft UUID:</gray><newline><white><minecraft_uuid></white><newline><gray>Typ / stan:</gray> <white><identity> / <state></white><newline><gray>Mojang teraz:</gray> <white><mojang_status></white><newline><gray>Oficjalny UUID Mojang:</gray><newline><white><official_uuid></white>'
-  lifecycle: '<gold><b>Historia konta</b></gold><newline><gray>Utworzono:</gray> <white><created_at></white><newline><gray>Zaktualizowano:</gray> <white><updated_at></white><newline><gray>Ostatnie logowanie:</gray> <white><last_login_at></white><newline><gray>Weryfikacja premium:</gray> <white><premium_verified_at></white>'
+  lifecycle: '<gold><b>Historia konta</b></gold><newline><gray>Utworzono:</gray> <white><created_at></white><newline><gray>Zaktualizowano:</gray> <white><updated_at></white><newline><gray>Ostatnie logowanie:</gray> <white><last_login_at></white><newline><gray>Weryfikacja Minecraft:</gray> <white><premium_verified_at></white>'
   session: '<gold><b>Sesja</b></gold><newline><gray>Online / metoda:</gray> <white><online> / <method></white><newline><gray>Uwierzytelniono:</gray> <white><authenticated_at></white><newline><gray>Wygasa:</gray> <white><expires_at></white>'
   ip: '<gold>Adresy IP</gold><newline><gray>Aktualne IP sesji:</gray> <white><current_ip></white><newline><gray>Ostatnie zapisane IP:</gray> <white><last_ip></white>'
   ip_history_header: '<yellow>Historia IP (<count>)</yellow>'

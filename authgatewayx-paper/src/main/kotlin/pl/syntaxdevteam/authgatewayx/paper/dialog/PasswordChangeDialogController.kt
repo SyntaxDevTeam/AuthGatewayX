@@ -21,7 +21,6 @@ import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeResult
 import pl.syntaxdevteam.authgatewayx.auth.password.PasswordChangeService
 import pl.syntaxdevteam.authgatewayx.auth.ui.PasswordConfirmation
 import pl.syntaxdevteam.authgatewayx.domain.account.AccountUsername
-import pl.syntaxdevteam.authgatewayx.domain.account.IdentityType
 import pl.syntaxdevteam.authgatewayx.paper.command.PasswordCommandGateway
 import pl.syntaxdevteam.authgatewayx.paper.scheduler.PaperPlatformScheduler
 import java.util.UUID
@@ -57,7 +56,7 @@ class PasswordChangeDialogController(
 
     override fun openOwnPasswordChange(player: Player) {
         val session = sessions.get(pl.syntaxdevteam.authgatewayx.domain.session.ConnectionId(player.uniqueId))
-        if (session?.identityType != IdentityType.OFFLINE || session.accountId == null) {
+        if (session?.accountId == null) {
             player.sendMessage(text.offlineOnly)
             return
         }

@@ -53,11 +53,11 @@ Operators have administrative defaults. Check inherited permissions and operator
 
 Complete these checks on your private test environment before opening access; mark them only after actually verifying the result.
 
-- [ ] New offline players receive registration; existing players receive login.
+- [ ] All new players receive registration and returning players receive login, regardless of the server's online-mode setting.
 - [ ] Incorrect passwords deny access and correct passwords proceed.
 - [ ] Players cannot affect the world before authentication and required acceptance.
-- [ ] Your own premium account passes official verification.
-- [ ] Password changes, logout and repeat offline login work.
+- [ ] Your own official Minecraft account passes session verification and requires a server password by default.
+- [ ] Password changes, logout and repeat login work for authenticated accounts.
 - [ ] Acceptance persists and rejection ends the connection.
 - [ ] Accounts remain usable after a restart.
 - [ ] Staff see only the sensitive data they are authorized to view.
@@ -67,13 +67,13 @@ Minecraft dialog inputs display password characters. Ask players to hide the gam
 
 ## 6. Daily account support
 
-**Forgotten offline password:** confirm ownership, then use `/agx setpassword <name>` in-game and enter the new password in the form. The target is disconnected. Deliver the temporary password privately and ask the owner to use `/changepassword`. This does not reset Microsoft credentials.
+**Forgotten server password:** confirm ownership, then use `/agx setpassword <name>` in-game and enter the new password in the form. The target is disconnected. Deliver the temporary password privately and ask the owner to use `/changepassword`. This does not reset Microsoft credentials.
 
-**Cannot connect:** inspect the message, `/agx info <name>`, service availability and console errors. For an invalid premium session, sign in again in the official launcher; do not bypass premium verification.
+**Cannot connect:** inspect the message, `/agx info <name>`, service availability and console errors. For an invalid Minecraft session, sign in again in the official launcher; do not bypass Minecraft identity verification.
 
 **Suspected alternate accounts:** inspect `/agx alts <name>`. Shared IP is a clue; households, schools and carrier NAT may join unrelated people. The report does not automatically punish users.
 
-**Offline-to-premium upgrade:** after Mojang verification the player confirms the old server password. Data migrates after disconnect. Diagnose with `migrate status` and `inspect`; never manually replace account UUIDs. See [Premium accounts](Premium.md).
+**Verified identity UUID migration:** after Mojang verification the player confirms the old server password. Data migrates after disconnect. Diagnose with `migrate status` and `inspect`; never manually replace account UUIDs. See [Account identity verification](Premium.md).
 
 ## 7. Protection and integrations
 

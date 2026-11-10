@@ -381,6 +381,50 @@ class JdbcAccountStorage(
         }
     }
 
+    override fun registerVerifiedPassword(
+        username: AccountUsername,
+        minecraftUuid: UUID,
+        passwordHash: String,
+        sourceAddress: InetAddress,
+        registeredAt: Instant,
+    ): CompletionStage<RegistrationResult> = executor.submit {
+        dataSource.connection.use { connection ->
+            connection.autoCommit = false
+            try {
+                val account = findAccount(connection, "canonical_username", username.canonical)
+                if (account == null || account.identityType != IdentityType.MOJANG ||
+                    account.minecraftUuid != minecraftUuid
+                ) {
+                    connection.rollback()
+                    RegistrationResult.MinecraftUuidAlreadyExists
+                } else {
+                    val updated = connection.prepareStatement(
+                        """UPDATE accounts SET password_hash = ?, updated_at = ?
+                            WHERE id = ? AND minecraft_uuid = ? AND identity_type = 'MOJANG'
+                            AND password_hash IS NULL""".trimIndent(),
+                    ).use { statement ->
+                        statement.setString(1, passwordHash)
+                        statement.setString(2, registeredAt.toString())
+                        statement.setString(3, account.id.value.toString())
+                        statement.setString(4, minecraftUuid.toString())
+                        statement.executeUpdate()
+                    }
+                    if (updated != 1) {
+                        connection.rollback()
+                        RegistrationResult.UsernameAlreadyExists
+                    } else {
+                        JdbcOfflineAddressHistory.record(connection, account.id, sourceAddress, registeredAt)
+                        connection.commit()
+                        RegistrationResult.Created(account.copy(updatedAt = registeredAt))
+                    }
+                }
+            } catch (failure: Throwable) {
+                connection.rollback()
+                throw failure
+            }
+        }
+    }
+
     override fun bindVerifiedMojangIdentity(identity: VerifiedMojangIdentity): CompletionStage<MojangIdentityBindingResult> =
         executor.submit { bindVerifiedMojangIdentityBlocking(identity) }
 
@@ -708,7 +752,7 @@ class JdbcAccountStorage(
                 }
 
                 connection.prepareStatement("""UPDATE accounts
-                    SET identity_type = 'MOJANG', minecraft_uuid = ?, password_hash = NULL, state = 'REGISTERED',
+                    SET identity_type = 'MOJANG', minecraft_uuid = ?, state = 'REGISTERED',
                         failed_login_count = 0, locked_until = NULL, last_login_at = ?, last_login_ip = ?,
                         premium_verified_at = ?, updated_at = ?
                     WHERE id = ? AND identity_type = 'OFFLINE' AND minecraft_uuid = ?""".trimIndent()).use { statement ->
@@ -863,7 +907,7 @@ class JdbcAccountStorage(
     override fun findCredentials(username: AccountUsername): CompletionStage<AccountCredentials?> = executor.submit {
         dataSource.connection.use { connection ->
             connection.prepareStatement(
-                "SELECT * FROM accounts WHERE canonical_username = ? AND identity_type = 'OFFLINE' AND password_hash IS NOT NULL",
+                "SELECT * FROM accounts WHERE canonical_username = ? AND password_hash IS NOT NULL",
             ).use { statement ->
                 statement.setString(1, username.canonical)
                 statement.executeQuery().use { results ->
@@ -881,9 +925,9 @@ class JdbcAccountStorage(
     override fun replacePasswordHash(accountId: AccountId, expectedHash: String?, newHash: String): CompletionStage<Boolean> = executor.submit {
         dataSource.connection.use { connection ->
             val sql = if (expectedHash == null) {
-                "UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ? AND identity_type = 'OFFLINE'"
+                "UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ?"
             } else {
-                "UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ? AND identity_type = 'OFFLINE' AND password_hash = ?"
+                "UPDATE accounts SET password_hash = ?, updated_at = ? WHERE id = ? AND password_hash = ?"
             }
             connection.prepareStatement(sql).use { statement ->
                 statement.setString(1, newHash)
@@ -932,12 +976,12 @@ class JdbcAccountStorage(
             try {
                 // This update serializes address rotation with concurrent logins and premium migration.
                 connection.prepareStatement("""UPDATE accounts SET failed_login_count = 0, locked_until = NULL,
-                    last_login_at = ?, last_login_ip = ?, updated_at = ? WHERE id = ? AND identity_type = 'OFFLINE'""".trimIndent()).use { statement ->
+                    last_login_at = ?, last_login_ip = ?, updated_at = ? WHERE id = ?""".trimIndent()).use { statement ->
                     statement.setString(1, authenticatedAt.toString())
                     statement.setString(2, sourceAddress.hostAddress)
                     statement.setString(3, authenticatedAt.toString())
                     statement.setString(4, accountId.value.toString())
-                    check(statement.executeUpdate() == 1) { "Offline account disappeared during login" }
+                    check(statement.executeUpdate() == 1) { "Account disappeared during login" }
                 }
                 JdbcOfflineAddressHistory.record(connection, accountId, sourceAddress, authenticatedAt)
                 connection.commit()
@@ -1084,7 +1128,7 @@ class JdbcAccountStorage(
     ): AuthAccount {
         connection.prepareStatement("""UPDATE accounts
             SET username = ?, canonical_username = ?, identity_type = 'MOJANG', minecraft_uuid = ?,
-                password_hash = NULL, state = 'REGISTERED', failed_login_count = 0, locked_until = NULL,
+                state = 'REGISTERED',
                 last_login_at = ?, last_login_ip = ?, premium_verified_at = ?, updated_at = ?
             WHERE id = ?""".trimIndent()).use { statement ->
             statement.setString(1, identity.username.value)
