@@ -112,4 +112,58 @@ class AuthenticationFormCoordinatorTest {
         assertEquals(ConnectionState.ACTIVE, sessions.get(context.connectionId)?.state)
         assertTrue(activatedAfterSessionTransition)
     }
+    @Test
+    fun verifiedAccountCanLogInWithServerPasswordWithoutLosingMojangIdentity() {
+        val now = Instant.parse("2026-08-30T10:00:00Z")
+        val username = AccountUsername.parse("VerifiedPlayer")
+        val officialUuid = java.util.UUID.fromString("aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee")
+        val account = AuthAccount(AccountId.random(), username, IdentityType.MOJANG,
+            officialUuid, AccountState.REGISTERED, now, now)
+        val sessions = InMemorySessionRegistry()
+        val context = AuthenticationFormContext(ConnectionId.random(), username,
+            InetAddress.getLoopbackAddress(), officialUuid, verifiedMojang = true)
+        sessions.create(AuthSession.connecting(context.connectionId, username, context.sourceAddress, now))
+        sessions.enterPreAuth(context.connectionId)
+        val coordinator = AuthenticationFormCoordinator(
+            OfflineLoginUseCase { _, _, password ->
+                password.fill('\u0000')
+                CompletableFuture.completedFuture(LoginResult.Success(account))
+            },
+            OfflineRegistrationUseCase { _, _, _ ->
+                CompletableFuture.completedFuture(RegistrationOutcome.IdentityConflict)
+            },
+            sessions,
+            Clock.fixed(now, ZoneOffset.UTC),
+        )
+        assertEquals(AuthenticationFormResult.AUTHENTICATED,
+            coordinator.submitLogin(context, "correct-password".toCharArray()).toCompletableFuture().get())
+        assertEquals(IdentityType.MOJANG, sessions.get(context.connectionId)?.identityType)
+        assertEquals(AuthenticationMethod.PASSWORD, sessions.get(context.connectionId)?.authenticationMethod)
+        assertEquals(officialUuid, sessions.get(context.connectionId)?.minecraftUuid)
+    }
+
+    @Test
+    fun passwordAuthenticationRejectsAccountWithDifferentVerifiedUuid() {
+        val now = Instant.parse("2026-08-30T10:00:00Z")
+        val username = AccountUsername.parse("VerifiedPlayer")
+        val account = AuthAccount(AccountId.random(), username, IdentityType.MOJANG,
+            java.util.UUID.randomUUID(), AccountState.REGISTERED, now, now)
+        val sessions = InMemorySessionRegistry()
+        val context = AuthenticationFormContext(ConnectionId.random(), username,
+            InetAddress.getLoopbackAddress(), java.util.UUID.randomUUID(), verifiedMojang = true)
+        sessions.create(AuthSession.connecting(context.connectionId, username, context.sourceAddress, now))
+        sessions.enterPreAuth(context.connectionId)
+        val coordinator = AuthenticationFormCoordinator(
+            OfflineLoginUseCase { _, _, _ -> CompletableFuture.completedFuture(LoginResult.Success(account)) },
+            OfflineRegistrationUseCase { _, _, _ ->
+                CompletableFuture.completedFuture(RegistrationOutcome.IdentityConflict)
+            },
+            sessions,
+            Clock.fixed(now, ZoneOffset.UTC),
+        )
+        assertEquals(AuthenticationFormResult.ACCESS_DENIED,
+            coordinator.submitLogin(context, "correct-password".toCharArray()).toCompletableFuture().get())
+        assertEquals(ConnectionState.PRE_AUTH, sessions.get(context.connectionId)?.state)
+    }
+
 }
