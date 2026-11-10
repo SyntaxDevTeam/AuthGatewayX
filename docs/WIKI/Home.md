@@ -11,7 +11,7 @@ Masz serwer dla znajomych albo rozwijasz własną społeczność? AuthGatewayX z
 ## Co zyskujesz?
 
 - **Rejestracja i logowanie dla każdego.** Gracz wpisuje hasło w oknie Minecrafta. Nie musi pamiętać komendy ani wpisywać hasła na czacie.
-- **Ochronę tożsamości.** Samo wpisanie cudzego nicku nie wystarcza do wejścia na jego konto.
+- **Ochronę nicków graczy premium przed podszywaniem się.** Samo wpisanie cudzego nicku w launcherze nie daje dostępu do konta. Właściciel chronionego nicku musi pomyślnie przejść oficjalną weryfikację sesji Minecraft.
 - **Spokojniejszy start gry.** Przed zalogowaniem gracz jest oddzielony od normalnej rozgrywki.
 - **Mniej nadużyć.** Plugin ogranicza masowe połączenia, zgadywanie haseł i tworzenie wielu kont.
 - **Własny styl.** Możesz zmienić teksty, kolory i ustawienia, żeby pasowały do Twojego serwera.
