@@ -1,4 +1,4 @@
-# Konta premium
+# Weryfikacja tożsamości i migracja UUID
 
 **Język / Language:** Polski · [English](EN/Premium.md)
 
@@ -6,45 +6,44 @@
 
 ## Wejdź na swoje konto i graj
 
-AuthGatewayX sprawdza, czy nick należy do konta premium. Jeśli tak, Minecraft musi potwierdzić, że gracz rzeczywiście korzysta z tego konta. Po poprawnej weryfikacji dodatkowe hasło serwerowe nie jest potrzebne.
+AuthGatewayX wymaga rejestracji i logowania każdego gracza, również przy `online-mode=false`. Jeśli nick jest przypisany do oficjalnego konta Minecraft, serwer dodatkowo potwierdza własność jego sesji. Po tej weryfikacji gracz domyślnie nadal loguje się hasłem do konta serwerowego. Administrator może przyznać mu uprawnienie `authgatewayx.auth.skip-password`, pozwalające pomijać to hasło.
 
 Nie podawaj hasła do Microsofta w oknie serwera. Na konto Microsoft logujesz się w launcherze.
 
 ## Ochrona Twojego nicku
 
-Ktoś korzystający z konta offline nie może wejść na chroniony nick tylko dlatego, że wpisał go w launcherze. Jeśli nie uda się potwierdzić właściciela konta premium, połączenie zostanie odrzucone.
+Nikt nie może wejść na chroniony nick tylko dlatego, że wpisał go w launcherze. Jeśli nie uda się potwierdzić właściciela konta Minecraft, połączenie zostanie odrzucone.
 
-Jeśli grasz offline i wybrany nick należy do kogoś z premium, wybierz inną nazwę, która nie jest zajęta przez konto premium.
+Jeśli wybrany nick jest już powiązany z oficjalnym kontem Minecraft innego gracza, wybierz inną, niezajętą nazwę.
 
-## „Nie potwierdzono sesji konta premium”
+## „Nie potwierdzono sesji Minecraft”
 
 Zamknij grę, zaloguj się ponownie w launcherze na konto będące właścicielem tego nicku i uruchom Minecrafta. Wygasłe logowanie lub wybrane inne konto mogą powodować taki komunikat.
 
-Jeśli problem dotyczy wielu osób, administracja powinna sprawdzić połączenie serwera z usługami Minecrafta. Niedostępność tych usług może również zablokować sprawdzenie nowego nicku offline.
+Jeśli problem dotyczy wielu osób, administracja powinna sprawdzić połączenie serwera z usługami Minecrafta. Niedostępność tych usług może również zablokować sprawdzenie nowego nicku.
 
-## Kupno premium przy zachowaniu dotychczasowego nicku
+## Przypisanie oficjalnej tożsamości do istniejącego konta
 
-Jeżeli konto non-premium o danym nicku już istnieje, a właściciel później kupi Minecraft
-i posiada oficjalne konto premium o tej samej nazwie, AuthGatewayX nie przełącza już
-automatycznie UUID przy pierwszym wejściu.
+Jeżeli konto o danym nicku już istnieje, a właściciel później powiąże ten nick z oficjalnym
+kontem Minecraft, AuthGatewayX nie przełącza automatycznie UUID przy pierwszym wejściu.
 
 Po poprawnym uwierzytelnieniu Mojang zobaczysz osobny dialog migracyjny. Należy podać
-**hasło używane wcześniej na tym serwerze do konta non-premium**. Nie jest to hasło do
+**hasło używane wcześniej na tym serwerze**. Nie jest to hasło do
 Microsofta/Mojang.
 
 Poprawne hasło potwierdza, że osoba posiada jednocześnie:
 
-1. zweryfikowane konto premium z nowym UUID,
-2. poprzednie konto offline ze starym UUID.
+1. zweryfikowaną tożsamość Minecraft z oficjalnym UUID,
+2. poprzednią tożsamość serwerową ze starym UUID.
 
 Po potwierdzeniu tworzony jest bezpieczny ticket migracji. Do czasu przeniesienia danych
-zależnych od UUID konto AuthGatewayX pozostaje OFFLINE i zachowuje stare UUID oraz hash
-hasła. Dzięki temu samo pierwsze wejście premium nie odcina gracza od poprzedniej
+zależnych od UUID konto AuthGatewayX zachowuje poprzedni UUID oraz hash
+hasła. Dzięki temu samo pierwsze wejście zweryfikowanego gracza nie odcina go od poprzedniej
 tożsamości.
 
 Dane takie jak ekwipunek, statystyki, ekonomia, działki, rangi lub dane innych pluginów
 nie mogą być przenoszone przez ślepe wyszukiwanie i zamianę UUID. Każdy magazyn danych
-musi mieć kontrolowany migrator. AuthGatewayX finalizuje `OFFLINE -> MOJANG` dopiero
+musi mieć kontrolowany migrator. AuthGatewayX finalizuje zmianę UUID dopiero
 po zakończeniu takich migracji.
 
 Jeżeli migracja nie została jeszcze zakończona, skontaktuj się z administracją. Nie próbuj
@@ -63,7 +62,7 @@ Jeśli którykolwiek etap przenoszenia danych zawiedzie, plugin próbuje przywr�
 
 AuthGatewayX **nie wykonuje globalnego search/replace UUID**. Przed finalizacją skanuje lokalne
 katalogi danych pluginów bez dedykowanej integracji migracyjnej. Jeśli znajdzie stare UUID, migracja zostaje zatrzymana i konto
-pozostaje OFFLINE. Administrator powinien sprawdzić raport `/agx migrate inspect <nick>` i zapewnić zgodną integrację przenoszącą dane wskazanego pluginu.
+zachowuje dotychczasową tożsamość. Administrator powinien sprawdzić raport `/agx migrate inspect <nick>` i zapewnić zgodną integrację przenoszącą dane wskazanego pluginu.
 
 Dla prostych lokalnych magazynów AuthGatewayX potrafi zrobić więcej niż sam skan. Wbudowane
 i własne recepty migracji obsługują jednoznaczne pliki indeksowane UUID, a bezpieczny fallback
