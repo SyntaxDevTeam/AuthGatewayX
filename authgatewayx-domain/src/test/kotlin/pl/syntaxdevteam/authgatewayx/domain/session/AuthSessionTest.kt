@@ -29,16 +29,17 @@ class AuthSessionTest {
     }
 
     @Test
-    fun `password authentication cannot claim a Mojang identity`() {
-        assertFailsWith<IllegalArgumentException> {
-            newSession().enterPreAuth().activate(
-                accountId = AccountId.random(),
-                minecraftUuid = UUID.randomUUID(),
-                identityType = IdentityType.MOJANG,
-                authenticationMethod = AuthenticationMethod.PASSWORD,
-                authenticatedAt = createdAt.plusSeconds(1),
-            )
-        }
+    fun `verified Mojang identity can authenticate with a server password`() {
+        val session = newSession().enterPreAuth().activate(
+            accountId = AccountId.random(),
+            minecraftUuid = UUID.randomUUID(),
+            identityType = IdentityType.MOJANG,
+            authenticationMethod = AuthenticationMethod.PASSWORD,
+            authenticatedAt = createdAt.plusSeconds(1),
+        )
+        assertEquals(ConnectionState.ACTIVE, session.state)
+        assertEquals(IdentityType.MOJANG, session.identityType)
+        assertEquals(AuthenticationMethod.PASSWORD, session.authenticationMethod)
     }
 
     @Test
