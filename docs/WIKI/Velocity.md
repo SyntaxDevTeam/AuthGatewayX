@@ -164,7 +164,7 @@ znany sekret `staff-proof`. **Nie używaj go w produkcji.** Wygeneruj
 własną losową wartość (co najmniej 32 bajty, najlepiej 32 bajty z CSPRNG
 zakodowane hex/base64), ustaw identyczną na Velocity i Paper lub przekaż
 ją obu procesom przez `AUTHGATEWAYX_STAFF_PROOF_SECRET`.
-W nowych instalacjach ustawienie jest domyślnie puste: pracownicy z lokalnie przypaną tożsamością
+W nowych instalacjach ustawienie jest domyślnie puste: pracownicy z lokalnie przypisaną tożsamością
 nie przejdą proof, dopóki administrator świadomie nie włączy bezpiecznej
 integracji. Zmiana szablonu nie modyfikuje istniejącego pliku na serwerze:
 sekret użyty wcześniej należy wymienić ręcznie na każdej instancji.
