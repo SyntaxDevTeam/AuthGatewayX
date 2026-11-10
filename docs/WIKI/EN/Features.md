@@ -6,9 +6,9 @@
 
 ## Player authentication
 
-Offline players register and sign in through Minecraft dialogs. Passwords are not command arguments or chat messages. Premium accounts use official Minecraft session verification. A protected premium name cannot fall back to offline login when verification fails.
+Every player registers and signs in using Minecraft dialogs by default, even when the server uses `online-mode=false`. Passwords are not command arguments or chat messages. Official Minecraft session verification protects verified usernames; only explicitly authorized verified players can skip the additional server password. Failed session verification never grants access to a protected name.
 
-AuthGatewayX manages one active account session, offers `/logout`, and supports both self-service offline password changes and authorized administrative resets through forms.
+AuthGatewayX manages one active account session, offers `/logout`, and supports both self-service password changes and authorized administrative resets through forms.
 
 ## Protected gameplay
 
@@ -16,13 +16,13 @@ PRE_AUTH blocks movement, combat, chat, commands, inventory operations, block us
 
 ## Password and connection protection
 
-Argon2id protects offline passwords. Hashing and verification use bounded workers and queues. Failed passwords trigger attempt limits and lockout. Cheap connection guards precede database and external work; behavior scoring, name bursts and pre-auth reconnect loops can quarantine IPs. Registration has both short-term attempt and persistent account-per-address limits. See [Server protection](Server-protection.md).
+Argon2id protects account passwords. Hashing and verification use bounded workers and queues. Failed passwords trigger attempt limits and lockout. Cheap connection guards precede database and external work; behavior scoring, name bursts and pre-auth reconnect loops can quarantine IPs. Registration has both short-term attempt and persistent account-per-address limits. See [Server protection](Server-protection.md).
 
-## Premium identity migration
+## Account UUID migration
 
-Buying Minecraft while keeping an existing offline name requires the old server password after official premium verification. Migration uses controlled providers and backups, never blind global UUID replacement. Providers cover vanilla data and integrations such as EssentialsX, LuckPerms, HorseManagerX, PunisherX and PlotsX when the required integration is available. Unmanaged data may block finalization.
+Linking a previously registered local identity to an officially verified Minecraft identity requires the existing server password after session verification. Migration uses controlled providers and backups, never blind global UUID replacement. Providers cover vanilla data and integrations such as EssentialsX, LuckPerms, HorseManagerX, PunisherX and PlotsX when the required integration is available. Unmanaged data may block finalization.
 
-Migration supports rollback and restart recovery. Staff can inspect, retry or recover previous upgrades. See [Premium accounts](Premium.md).
+Migration supports rollback and restart recovery. Staff can inspect, retry or recover previous upgrades. See [Account identity verification](Premium.md).
 
 ## Administrative tools
 
@@ -38,9 +38,9 @@ MessageHandler provides language files and MiniMessage formatting. See [Configur
 
 ## Privacy policy on Paper
 
-After successful offline or Mojang authentication, players remain isolated until they accept the required policy version. Native dialog versus clickable chat is selected from the server Minecraft version; `privacy.dialogs.enabled: false` forces chat. This does not lower the JAR's minimum Paper version.
+After successful account authentication, players remain isolated until they accept the required policy version. Native dialog versus clickable chat is selected from the server Minecraft version; `privacy.dialogs.enabled: false` forces chat. This does not lower the JAR's minimum Paper version.
 
-Decisions are saved with the date and policy version and retained after upgrading to premium. Changing `privacy.policy-version` requires acceptance again. Decision timeout and read/write errors disconnect the player. Rejection/revocation does not automatically impose a PunisherX penalty.
+Decisions are saved with the date and policy version and retained when the player's verified identity changes. Changing `privacy.policy-version` requires acceptance again. Decision timeout and read/write errors disconnect the player. Rejection/revocation does not automatically impose a PunisherX penalty.
 
 Only `/privacy` is permitted while awaiting a decision. This behavior requires Paper; the proxy module alone does not enforce it. Set your real HTTPS policy link and server-specific information. Acceptance is not a substitute for determining the appropriate legal basis for processing. ConsentChecker data is not automatically imported.
 
