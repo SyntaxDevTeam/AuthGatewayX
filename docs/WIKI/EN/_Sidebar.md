@@ -9,7 +9,7 @@
 - [Commands](Commands.md)
 - [Permissions](Permissions.md)
 - [Configuration](Configuration.md)
-- [Premium accounts](Premium.md)
+- [Account identities](Premium.md)
 - [Server protection](Server-protection.md)
 - [Messages](Messages.md)
 - [Database and backups](Database.md)
