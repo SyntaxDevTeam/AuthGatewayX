@@ -29,7 +29,7 @@ Obie integracje mają takie same rodzaje ustawień:
 | `FAIL_CLOSED` | Zatrzymaj logowanie, jeśli sprawdzenia nie można dokończyć |
 | `FAIL_OPEN` | Pozwól kontynuować bez wyniku tego sprawdzenia |
 
-`FAIL_OPEN` nie anuluje potwierdzonego bana ani odrzucenia nicku. Dotyczy sytuacji, gdy sprawdzenie nie daje wyniku. Nie wyłącza też weryfikacji premium.
+`FAIL_OPEN` nie anuluje potwierdzonego bana ani odrzucenia nicku. Dotyczy sytuacji, gdy sprawdzenie nie daje wyniku. Nie wyłącza też weryfikacji tożsamości Minecraft.
 
 ## Przykład: PunisherX ma być wymagany
 
@@ -47,9 +47,9 @@ integrations:
 
 Po restarcie niedostępność wymaganej integracji PunisherX zatrzyma logowanie. Sprawdź działanie na koncie testowym z karą i bez niej. Jeśli wybierzesz `REQUIRED` razem z `FAIL_OPEN`, awaria lub brak usługi nie zatrzyma wejścia.
 
-## Migracja offline → premium
+## Migracja UUID
 
-Przed zmianą typu konta wykonaj kopię danych gracza i sprawdź `/agx migrate inspect <nick>`. Pluginy zapisujące dane pod UUID gracza wymagają zgodnej integracji migracyjnej. Jeśli jej brakuje, usuń zgłoszoną przyczynę blokady przed ponowieniem; nie podmieniaj UUID ręcznie. Zobacz [Konta premium](Premium.md).
+Przed zmianą typu konta wykonaj kopię danych gracza i sprawdź `/agx migrate inspect <nick>`. Pluginy zapisujące dane pod UUID gracza wymagają zgodnej integracji migracyjnej. Jeśli jej brakuje, usuń zgłoszoną przyczynę blokady przed ponowieniem; nie podmieniaj UUID ręcznie. Zobacz [weryfikację konta](Premium.md).
 
 ### EssentialsX i LuckPerms
 
@@ -75,7 +75,7 @@ AuthGatewayX blokuje finalizację zamiast pomijać dane.
 
 ### PunisherX — migracja UUID
 
-Przy migracji konta non-premium do premium AuthGatewayX korzysta z transakcyjnego bridge
+Przy migracji UUID na oficjalnie zweryfikowaną tożsamość AuthGatewayX korzysta z transakcyjnego bridge
 PunisherX. Obejmuje on aktywne kary, historię kar, raporty, wpisy bridge queue, zaszyfrowany
 player cache oraz jail cache. Integracja zachowuje kopie danych potrzebne do wycofania zmiany.
 
