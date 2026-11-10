@@ -4,7 +4,7 @@
 
 ### Your account. Your name. Your game.
 
-**Premium and offline authentication, convenient Minecraft forms, and server protection from the very first connection.**
+**Secure authentication for every player, convenient Minecraft forms, and protection from the very first connection.**
 <p>
     <a href="#-download"><img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3.2.0/assets/cozy/supported/paper_vector.svg" alt="Supports Paper" height="56"></a>
     <a href="#-download"><img src="https://github.com/SyntaxDevTeam/PunisherX/raw/main/assets/badges/folia.svg" alt="Supports Folia" height="56"></a>
@@ -19,21 +19,21 @@
 
 ---
 
-AuthGatewayX brings two authentication methods together in one plugin: premium account verification through official Mojang services and password login for offline accounts. Players sign in through forms directly in Minecraft, while administrators get tools to protect accounts, control connection abuse, and diagnose problems.
+AuthGatewayX secures every Minecraft Java Edition player connection, including on servers configured with `online-mode=false`. New players register an account and returning players sign in through Minecraft dialogs. Official Minecraft session verification additionally protects verified identities, while administrators get account-security, connection-protection and diagnostic tools.
 
 Running a small server for friends or growing a community? Start with the default SQLite database, customize your messages, and manage authentication in one place.
 
 ## ✨ Why AuthGatewayX?
 
-- **Convenient login and registration forms.** Players enter passwords in an in-game dialog without typing them into commands or chat.
-- **Official premium verification.** Premium account owners authenticate through their Minecraft session. Failed verification of a protected username means access is denied.
+- **Registration and login for everyone.** Every player registers and uses an in-game password dialog by default, without placing passwords in commands or chat.
+- **Verified Minecraft identity protection.** Officially owned usernames are checked against the Minecraft session; a verified account can skip the additional server password when explicitly authorized. Failed verification of a protected username denies access.
 - **World protection before login.** PRE_AUTH isolation blocks movement, interactions, inventory actions, combat, chat, and unauthorized commands.
 - **Abuse prevention.** Limits on connections, password attempts, registrations, and reconnects help control bots and brute-force attempts.
 - **Passwords protected with Argon2id.** Password changes and administrative resets use forms, and important operations are recorded in the audit log.
 - **Administrative tools.** Account reports, session status, security history, and account links through shared IP addresses, with separate permissions for sensitive data.
 - **Messages in your style.** Language files, MiniMessage formatting, and message handling through MessageHandler.
 - **Database choice.** SQLite for a simple start, plus MySQL, MariaDB, and PostgreSQL configuration.
-- **Server ecosystem integrations.** CleanerX checks username policy, PunisherX provides punishment information, and controlled UUID migration helps transfer data when upgrading from offline to premium.
+- **Server ecosystem integrations.** CleanerX checks username policy, PunisherX provides punishment information, and controlled UUID migration helps keep player data associated with the correct identity.
 
 [Explore all features →](docs/WIKI/EN/Features.md)
 
@@ -57,7 +57,7 @@ See the [installation guide](docs/WIKI/EN/Installation.md) for artifact selectio
 3. For a standalone server, set `online-mode=false` in `server.properties` and leave Paper's Velocity support disabled.
 4. Start the server and check the console for AuthGatewayX readiness. The plugin creates its configuration and SQLite database.
 5. Customize `plugins/AuthGatewayX/config.yml`, messages, and your privacy policy URL. Restart the server.
-6. Test registration, repeat login, your own premium account, and protection against actions before authentication.
+6. Test registration and repeat login with different account identities, optional password exemption for verified players, and protection before authentication.
 
 Only open an `online-mode=false` server to players when authentication protection is working. For proxy networks, follow the [separate Velocity guide](docs/WIKI/EN/Velocity.md), covering forwarding and backend protection.
 
@@ -67,13 +67,13 @@ Only open an `online-mode=false` server to players when authentication protectio
 
 | Command | Purpose |
 | --- | --- |
-| `/changepassword` | Change your own offline account password |
-| `/logout` | End your offline session and disconnect |
+| `/changepassword` | Change your own server account password |
+| `/logout` | End your authenticated session and disconnect |
 | `/privacy` | View the privacy policy and manage acceptance |
 | `/agx help` | List available commands |
 | `/agx info <name>` | Administrative account and session report |
 | `/agx alts <name>` | Report account links through shared IPs |
-| `/agx setpassword <name>` | Administrative offline password reset form |
+| `/agx setpassword <name>` | Administrative server account password reset form |
 
 Registration and login forms open automatically. `/agx` is an alias of `/authgatewayx`.
 
@@ -88,7 +88,7 @@ Registration and login forms open automatically. `/agx` is an alias of `/authgat
 | Set up the plugin and learn daily operations | [Administrator guide](docs/WIKI/EN/ADMIN-GUIDE.md) |
 | Help players sign in for the first time | [Player guide](docs/WIKI/EN/Player-guide.md) |
 | Customize settings and appearance | [Configuration](docs/WIKI/EN/Configuration.md) · [Messages](docs/WIKI/EN/Messages.md) |
-| Understand premium account protection | [Premium accounts and migration](docs/WIKI/EN/Premium.md) |
+| Understand verified identity protection | [Account verification and UUID migration](docs/WIKI/EN/Premium.md) |
 | Configure protection | [Server protection](docs/WIKI/EN/Server-protection.md) |
 | Prepare a backup or update | [Database and backups](docs/WIKI/EN/Database.md) |
 | Connect the plugin to other services | [Integrations](docs/WIKI/EN/Integrations.md) · [Velocity](docs/WIKI/EN/Velocity.md) |
