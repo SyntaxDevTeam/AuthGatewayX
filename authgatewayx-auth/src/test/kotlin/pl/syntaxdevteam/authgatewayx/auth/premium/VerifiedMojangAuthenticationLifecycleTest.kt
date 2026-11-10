@@ -19,6 +19,34 @@ class VerifiedMojangAuthenticationLifecycleTest {
 
     @Test fun `null Java storage result remains fail closed`() = exercise("null")
 
+    @Test
+    fun verifiedIdentityDoesNotBypassPasswordWithoutExplicitPermission() {
+        val now = Instant.parse("2026-10-10T00:00:00Z")
+        val name = AccountUsername.parse("VerifiedRace")
+        val account = AuthAccount(AccountId.random(), name, IdentityType.MOJANG,
+            UUID.randomUUID(), AccountState.REGISTERED, now, now)
+        val context = VerifiedMojangAuthenticationContext(
+            ConnectionId.random(), name, InetAddress.getLoopbackAddress(), account.minecraftUuid,
+            passwordRequired = true,
+        )
+        val sessions = InMemorySessionRegistry()
+        sessions.create(AuthSession.connecting(context.connectionId, name, context.sourceAddress, now))
+        sessions.enterPreAuth(context.connectionId)
+        val storage = Proxy.newProxyInstance(AccountStorage::class.java.classLoader, arrayOf(AccountStorage::class.java)) { _, method, _ ->
+            if (method.name == "bindVerifiedMojangIdentity") {
+                CompletableFuture.completedFuture(MojangIdentityBindingResult.Bound(account, false))
+            } else error("Unexpected storage call " + method.name)
+        } as AccountStorage
+        val service = VerifiedMojangAuthenticationService(storage, sessions, SecurityAuditSink {
+            CompletableFuture.completedFuture(null)
+        }, Clock.fixed(now, ZoneOffset.UTC))
+        assertIs<VerifiedMojangAuthenticationResult.PasswordRequired>(
+            service.authenticate(context).toCompletableFuture().get(2, TimeUnit.SECONDS),
+        )
+        assertNull(sessions.getActive(account.minecraftUuid))
+        assertEquals(ConnectionState.PRE_AUTH, sessions.get(context.connectionId)?.state)
+    }
+
     private fun exercise(mode: String) {
         val now = Instant.parse("2026-10-10T00:00:00Z")
         val name = AccountUsername.parse("PremiumRace")
