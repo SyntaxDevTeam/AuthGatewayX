@@ -42,7 +42,7 @@ Chat decision buttons use `<click:run_command:'/privacy accept'>…</click>` and
 
 ## Apply and verify
 
-Back up the file, edit it while the server is stopped, and restart. Preserve keys and placeholders. Test registration, login, an incorrect password, password changes and privacy choices. Keep error messages accurate, especially premium verification failures.
+Back up the file, edit it while the server is stopped, and restart. Preserve keys and placeholders. Test registration, login, an incorrect password, password changes and privacy choices. Keep error messages accurate, especially Minecraft identity verification failures.
 
 Velocity has its own `lang/messages_pl.yml`; Paper edits do not automatically change proxy text. Proxy risk alerts are private staff messages with a heading, status, fields and next action. Preserve the distinction between denied connections and attempts awaiting authentication.
 
