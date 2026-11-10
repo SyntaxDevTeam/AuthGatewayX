@@ -7,6 +7,8 @@ import pl.syntaxdevteam.authgatewayx.paper.lifecycle.closeTransport
 import pl.syntaxdevteam.authgatewayx.paper.lifecycle.RetiringResource
 import net.minecraft.server.MinecraftServer
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 import io.papermc.paper.configuration.GlobalConfiguration
@@ -1156,6 +1158,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                     }
                 },
                 onFailure = { logger.log(java.util.logging.Level.WARNING, "Pre-join authentication routing failed", it) },
+                premiumPasswordBypass = ::canSkipPremiumPassword,
             )
             val preJoinListener = PreJoinConfigurationListener(
                 sessions = sessions,
@@ -1189,6 +1192,19 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
                 messages.stringMessageToComponentNoPrefix("auth", "pre_auth_full"),
                 onEntered = { player -> consent.prepare(player.uniqueId); router.route(player) },
             ), plugin)
+        }
+    }
+
+    private fun canSkipPremiumPassword(minecraftUuid: UUID): CompletionStage<Boolean> {
+        if (!server.pluginManager.isPluginEnabled("LuckPerms")) return CompletableFuture.completedFuture(false)
+        return try {
+            net.luckperms.api.LuckPermsProvider.get().userManager.loadUser(minecraftUuid)
+                .thenApply { user ->
+                    user.cachedData.permissionData
+                        .checkPermission("authgatewayx.auth.skip-password").asBoolean()
+                }.toCompletableFuture().orTimeout(3, TimeUnit.SECONDS).exceptionally { false }
+        } catch (_: Exception) {
+            CompletableFuture.completedFuture(false)
         }
     }
 
