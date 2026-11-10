@@ -8,7 +8,7 @@
 
 Przygotuj serwer testowy Minecraft Java Edition, dostęp do jego plików i konsoli oraz Javę 25. Domyślny build jest przygotowany dla Paper 26.3; warianty dla innych wersji Minecraft dobieraj zgodnie z opisem artefaktu. Informacje o Purpur, Folia i Velocity znajdziesz w [zgodności](Zgodnosc.md).
 
-Serwer potrzebuje dostępu do internetu, aby pobrać wymagane biblioteki i sprawdzać konta premium. Gracze potrzebują klienta obsługującego okna logowania Minecrafta. Na pierwszą próbę użyj wersji gry zgodnej z serwerem.
+Serwer potrzebuje dostępu do internetu, aby pobrać wymagane biblioteki i weryfikować oficjalne tożsamości Minecraft. Gracze potrzebują klienta obsługującego okna logowania Minecrafta. Na pierwszą próbę użyj wersji gry zgodnej z serwerem.
 
 ## Jaki plik wybrać?
 
@@ -36,12 +36,12 @@ Wyniki znajdziesz w `authgatewayx-paper/build/libs` i `authgatewayx-velocity/bui
 
 1. Wyłącz serwer i zrób kopię jego plików.
 2. Umieść plik AuthGatewayX w katalogu `plugins`.
-3. W `server.properties` ustaw `online-mode=false`. To ustawienie jest wymagane przez mieszany tryb logowania AuthGatewayX.
+3. W `server.properties` ustaw `online-mode=false`. To ustawienie pozwala AuthGatewayX obsługiwać weryfikację tożsamości i logowanie wszystkich graczy.
 4. Jeśli serwer działa samodzielnie, pozostaw obsługę Velocity wyłączoną w `config/paper-global.yml`.
 5. Uruchom serwer testowy. Plugin przygotuje swoje pliki i bazę kont.
 6. Sprawdź konsolę. Jeśli pojawi się błąd uruchomienia AuthGatewayX, rozwiąż go przed otwarciem serwera dla graczy.
 7. Wyłącz serwer, dopasuj `plugins/AuthGatewayX/config.yml` i uruchom go ponownie.
-8. Sprawdź rejestrację konta offline, ponowne logowanie oraz wejście z własnego konta premium.
+8. Sprawdź rejestrację i ponowne logowanie każdego gracza, także z oficjalnym kontem Minecraft.
 
 Nie zostawiaj publicznie dostępnego serwera z `online-mode=false`, jeśli ochrona logowania nie działa. Na czas instalacji i napraw ogranicz dostęp do serwera testowego.
 
@@ -49,12 +49,12 @@ Nie uruchamiaj dwóch pluginów logowania jednocześnie bez sprawdzonej zgodnoś
 
 ## Szybka próba po instalacji
 
-- [ ] Nowe konto offline widzi rejestrację z dwoma polami hasła.
+- [ ] Nowy gracz widzi rejestrację z dwoma polami hasła.
 - [ ] Przy kolejnym wejściu pojawia się logowanie z jednym polem.
 - [ ] Przed logowaniem nie można chodzić, używać skrzynek ani komend.
 - [ ] Poprawne hasło otwiera dostęp do gry, a błędne go nie daje.
-- [ ] Własne konto premium przechodzi weryfikację.
-- [ ] `/changepassword` i `/logout` działają po zalogowaniu konta offline.
+- [ ] Oficjalne konto Minecraft przechodzi weryfikację i domyślnie również wymaga hasła serwerowego.
+- [ ] `/changepassword` i `/logout` działają po zalogowaniu każdego konta.
 - [ ] Po restarcie konto nadal istnieje i można się zalogować.
 
 Masz sieć serwerów? Przejdź do [Velocity](Velocity.md).
