@@ -16,11 +16,20 @@ import pl.syntaxdevteam.authgatewayx.storage.OfflineRegistration
 import pl.syntaxdevteam.authgatewayx.storage.RegistrationResult
 import java.net.InetAddress
 import java.time.Clock
+import java.util.UUID
 import java.util.concurrent.CompletionStage
 import java.util.concurrent.CompletableFuture
 
 fun interface OfflineRegistrationUseCase {
     fun register(username: AccountUsername, sourceAddress: InetAddress, password: CharArray): CompletionStage<RegistrationOutcome>
+
+    fun registerVerified(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        minecraftUuid: UUID,
+        password: CharArray,
+    ): CompletionStage<RegistrationOutcome> =
+        CompletableFuture.completedFuture(RegistrationOutcome.IdentityConflict)
 }
 
 sealed interface RegistrationOutcome {
@@ -56,6 +65,20 @@ class RegistrationService(
         username: AccountUsername,
         sourceAddress: InetAddress,
         password: CharArray,
+    ): CompletionStage<RegistrationOutcome> = registerInternal(username, sourceAddress, password, null)
+
+    override fun registerVerified(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        minecraftUuid: UUID,
+        password: CharArray,
+    ): CompletionStage<RegistrationOutcome> = registerInternal(username, sourceAddress, password, minecraftUuid)
+
+    private fun registerInternal(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        password: CharArray,
+        verifiedMinecraftUuid: UUID?,
     ): CompletionStage<RegistrationOutcome> {
         val attemptDecision = attemptGate?.evaluate(sourceAddress) ?: RegistrationAttemptDecision.ALLOW
         if (attemptDecision != RegistrationAttemptDecision.ALLOW) {
@@ -73,19 +96,26 @@ class RegistrationService(
         val hashStage = passwordExecutor.submit { hasher.hash(password) }
         hashStage.whenComplete { _, _ -> password.fill('\u0000') }
         return hashStage.thenCompose { passwordHash ->
-            storage.registerOffline(OfflineRegistration(
-                accountId = AccountId.random(),
-                username = username,
-                minecraftUuid = OfflineIdentity.minecraftUuid(username),
-                passwordHash = passwordHash,
-                sourceAddress = sourceAddress,
-                createdAt = clock.instant(),
-                maximumAccountsPerAddress = maximumAccountsPerAddress,
-            )).thenApply { result ->
+            val registration = if (verifiedMinecraftUuid != null) {
+                storage.registerVerifiedPassword(
+                    username, verifiedMinecraftUuid, passwordHash, sourceAddress, clock.instant(),
+                )
+            } else {
+                storage.registerOffline(OfflineRegistration(
+                    accountId = AccountId.random(),
+                    username = username,
+                    minecraftUuid = OfflineIdentity.minecraftUuid(username),
+                    passwordHash = passwordHash,
+                    sourceAddress = sourceAddress,
+                    createdAt = clock.instant(),
+                    maximumAccountsPerAddress = maximumAccountsPerAddress,
+                ))
+            }
+            registration.thenApply { result ->
                 when (result) {
                     null -> error("Async authentication operation returned null: result")
                     is RegistrationResult.Created -> {
-                        audit(username, sourceAddress, SecurityEventType.REGISTER, "OFFLINE_PASSWORD", result.account.id)
+                        audit(username, sourceAddress, SecurityEventType.REGISTER, "PASSWORD", result.account.id)
                         RegistrationOutcome.Created(result.account)
                     }
                     RegistrationResult.UsernameAlreadyExists -> RegistrationOutcome.UsernameAlreadyExists
