@@ -83,3 +83,15 @@ For username lookup/backoff errors see [Help](Help.md). `Backend server is onlin
 ## Verify your network
 
 Test registration and login for both officially verified and locally assigned identities, reconnects, backend switches and rejection of direct backend connections from outside the proxy. Do not assume authentication automatically follows players across every backend.
+
+## Connection diagnostics
+
+In the Velocity plugin's `authgatewayx.yml`, add `diagnostics: true` to the existing
+`connections` section and restart the proxy. The default is `false`.
+`[login-diag]` entries include the username, session ID (`null` on older Velocity),
+`LOOKUP_PREMIUM` / `LOOKUP_NOT_PREMIUM` / `LOOKUP_UNAVAILABLE`, selected `MOJANG` / `OFFLINE`
+mode, admission result and available LOGIN / DISCONNECT events. No IPs, passwords or tokens are logged.
+Output is limited to 120 lines per minute across the proxy; excess lines and queue overflow are dropped.
+A missing later entry does not prove an invalid session: clients may disconnect and native
+rejections before LOGIN may not emit a plugin DISCONNECT event. `MOJANG` means verification
+is required, not that it succeeded. Disable diagnostics and restart after testing.

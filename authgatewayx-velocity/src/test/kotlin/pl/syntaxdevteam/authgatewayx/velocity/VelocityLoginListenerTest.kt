@@ -32,10 +32,38 @@ class VelocityLoginListenerTest {
     }
     private fun listener(pending: PendingConnectionRegistry, ready: AtomicBoolean = AtomicBoolean(true),
                          lookup: PremiumUsernameLookup = PremiumUsernameLookup { CompletableFuture.completedFuture(PremiumUsernameStatus.NOT_PREMIUM) },
-                         network: IpIntelligenceLookup? = null) = VelocityLoginListener(ready,
+                         network: IpIntelligenceLookup? = null, diagnostic: (String) -> Unit = {}) = VelocityLoginListener(ready,
         ConnectionFloodGate(FloodLimit(100,100,Duration.ofSeconds(1)),FloodLimit(100,100,Duration.ofSeconds(1)),100),
         lookup,pending,VelocitySessionRegistry(100),VelocityLoginMessages(Component.text("unavailable"),Component.text("rate"),Component.text("name"),Component.text("mojang"),Component.text("state"),Component.text("vpn"),Component.text("multi")),
-        VelocityRiskChecks(null,network,RiskAction.ALERT,RiskAction.DENY,true),1,{_,_,_,_->})
+        VelocityRiskChecks(null,network,RiskAction.ALERT,RiskAction.DENY,true),1,{_,_,_,_->}, diagnostic = diagnostic)
+
+    @Test fun `diagnostics distinguish premium offline and unavailable without changing admission`() {
+        for (status in PremiumUsernameStatus.entries) {
+            val lines = mutableListOf<String>()
+            val subject = listener(PendingConnectionRegistry(Duration.ofSeconds(30),100),
+                lookup = PremiumUsernameLookup { CompletableFuture.completedFuture(status) }, diagnostic = lines::add)
+            val event = event()
+            val resume = Resume()
+            subject.onPreLogin(event, resume)
+            assertEquals(1, resume.count)
+            assertTrue(lines.any { it.contains("LOOKUP_$status") })
+            assertTrue(lines.all { !it.contains("127.0.0.1") })
+            when (status) {
+                PremiumUsernameStatus.PREMIUM -> assertTrue(event.result.isOnlineModeAllowed)
+                PremiumUsernameStatus.NOT_PREMIUM -> assertTrue(event.result.isForceOfflineMode)
+                PremiumUsernameStatus.UNAVAILABLE -> assertFalse(event.result.isAllowed)
+            }
+        }
+    }
+
+    @Test fun `broken diagnostic sink cannot interrupt login`() {
+        val subject = listener(PendingConnectionRegistry(Duration.ofSeconds(30),100),
+            diagnostic = { error("broken sink") })
+        val event = event(); val resume = Resume()
+        subject.onPreLogin(event, resume)
+        assertTrue(event.result.isAllowed)
+        assertEquals(1, resume.count)
+    }
 
     @Test fun `VPN denial completes prelogin exactly once and never grants pending backend admission`() {
         val pending = PendingConnectionRegistry(Duration.ofSeconds(30),100)

@@ -39,6 +39,7 @@ class PluginInitializer(
     private var staffProof: VelocityStaffProof? = null
     private var admin: VelocityRiskAdmin? = null
     private var executor: BoundedTaskExecutor? = null
+    private var loginDiagnostics: VelocityLoginDiagnostics? = null
     private var premiumLookup: MojangProfileLookup? = null
     private var pending: PendingConnectionRegistry? = null
     private var sessions: VelocitySessionRegistry? = null
@@ -64,6 +65,7 @@ class PluginInitializer(
                 },
             )
             plugin.messageHandler = handler
+            if (configuration.loginDiagnostics) loginDiagnostics = VelocityLoginDiagnostics(logger::info)
             phase(VelocityReadinessGuard.Phase.EXECUTORS)
             val work = BoundedTaskExecutor(configuration.mojangThreads, configuration.mojangQueue, "authgatewayx-mojang")
             val connections = PendingConnectionRegistry(Duration.ofSeconds(configuration.pendingTtlSeconds), configuration.maximumPending)
@@ -132,7 +134,8 @@ class PluginInitializer(
                         handler.stringMessageToComponentNoPrefix("auth", "vpn_denied"),
                         handler.stringMessageToComponentNoPrefix("auth", "multi_denied"),
                     ), VelocityRiskChecks(db, ip, risk.multiAction, risk.networkAction, risk.failClosed),
-                        risk.maximumConcurrent, commands::notify, configuration.admissionTimeoutMillis))
+                        risk.maximumConcurrent, commands::notify, configuration.admissionTimeoutMillis,
+                        { line -> loginDiagnostics?.record(line) }))
                     ready.set(true)
                     logger.info("AuthGatewayX Velocity admission is READY; shared history={}, IP checks={}", risk.storageEnabled, risk.networkEnabled)
                 } catch (problem: Throwable) {
@@ -163,6 +166,7 @@ class PluginInitializer(
     }
 
     private fun closeResources() {
+        loginDiagnostics?.close()
         plugin.detachSessions()
         clientChannel?.close()
         staffProof?.close()

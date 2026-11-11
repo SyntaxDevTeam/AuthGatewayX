@@ -176,3 +176,23 @@ Proxy korzysta z tej samej ochrony zapytań co Paper: respektuje `Retry-After`, 
 krótką przerwę po błędach usługi i nadal używa ważnego cache. Czas
 `premium.lookup.timeout-millis` obejmuje kolejkę i HTTP, niezależnie od dłuższego
 limitu całego przyjęcia połączenia. Wpisy `[mojang-lookup]` opisano w [Pomocy](Pomoc.md).
+
+## Diagnostyka połączeń
+
+W pliku `authgatewayx.yml` pluginu na Velocity można włączyć:
+
+```yaml
+connections:
+  diagnostics: true
+```
+
+Dodaj klucz do istniejącej sekcji `connections` i uruchom ponownie proxy.
+Wpisy `[login-diag]` zawierają nick i identyfikator sesji (na starszym Velocity może być `null`),
+wynik `LOOKUP_PREMIUM` / `LOOKUP_NOT_PREMIUM` / `LOOKUP_UNAVAILABLE`,
+wybrany tryb `MOJANG` / `OFFLINE`, wynik admission oraz dostępne zdarzenia LOGIN i DISCONNECT.
+Nie zawierają IP, haseł ani tokenów. Domyślnie diagnostyka jest wyłączona.
+Limit wynosi 120 wpisów na minutę dla całego proxy; nadmiar i przepełniona kolejka są pomijane.
+Brak późniejszego wpisu nie dowodzi błędnej sesji: klient może przerwać połączenie,
+a natywne odrzucenie przed LOGIN nie musi wywołać zdarzenia DISCONNECT pluginu.
+`MOJANG` oznacza wymaganą weryfikację, a nie jej sukces.
+Po teście ustaw `diagnostics: false` i zrestartuj proxy.

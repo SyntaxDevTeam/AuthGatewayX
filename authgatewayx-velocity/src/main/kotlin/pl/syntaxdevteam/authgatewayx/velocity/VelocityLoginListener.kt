@@ -39,23 +39,26 @@ class VelocityLoginListener(
     maximumConcurrent: Int,
     private val notify: (String, InetAddress, ProxyRiskResult, Boolean) -> Unit,
     private val admissionTimeoutMillis: Long = 20_000,
+    private val diagnostic: (String) -> Unit = {},
 
 ) {
     private val capacity = Semaphore(maximumConcurrent)
     init { require(admissionTimeoutMillis > 0) }
     @Subscribe
     fun onPreLogin(event: PreLoginEvent, continuation: Continuation) {
-        if (!event.result.isAllowed) { continuation.resume(); return }
-        if (!ready.get()) return deny(event, messages.unavailable, continuation)
+        trace(event, "PRE_LOGIN")
+        if (!event.result.isAllowed) { trace(event, "DENY_OTHER_PLUGIN"); continuation.resume(); return }
+        if (!ready.get()) return deny(event, messages.unavailable, continuation, "NOT_READY")
         val address = event.connection.remoteAddress.address
-        if (floodGate.evaluate(address) != ConnectionDecision.ALLOW) return deny(event, messages.rateLimited, continuation)
+        if (floodGate.evaluate(address) != ConnectionDecision.ALLOW) return deny(event, messages.rateLimited, continuation, "FLOOD_LIMIT")
         val username = try { AccountUsername.parse(event.username) } catch (_: IllegalArgumentException) {
-            return deny(event, messages.invalidUsername, continuation)
+            return deny(event, messages.invalidUsername, continuation, "INVALID_USERNAME")
         }
-        if (!capacity.tryAcquire()) return deny(event, messages.rateLimited, continuation)
+        if (!capacity.tryAcquire()) return deny(event, messages.rateLimited, continuation, "CAPACITY")
         val key = VelocitySessionIds.native(event.connection)?.let(::PendingConnectionKey)
         val stage = try {
             lookup.lookup(username).thenCompose { status ->
+                trace(event, "LOOKUP_$status")
                 if (status == PremiumUsernameStatus.UNAVAILABLE) CompletableFuture.failedFuture(IllegalStateException("Premium unavailable"))
                 else riskChecks.assess(address, username, status == PremiumUsernameStatus.NOT_PREMIUM).thenApply { risk ->
                     PendingLoginDecision(if (status == PremiumUsernameStatus.PREMIUM) SelectedAuthenticationMode.MOJANG else SelectedAuthenticationMode.OFFLINE, risk)
@@ -87,7 +90,10 @@ class VelocityLoginListener(
                     event.result = if (decision.mode == SelectedAuthenticationMode.MOJANG) PreLoginEvent.PreLoginComponentResult.forceOnlineMode()
                         else PreLoginEvent.PreLoginComponentResult.forceOfflineMode()
                 }
-            } finally { capacity.release(); continuation.resume() }
+            } finally {
+                trace(event, "PRE_LOGIN_RESULT risk=${decision?.risk?.denial ?: "NONE"} allowed=${event.result.isAllowed} mode=${decision?.mode ?: "UNKNOWN"} failure=${failure != null} active=${event.connection.isActive}")
+                capacity.release(); continuation.resume()
+            }
         }
     }
 
@@ -99,6 +105,7 @@ class VelocityLoginListener(
     @Subscribe
     fun onLogin(event: LoginEvent, continuation: Continuation = ImmediateContinuation) {
         val player = event.player
+        runCatching { diagnostic("[login-diag] stage=LOGIN session=${VelocitySessionIds.native(player)} nick=${player.username} online=${player.isOnlineMode}") }
         val nativeId = VelocitySessionIds.native(player)
         if (nativeId != null) {
             try {
@@ -161,36 +168,47 @@ class VelocityLoginListener(
 
     private fun finishLogin(event: LoginEvent, selected: PendingLoginDecision?) {
         val player = event.player
-        val valid = when (selected?.mode) {
-            SelectedAuthenticationMode.MOJANG -> player.isOnlineMode
-            SelectedAuthenticationMode.OFFLINE -> !player.isOnlineMode
-            null -> false
-        }
-        if (!ready.get() || !valid) {
-            event.result = ResultedEvent.ComponentResult.denied(messages.stateMismatch)
-        } else if (event.result.isAllowed) {
-            val denial = selected?.risk?.denial
-            if (denial != null) {
-                event.result = ResultedEvent.ComponentResult.denied(when (denial) {
-                    RiskDenial.VPN -> messages.vpnDenied
-                    RiskDenial.MULTI_ACCOUNT -> messages.multiDenied
-                    RiskDenial.UNAVAILABLE -> messages.unavailable
-                })
-                return
+        try {
+            val valid = when (selected?.mode) {
+                SelectedAuthenticationMode.MOJANG -> player.isOnlineMode
+                SelectedAuthenticationMode.OFFLINE -> !player.isOnlineMode
+                null -> false
             }
-            if (!sessions.record(VelocitySessionIds.id(player), player.uniqueId, player.username, selected!!.mode)) {
-                event.result = ResultedEvent.ComponentResult.denied(messages.rateLimited)
-            } else {
-                runCatching { notify(player.username, player.remoteAddress.address, selected.risk, false) }
+            if (!ready.get() || !valid) {
+                event.result = ResultedEvent.ComponentResult.denied(messages.stateMismatch)
+            } else if (event.result.isAllowed) {
+                val denial = selected?.risk?.denial
+                if (denial != null) {
+                    event.result = ResultedEvent.ComponentResult.denied(when (denial) {
+                        RiskDenial.VPN -> messages.vpnDenied
+                        RiskDenial.MULTI_ACCOUNT -> messages.multiDenied
+                        RiskDenial.UNAVAILABLE -> messages.unavailable
+                    })
+                    return
+                }
+                if (!sessions.record(VelocitySessionIds.id(player), player.uniqueId, player.username, selected!!.mode)) {
+                    event.result = ResultedEvent.ComponentResult.denied(messages.rateLimited)
+                } else {
+                    runCatching { notify(player.username, player.remoteAddress.address, selected.risk, false) }
+                }
             }
+        } finally {
+            runCatching { diagnostic("[login-diag] stage=LOGIN_RESULT session=${VelocitySessionIds.native(player)} nick=${player.username} selected=${selected?.mode} online=${player.isOnlineMode} allowed=${event.result.isAllowed}") }
         }
     }
 
     @Subscribe
     fun onDisconnect(event: DisconnectEvent) {
+        runCatching { diagnostic("[login-diag] stage=DISCONNECT session=${VelocitySessionIds.native(event.player)} nick=${event.player.username} status=${event.loginStatus}") }
         val id = VelocitySessionIds.discard(event.player) ?: return
         pending.discard(PendingConnectionKey(id))
         sessions.discard(id)
+    }
+
+    private fun trace(event: PreLoginEvent, stage: String) {
+        // Validate untrusted names before including them in console output.
+        val name = runCatching { AccountUsername.parse(event.username).value }.getOrDefault("<invalid>")
+        runCatching { diagnostic("[login-diag] session=${VelocitySessionIds.native(event.connection)} nick=$name stage=$stage") }
     }
 
     private object ImmediateContinuation : Continuation {
@@ -198,7 +216,8 @@ class VelocityLoginListener(
         override fun resumeWithException(exception: Throwable) { throw IllegalStateException(exception) }
     }
 
-    private fun deny(event: PreLoginEvent, message: Component, continuation: Continuation) {
+    private fun deny(event: PreLoginEvent, message: Component, continuation: Continuation, reason: String) {
+        trace(event, "DENY_$reason")
         event.result = PreLoginEvent.PreLoginComponentResult.denied(message)
         continuation.resume()
     }

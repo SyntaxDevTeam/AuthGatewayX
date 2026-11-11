@@ -16,6 +16,7 @@ data class VelocityConfiguration(
     val mojangQueue: Int,
     val admissionTimeoutMillis: Long = 20_000,
     val risk: VelocityRiskConfiguration = VelocityRiskConfiguration(),
+    val loginDiagnostics: Boolean = false,
 ) {
     init {
         require(lookupTimeoutMillis > 0 && positiveTtlSeconds > 0 && negativeTtlSeconds > 0)
@@ -49,6 +50,7 @@ data class VelocityConfiguration(
                 positive(executors, "mojang-threads").toInt(), positive(executors, "mojang-queue").toInt(),
                 (connections["admission-timeout-millis"] as? Number)?.toLong() ?: 20_000L,
                 VelocityRiskConfiguration.parse(root),
+                (connections["diagnostics"] as? Boolean) ?: false,
             )
         }
     }
