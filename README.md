@@ -2,11 +2,11 @@
 
 # LoginCoreX
 
-### Player authentication and protection system.
+### Secure Identity. Trusted Access.
 
-**LoginCoreX — System uwierzytelniania i ochrony graczy.**
+**LoginCoreX — Authentication & Identity Protection System.**
 
-**Secure authentication for every player, convenient Minecraft forms, and protection from the very first connection.**
+
 <p>
     <a href="#-download"><img src="https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3.2.0/assets/cozy/supported/paper_vector.svg" alt="Supports Paper" height="56"></a>
     <a href="#-download"><img src="https://github.com/SyntaxDevTeam/PunisherX/raw/main/assets/badges/folia.svg" alt="Supports Folia" height="56"></a>
