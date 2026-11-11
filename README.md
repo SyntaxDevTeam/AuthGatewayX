@@ -21,11 +21,11 @@
 
 ---
 
-LoginCoreX secures every Minecraft Java Edition player connection to your server via form registration/login.. New players register an account and returning players sign in through Minecraft dialogs. Official Minecraft session verification additionally protects verified identities, while administrators get account-security, connection-protection and diagnostic tools.
+LoginCoreX is an advanced authentication and identity protection system for Minecraft servers.
 
-**Premium username impersonation protection: players cannot access an official Minecraft account owner's protected username without successfully verifying ownership of that account.**
+Designed for Paper and Velocity, it provides secure player registration, authentication, premium account verification, identity protection, and session management.
 
-Running a small server for friends or growing a community? Start with the default SQLite database, customize your messages, and manage authentication in one place.
+Protect player identities, prevent account impersonation, and secure every connection.
 
 ## ✨ Why LoginCoreX?
 
