@@ -31,6 +31,8 @@ auth:
   repeat_password_label: "Powtórz hasło"
   submit_label: "Potwierdź"
   cancel_label: "Wróć"
+  disconnect_label: "Wyjdź z serwera"
+  cancelled: "<yellow>Anulowano logowanie. Rozłączono z serwerem.</yellow>"
   timeout: "<red>Przekroczono czas uwierzytelnienia.</red>"
   startup_failed: "<red>Uwierzytelnianie jest chwilowo niedostępne.</red>"
   premium_authentication_required: "<red>Konto Minecraft zostało rozpoznane, ale backend nie otrzymał zgodnej zweryfikowanej tożsamości z proxy.</red>"

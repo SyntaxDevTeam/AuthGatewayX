@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class ConfigurationAuthenticationDialogController(
     private val handler: AuthenticationFormHandler,
-    private val renderer: AuthenticationDialogController,
+    private val renderer: AuthenticationDialogPresentation,
     private val sessions: SessionRegistry,
     private val gate: PreJoinConnectionGate,
     private val text: AuthenticationDialogText,
@@ -93,7 +93,11 @@ class ConfigurationAuthenticationDialogController(
             LOGIN_SUBMIT -> Kind.LOGIN
             REGISTER_SUBMIT -> Kind.REGISTER
             CANCEL -> {
-                runCatching { present(pending) }.onFailure { abandon(pending) }
+                // Terminate the ticket before disconnecting: late auth cannot release it.
+                if (awaiting.remove(profileId, pending)) {
+                    gate.deny(pending.ticket)
+                    connection.disconnect(text.cancelled)
+                }
                 return
             }
             else -> return
@@ -154,9 +158,8 @@ class ConfigurationAuthenticationDialogController(
 
     private fun present(pending: Pending, feedback: Component? = null) {
         if (!current(pending)) return
-        val dialog = if (pending.kind == Kind.LOGIN) renderer.loginDialog(pending.context.username.value, feedback)
-            else renderer.registrationDialog(pending.context.username.value, feedback)
-        pending.connection.audience.showDialog(dialog)
+        if (pending.kind == Kind.LOGIN) renderer.presentLogin(pending.connection.audience, pending.context.username.value, feedback)
+        else renderer.presentRegistration(pending.connection.audience, pending.context.username.value, feedback)
     }
 
     /** Clear a matching ticket on disconnect/timeout; never touch a subsequent reconnect. */

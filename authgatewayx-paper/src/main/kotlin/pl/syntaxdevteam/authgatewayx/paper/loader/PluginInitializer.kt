@@ -727,7 +727,7 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             messages.stringMessageToComponentNoPrefix("auth", "password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "repeat_password_label"),
             messages.stringMessageToComponentNoPrefix("auth", "submit_label"),
-            messages.stringMessageToComponentNoPrefix("auth", "cancel_label"),
+            messages.stringMessageToComponentNoPrefix("auth", "disconnect_label"),
             messages.stringMessageToComponentNoPrefix("auth", "password_mismatch"),
             messages.stringMessageToComponentNoPrefix("auth", "invalid_credentials"),
             messages.stringMessageToComponentNoPrefix("auth", "account_locked"),
@@ -735,7 +735,8 @@ class PluginInitializer(private val plugin: AuthGatewayXPaper) {
             messages.stringMessageToComponentNoPrefix("auth", "account_exists"),
             messages.stringMessageToComponentNoPrefix("auth", "identity_conflict"),
             messages.stringMessageToComponentNoPrefix("auth", "internal_failure"),
-            accessDenied = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"))
+            accessDenied = messages.stringMessageToComponentNoPrefix("auth", "integration_denied"),
+            cancelled = messages.stringMessageToComponentNoPrefix("auth", "cancelled"))
         val dialogs = AuthenticationDialogController(coordinator, scheduler, dialogText,
             onOutcome = { context, result ->
                 if (result != AuthenticationFormResult.AUTHENTICATED) {

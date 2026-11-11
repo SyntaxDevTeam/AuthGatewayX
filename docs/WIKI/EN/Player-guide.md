@@ -33,3 +33,9 @@ Use `/privacy` to view the policy, `/privacy accept` to accept, `/privacy reject
 ## Protect your screen
 
 Minecraft dialog password fields display the characters you type. Hide the game while streaming or screen sharing. Passwords are not sent to chat. If you forget your server password, contact server staff; do not send anyone your Microsoft password.
+
+## Cancelling sign-in
+
+Select **Wyjdź z serwera** (Leave server, in the default Polish messages) in the login
+or registration dialog to cancel and disconnect without entering a password.
+This also works before entering the world. Reconnect when you want to try again.

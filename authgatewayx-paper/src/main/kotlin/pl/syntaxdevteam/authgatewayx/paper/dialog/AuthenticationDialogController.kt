@@ -45,14 +45,28 @@ data class AuthenticationDialogText(
     val identityConflict: Component,
     val internalFailure: Component,
     val accessDenied: Component = internalFailure,
+    val cancelled: Component = internalFailure,
 )
+
+interface AuthenticationDialogPresentation {
+    fun presentLogin(audience: net.kyori.adventure.audience.Audience, username: String, feedback: Component?)
+    fun presentRegistration(audience: net.kyori.adventure.audience.Audience, username: String, feedback: Component?)
+}
 
 class AuthenticationDialogController(
     private val handler: AuthenticationFormHandler,
     private val scheduler: PaperPlatformScheduler,
     private val text: AuthenticationDialogText,
     private val onOutcome: (AuthenticationFormContext, AuthenticationFormResult) -> Unit = { _, _ -> },
-) : Listener {
+) : Listener, AuthenticationDialogPresentation {
+    override fun presentLogin(audience: net.kyori.adventure.audience.Audience, username: String, feedback: Component?) {
+        audience.showDialog(loginDialog(username, feedback))
+    }
+
+    override fun presentRegistration(audience: net.kyori.adventure.audience.Audience, username: String, feedback: Component?) {
+        audience.showDialog(registrationDialog(username, feedback))
+    }
+
     private data class ExpectedForm(val type: FormType, val verifiedMojang: Boolean)
     private val expectedForms = ConcurrentHashMap<UUID, ExpectedForm>()
     private val submissions = ConcurrentHashMap.newKeySet<UUID>()
@@ -80,12 +94,10 @@ class AuthenticationDialogController(
         val connection = event.commonConnection as? PlayerGameConnection ?: return
         val player = connection.player
         if (event.identifier == CANCEL) {
-            when (val expected = expectedForms[player.uniqueId]) {
-                null -> Unit
-                else -> when (expected.type) {
-                    FormType.LOGIN -> scheduler.entity(player) { showLogin(player, verifiedMojang = expected.verifiedMojang) }
-                    FormType.REGISTER -> scheduler.entity(player) { showRegistration(player, verifiedMojang = expected.verifiedMojang) }
-                }
+            val expected = expectedForms[player.uniqueId] ?: return
+            if (expectedForms.remove(player.uniqueId, expected)) {
+                submissions.remove(player.uniqueId)
+                scheduler.entity(player) { player.kick(text.cancelled) }
             }
             return
         }
@@ -128,7 +140,7 @@ class AuthenticationDialogController(
         outcome.whenComplete { result, failure ->
             scheduler.entity(player, Runnable {
                 submissions.remove(player.uniqueId)
-                if (!player.isOnline) return@Runnable
+                if (!player.isOnline || expectedForms[player.uniqueId] !== expected) return@Runnable
                 if (failure == null && result != null) onOutcome(context, result)
                 if (failure == null && result == AuthenticationFormResult.AUTHENTICATED) {
                     expectedForms.remove(player.uniqueId)

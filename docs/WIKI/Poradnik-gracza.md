@@ -39,3 +39,9 @@ Jeśli posiadasz oficjalne konto Minecraft, zaloguj się na nie w launcherze. Se
 W obecnym oknie znaki hasła są widoczne na ekranie. Ukryj obraz gry podczas streamowania lub udostępniania ekranu. Plugin nie wysyła wpisanego hasła na czat.
 
 Nie pamiętasz hasła? Skontaktuj się z administracją serwera. Nie wysyłaj jej hasła do Microsofta ani innych usług.
+
+## Rezygnacja z logowania
+
+W oknie logowania lub rejestracji wybierz **Wyjdź z serwera**, aby anulować formularz
+i rozłączyć się. Nie musisz podawać hasła. Przycisk działa również przed wejściem do świata.
+Aby spróbować ponownie, połącz się z serwerem jeszcze raz.
