@@ -1,7 +1,8 @@
 repositories:
   syntaxdevteam-snapshots: https://nexus.syntaxdevteam.pl/repository/maven-snapshots/
   syntaxdevteam-releases: https://nexus.syntaxdevteam.pl/repository/maven-releases/
-  central: https://repo.papermc.io/repository/maven-central/
+  # Uses Paper's mirror, including the server administrator's override.
+  central: paper-default-mirror
 
 libraries:
   - ${kotlin}

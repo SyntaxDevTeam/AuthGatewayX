@@ -16,6 +16,13 @@ import java.util.Map;
 /** Resolves the catalog-generated runtime manifest before plugin bootstrap. */
 @SuppressWarnings("UnstableApiUsage")
 public final class SyntaxLoader implements PluginLoader {
+    static String addressForCentral(Map<?, ?> repositories) {
+        Object value = repositories.get("central");
+        if ("paper-default-mirror".equals(value)) return MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR;
+        if (value instanceof String address && address.startsWith("https://")) return address;
+        throw new IllegalStateException("Missing HTTPS repository: central");
+    }
+
     @Override
     public void classloader(@NonNull PluginClasspathBuilder builder) {
         try (InputStream input = SyntaxLoader.class.getClassLoader().getResourceAsStream("paper-libraries.yml")) {
@@ -36,7 +43,7 @@ public final class SyntaxLoader implements PluginLoader {
                     ? (coordinate.endsWith("-SNAPSHOT") ? "syntaxdevteam-snapshots" : "syntaxdevteam-releases")
                     : "central";
                 MavenLibraryResolver resolver = resolvers.computeIfAbsent(repositoryId, id -> {
-                    Object url = repositories.get(id);
+                    Object url = id.equals("central") ? addressForCentral(repositories) : repositories.get(id);
                     if (!(url instanceof String address) || !address.startsWith("https://")) {
                         throw new IllegalStateException("Missing HTTPS repository: " + id);
                     }
@@ -45,7 +52,7 @@ public final class SyntaxLoader implements PluginLoader {
                     // SyntaxDevTeam artifacts have transitive dependencies in Maven Central.
                     if (!id.equals("central")) {
                         created.addRepository(new RemoteRepository.Builder("central", "default",
-                            MavenLibraryResolver.MAVEN_CENTRAL_DEFAULT_MIRROR).build());
+                            addressForCentral(repositories)).build());
                     }
                     return created;
                 });

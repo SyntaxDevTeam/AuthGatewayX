@@ -1,5 +1,6 @@
 package pl.syntaxdevteam.authgatewayx.paper.compatibility
 
+import org.bukkit.Server
 import pl.syntaxdevteam.core.platform.ServerEnvironment
 import pl.syntaxdevteam.authgatewayx.paper.AuthGatewayXPaper
 
@@ -14,15 +15,16 @@ class VersionChecker(private val plugin: AuthGatewayXPaper) {
             SemanticVersion(26, 3, 0),
         )
 
+        // Bukkit reports API builds (e.g. 26.3.build.248), not the game version.
+        internal fun getServerVersion(server: Server): String =
+            server.minecraftVersion.substringBefore("-")
+
         fun isVersionSupported(version: String): Boolean =
             SemanticVersion.parseOrNull(version) in SUPPORTED_VERSIONS
     }
 
-    private fun getRawVersion(): String =
-        plugin.server.bukkitVersion
-
     fun getServerVersion(): String =
-        getRawVersion().substringBefore("-")
+        getServerVersion(plugin.server)
 
     fun isSupported(): Boolean =
         isVersionSupported(getServerVersion())
