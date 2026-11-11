@@ -1,10 +1,10 @@
-# AuthGatewayX
+# LoginCoreX
 
 **Language / Język:** English · [Polski](../Home.md)
 
 ## Your account. Your name. Your game.
 
-AuthGatewayX authenticates every player on Minecraft Java Edition servers, including servers with `online-mode=false`. Registration and sign-in use in-game dialogs, while administrators get tools for protecting accounts, controlling connection abuse and investigating problems.
+LoginCoreX authenticates every player on Minecraft Java Edition servers, including servers with `online-mode=false`. Registration and sign-in use in-game dialogs, while administrators get tools for protecting accounts, controlling connection abuse and investigating problems.
 
 Whether you run a server for friends or a growing community, start with a local SQLite database, customize your messages and manage authentication in one place.
 

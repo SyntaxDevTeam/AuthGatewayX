@@ -6,12 +6,12 @@ from pathlib import Path
 import sys
 from zipfile import ZipFile, BadZipFile
 
-MAIN = 'pl.syntaxdevteam.authgatewayx.velocity.loader.SyntaxLoader'
+MAIN = 'pl.syntaxdevteam.logincorex.velocity.loader.SyntaxLoader'
 REQUIRED_ENTRIES = (
     MAIN.replace('.', '/') + '.class',
-    'pl/syntaxdevteam/authgatewayx/velocity/AuthGatewayXVelocity.class',
-    'pl/syntaxdevteam/authgatewayx/storage/jdbc/JdbcAccountStorage.class',
-    'pl/syntaxdevteam/authgatewayx/velocity/libs/libby/VelocityLibraryManager.class',
+    'pl/syntaxdevteam/logincorex/velocity/LoginCoreXVelocity.class',
+    'pl/syntaxdevteam/logincorex/storage/jdbc/JdbcAccountStorage.class',
+    'pl/syntaxdevteam/logincorex/velocity/libs/libby/VelocityLibraryManager.class',
 )
 REQUIRED_LIBRARIES = {
     'com.zaxxer:HikariCP', 'org.xerial:sqlite-jdbc',
@@ -30,7 +30,7 @@ def verify(jar):
             if entry not in names:
                 raise ValueError(f'Missing required Velocity JAR entry: {entry}')
         descriptor = json.loads(archive.read('velocity-plugin.json'))
-        if descriptor.get('id') != 'authgatewayx' or descriptor.get('main') != MAIN:
+        if descriptor.get('id') != 'logincorex' or descriptor.get('main') != MAIN:
             raise ValueError(f'Invalid Velocity descriptor id/main: {descriptor}')
         libraries = set()
         for line in archive.read('velocity-libraries.txt').decode('utf-8').splitlines():
@@ -55,7 +55,7 @@ def verify(jar):
 
 
 def main():
-    candidates = sorted(path for path in Path(sys.argv[1]).glob('AuthGatewayX-Velocity-*.jar')
+    candidates = sorted(path for path in Path(sys.argv[1]).glob('LoginCoreX-Velocity-*.jar')
                         if not path.name.endswith(('-plain.jar', '-sources.jar', '-javadoc.jar', '-original.jar')))
     if len(candidates) != 1:
         raise ValueError(f'Expected one Velocity distribution, found: {candidates}')

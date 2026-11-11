@@ -1,6 +1,6 @@
 
 **Language / Język:** English · [Polski](../_Sidebar.md)
-[AuthGatewayX — Home](Home.md)
+[LoginCoreX — Home](Home.md)
 
 - [Administrator guide](ADMIN-GUIDE.md)
 - [Download and installation](Installation.md)

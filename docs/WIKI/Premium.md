@@ -6,7 +6,7 @@
 
 ## Wejdź na swoje konto i graj
 
-AuthGatewayX wymaga rejestracji i logowania każdego gracza, również przy `online-mode=false`. Jeśli nick jest przypisany do oficjalnego konta Minecraft, serwer dodatkowo potwierdza własność jego sesji. Po tej weryfikacji gracz domyślnie nadal loguje się hasłem do konta serwerowego. Administrator może przyznać mu uprawnienie `authgatewayx.auth.skip-password`, pozwalające pomijać to hasło.
+LoginCoreX wymaga rejestracji i logowania każdego gracza, również przy `online-mode=false`. Jeśli nick jest przypisany do oficjalnego konta Minecraft, serwer dodatkowo potwierdza własność jego sesji. Po tej weryfikacji gracz domyślnie nadal loguje się hasłem do konta serwerowego. Administrator może przyznać mu uprawnienie `logincorex.auth.skip-password`, pozwalające pomijać to hasło.
 
 Nie podawaj hasła do Microsofta w oknie serwera. Na konto Microsoft logujesz się w launcherze.
 
@@ -25,7 +25,7 @@ Jeśli problem dotyczy wielu osób, administracja powinna sprawdzić połączeni
 ## Przypisanie oficjalnej tożsamości do istniejącego konta
 
 Jeżeli konto o danym nicku już istnieje, a właściciel później powiąże ten nick z oficjalnym
-kontem Minecraft, AuthGatewayX nie przełącza automatycznie UUID przy pierwszym wejściu.
+kontem Minecraft, LoginCoreX nie przełącza automatycznie UUID przy pierwszym wejściu.
 
 Po poprawnym uwierzytelnieniu Mojang zobaczysz osobny dialog migracyjny. Należy podać
 **hasło używane wcześniej na tym serwerze**. Nie jest to hasło do
@@ -37,19 +37,19 @@ Poprawne hasło potwierdza, że osoba posiada jednocześnie:
 2. poprzednią tożsamość serwerową ze starym UUID.
 
 Po potwierdzeniu tworzony jest bezpieczny ticket migracji. Do czasu przeniesienia danych
-zależnych od UUID konto AuthGatewayX zachowuje poprzedni UUID oraz hash
+zależnych od UUID konto LoginCoreX zachowuje poprzedni UUID oraz hash
 hasła. Dzięki temu samo pierwsze wejście zweryfikowanego gracza nie odcina go od poprzedniej
 tożsamości.
 
 Dane takie jak ekwipunek, statystyki, ekonomia, działki, rangi lub dane innych pluginów
 nie mogą być przenoszone przez ślepe wyszukiwanie i zamianę UUID. Każdy magazyn danych
-musi mieć kontrolowany migrator. AuthGatewayX finalizuje zmianę UUID dopiero
+musi mieć kontrolowany migrator. LoginCoreX finalizuje zmianę UUID dopiero
 po zakończeniu takich migracji.
 
 Jeżeli migracja nie została jeszcze zakończona, skontaktuj się z administracją. Nie próbuj
 usuwać plików `playerdata` ani ręcznie edytować baz danych bez kopii zapasowej.
 
-## Co AuthGatewayX przenosi automatycznie?
+## Co LoginCoreX przenosi automatycznie?
 
 Plugin przenosi dane vanilla zależne od UUID po wcześniejszym rozłączeniu gracza:
 
@@ -57,29 +57,29 @@ Plugin przenosi dane vanilla zależne od UUID po wcześniejszym rozłączeniu gr
 - `stats/<uuid>.json`,
 - `advancements/<uuid>.json`.
 
-Przed zmianą pliku wykonywana jest kopia w `plugins/AuthGatewayX/migration-backups/<migration-id>/`.
+Przed zmianą pliku wykonywana jest kopia w `plugins/LoginCoreX/migration-backups/<migration-id>/`.
 Jeśli którykolwiek etap przenoszenia danych zawiedzie, plugin próbuje przywrócić wcześniejszy stan.
 
-AuthGatewayX **nie wykonuje globalnego search/replace UUID**. Przed finalizacją skanuje lokalne
+LoginCoreX **nie wykonuje globalnego search/replace UUID**. Przed finalizacją skanuje lokalne
 katalogi danych pluginów bez dedykowanej integracji migracyjnej. Jeśli znajdzie stare UUID, migracja zostaje zatrzymana i konto
-zachowuje dotychczasową tożsamość. Administrator powinien sprawdzić raport `/agx migrate inspect <nick>` i zapewnić zgodną integrację przenoszącą dane wskazanego pluginu.
+zachowuje dotychczasową tożsamość. Administrator powinien sprawdzić raport `/lcx migrate inspect <nick>` i zapewnić zgodną integrację przenoszącą dane wskazanego pluginu.
 
-Dla prostych lokalnych magazynów AuthGatewayX potrafi zrobić więcej niż sam skan. Wbudowane
+Dla prostych lokalnych magazynów LoginCoreX potrafi zrobić więcej niż sam skan. Wbudowane
 i własne recepty migracji obsługują jednoznaczne pliki indeksowane UUID, a bezpieczny fallback
 może skopiować plik nazwany dokładnie `<stare-uuid>.yml/.yaml/.json/.toml/.properties` na
 nowe UUID, jeżeli stare UUID nie występuje również w treści. Source pozostaje zachowany,
 target jest backupowany, a operacja ma rollback.
 
 AdvancedPortals ma wbudowaną receptę dla `playerData/<uuid>.yaml`. Dodatkowe recepty można
-umieszczać w `plugins/AuthGatewayX/migration-recipes/*.yml`; podstawowy przykład konfiguracji znajduje się poniżej.
+umieszczać w `plugins/LoginCoreX/migration-recipes/*.yml`; podstawowy przykład konfiguracji znajduje się poniżej.
 
 Skan pozostaje ograniczony liczbą plików oraz łączną liczbą odczytanych bajtów. Nie blokuje
 tylko dlatego, że pojedynczy plik jest duży — pliki są czytane strumieniowo. Gdy budżet
-zostanie przekroczony, `/agx migrate inspect` pokazuje ścieżkę i rozmiary potrzebne do
+zostanie przekroczony, `/lcx migrate inspect` pokazuje ścieżkę i rozmiary potrzebne do
 podjęcia decyzji.
 
 EssentialsX ma własny migrator `userdata/<uuid>.yml`. Jeżeli nowe UUID zdążyło już utworzyć
-odmienny plik userdata, AuthGatewayX zachowuje go w backupie, przenosi dane starego profilu,
+odmienny plik userdata, LoginCoreX zachowuje go w backupie, przenosi dane starego profilu,
 a w razie niepowodzenia może dokładnie odtworzyć poprzedni target. Sam fakt istnienia innego
 targetu EssentialsX nie blokuje więc recovery.
 
@@ -87,15 +87,15 @@ Skan lokalny nie daje wiedzy o zdalnej bazie MySQL/PostgreSQL innego pluginu. Pl
 dane gracza poza lokalnym katalogiem wymagają dedykowanej integracji migracyjnej.
 
 Jeżeli danych konkretnego pluginu nie chcesz przenosić, dodaj dokładną nazwę jego katalogu
-do `migration.unmanaged-plugin-scan.ignored-plugin-directories`. AuthGatewayX sprawdzi w nim
+do `migration.unmanaged-plugin-scan.ignored-plugin-directories`. LoginCoreX sprawdzi w nim
 jedynie obecność starego UUID, pominie zapis i pokaże tę decyzję w `migrate inspect`. Dane
 pozostaną wyłącznie pod starym UUID; lista jest pusta domyślnie, ponieważ jej użycie oznacza
-świadomą rezygnację z tych danych. Po zapisaniu listy wykonaj `/agx reload`; pełny restart
+świadomą rezygnację z tych danych. Po zapisaniu listy wykonaj `/lcx reload`; pełny restart
 nie jest wymagany dla tego jednego ustawienia.
 
 ## Przykład własnej recepty lokalnej
 
-Utwórz `plugins/AuthGatewayX/migration-recipes/my-plugin.yml` dopiero po potwierdzeniu, że format danych używa UUID wyłącznie w nazwie pliku:
+Utwórz `plugins/LoginCoreX/migration-recipes/my-plugin.yml` dopiero po potwierdzeniu, że format danych używa UUID wyłącznie w nazwie pliku:
 
 ```yaml
 id: my-plugin-users

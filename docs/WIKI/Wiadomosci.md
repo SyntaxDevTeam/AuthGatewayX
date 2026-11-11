@@ -4,13 +4,13 @@
 
 [Home](Home.md) · [Konfiguracja](Konfiguracja.md)
 
-Nadaj oknom logowania styl swojego serwera. Teksty Paper znajdziesz w `plugins/AuthGatewayX/lang/messages_pl.yml`, a język wybierasz przez `language: "PL"` w `config.yml`. Z pluginem dostarczany jest polski plik.
+Nadaj oknom logowania styl swojego serwera. Teksty Paper znajdziesz w `plugins/LoginCoreX/lang/messages_pl.yml`, a język wybierasz przez `language: "PL"` w `config.yml`. Z pluginem dostarczany jest polski plik.
 
 ## Co możesz zmienić?
 
 | Część pliku | Zawartość |
 | --- | --- |
-| `prefix` | Wygląd oznaczenia AuthGatewayX |
+| `prefix` | Wygląd oznaczenia LoginCoreX |
 | `auth.login_title`, `auth.registration_title` | Nagłówki logowania i rejestracji |
 | `auth.login_prompt`, `auth.registration_prompt` | Instrukcje w oknach |
 | `auth.password_label`, `auth.repeat_password_label` | Nazwy pól hasła |
@@ -74,4 +74,4 @@ i połączeniem wymagającym weryfikacji.
 
 ## Dane w alertach administracyjnych
 
-Alerty ryzyka korzystają z osobnych placeholderów dla UUID, typu konta, metody uwierzytelnienia, powiązanych kont, reputacji IP, GeoIP i operatora sieci. Dane wrażliwe są renderowane osobno dla każdego odbiorcy: `authgatewayx.admin.view-ip` ujawnia wyłącznie źródłowy adres IP, a `authgatewayx.admin.view-geo` ujawnia GeoIP, ASN, provider/organizację sieci oraz operatora VPN/proxy. Permisje są niezależne; samo `authgatewayx.admin.alerts` pokazuje alert i sygnały bezpieczeństwa bez tych danych. Konsola otrzymuje pełny wariant. GeoIP opisuje przybliżone przypisanie adresu wyjściowego, dlatego plugin celowo nie prezentuje współrzędnych jako lokalizacji gracza.
+Alerty ryzyka korzystają z osobnych placeholderów dla UUID, typu konta, metody uwierzytelnienia, powiązanych kont, reputacji IP, GeoIP i operatora sieci. Dane wrażliwe są renderowane osobno dla każdego odbiorcy: `logincorex.admin.view-ip` ujawnia wyłącznie źródłowy adres IP, a `logincorex.admin.view-geo` ujawnia GeoIP, ASN, provider/organizację sieci oraz operatora VPN/proxy. Permisje są niezależne; samo `logincorex.admin.alerts` pokazuje alert i sygnały bezpieczeństwa bez tych danych. Konsola otrzymuje pełny wariant. GeoIP opisuje przybliżone przypisanie adresu wyjściowego, dlatego plugin celowo nie prezentuje współrzędnych jako lokalizacji gracza.

@@ -4,7 +4,7 @@
 
 [Home](Home.md) · [Instalacja](Instalacja.md) · [Komendy](Komendy.md) · [Zgodność](Zgodnosc.md)
 
-Poznaj funkcje AuthGatewayX. Wymagania serwera i dobór pliku pluginu opisuje [Zgodność](Zgodnosc.md).
+Poznaj funkcje LoginCoreX. Wymagania serwera i dobór pliku pluginu opisuje [Zgodność](Zgodnosc.md).
 
 ## Logowanie graczy
 
@@ -57,10 +57,10 @@ recovery dla konta zmienionego przez starszą wersję. Szczegóły opisują stro
 
 ## Narzędzia administracji
 
-- `/authgatewayx info <nick>` pokazuje tożsamość konta, stan, daty, bieżącą sesję i
+- `/logincorex info <nick>` pokazuje tożsamość konta, stan, daty, bieżącą sesję i
   aktualną klasyfikację nicku Mojang. Dodatkowe uprawnienia odsłaniają IP, GeoIP,
   reputację sieci, blokadę, ostatnie zdarzenia bezpieczeństwa i powiązane konta.
-- `/authgatewayx alts <nick>` szuka kont korzystających ze wspólnych adresów w
+- `/logincorex alts <nick>` szuka kont korzystających ze wspólnych adresów w
   ograniczonej historii. Wspólne IP jest poszlaką, a nie dowodem jednej osoby.
 - Automatyczne alerty mogą informować zalogowaną administrację i konsolę o podejrzanym
   koncie, VPN, proxy lub Tor. Zewnętrzne sprawdzanie IP jest domyślnie wyłączone.
@@ -83,8 +83,8 @@ recovery dla konta zmienionego przez starszą wersję. Szczegóły opisują stro
 ## Czego ta wersja nie oferuje
 
 Nie ma panelu WWW, 2FA, odzyskiwania przez e-mail, połączenia konta z Discordem,
-komend `/login`, `/register`, `/premium`, `/unregister` ani pełnego przeładowania konfiguracji bez restartu. `/agx reload` odświeża jedynie listę pomijanych katalogów migracji.
-Nie ma też potwierdzonej obsługi Bedrock/Geyser. AuthGatewayX nie jest systemem kar i nie
+komend `/login`, `/register`, `/premium`, `/unregister` ani pełnego przeładowania konfiguracji bez restartu. `/lcx reload` odświeża jedynie listę pomijanych katalogów migracji.
+Nie ma też potwierdzonej obsługi Bedrock/Geyser. LoginCoreX nie jest systemem kar i nie
 uznaje wspólnego IP lub wyniku usługi VPN za niepodważalny dowód nadużycia.
 
 

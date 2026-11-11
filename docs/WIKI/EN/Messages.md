@@ -4,13 +4,13 @@
 
 [Home](Home.md) · [Configuration](Configuration.md)
 
-Paper messages live in `plugins/AuthGatewayX/lang/messages_pl.yml`. Select their language with `language: "PL"` in `config.yml`. The distribution includes Polish messages. This English WIKI does not install an English runtime translation; selecting another language requires a matching language file.
+Paper messages live in `plugins/LoginCoreX/lang/messages_pl.yml`. Select their language with `language: "PL"` in `config.yml`. The distribution includes Polish messages. This English WIKI does not install an English runtime translation; selecting another language requires a matching language file.
 
 ## What can you customize?
 
 | Section | Contents |
 | --- | --- |
-| `prefix` | AuthGatewayX message prefix |
+| `prefix` | LoginCoreX message prefix |
 | `auth.login_title`, `auth.registration_title` | Form titles |
 | `auth.login_prompt`, `auth.registration_prompt` | Form instructions |
 | `auth.password_label`, `auth.repeat_password_label` | Password field labels |

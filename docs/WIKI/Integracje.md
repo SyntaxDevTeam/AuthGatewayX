@@ -6,11 +6,11 @@
 
 ## CleanerX — zasady dotyczące nicków
 
-CleanerX może sprawdzić, czy nick spełnia zasady Twojego serwera, na przykład czy nie zawiera zakazanego słowa. Jeśli nazwa zostanie odrzucona, AuthGatewayX zatrzyma wejście.
+CleanerX może sprawdzić, czy nick spełnia zasady Twojego serwera, na przykład czy nie zawiera zakazanego słowa. Jeśli nazwa zostanie odrzucona, LoginCoreX zatrzyma wejście.
 
 ## PunisherX — sprawdzanie kar
 
-PunisherX zarządza karami, a AuthGatewayX może uwzględnić jego odpowiedź przy logowaniu. Obecna integracja sprawdza aktywne kary powiązane z identyfikatorem konta gracza. Nie należy traktować jej jako pełnego sprawdzania wszystkich banów po nicku, IP i całej sieci.
+PunisherX zarządza karami, a LoginCoreX może uwzględnić jego odpowiedź przy logowaniu. Obecna integracja sprawdza aktywne kary powiązane z identyfikatorem konta gracza. Nie należy traktować jej jako pełnego sprawdzania wszystkich banów po nicku, IP i całej sieci.
 
 ## Czy muszę instalować oba pluginy?
 
@@ -49,7 +49,7 @@ Po restarcie niedostępność wymaganej integracji PunisherX zatrzyma logowanie.
 
 ## Migracja UUID
 
-Przed zmianą typu konta wykonaj kopię danych gracza i sprawdź `/agx migrate inspect <nick>`. Pluginy zapisujące dane pod UUID gracza wymagają zgodnej integracji migracyjnej. Jeśli jej brakuje, usuń zgłoszoną przyczynę blokady przed ponowieniem; nie podmieniaj UUID ręcznie. Zobacz [weryfikację konta](Premium.md).
+Przed zmianą typu konta wykonaj kopię danych gracza i sprawdź `/lcx migrate inspect <nick>`. Pluginy zapisujące dane pod UUID gracza wymagają zgodnej integracji migracyjnej. Jeśli jej brakuje, usuń zgłoszoną przyczynę blokady przed ponowieniem; nie podmieniaj UUID ręcznie. Zobacz [weryfikację konta](Premium.md).
 
 ### EssentialsX i LuckPerms
 
@@ -66,18 +66,18 @@ nadal jest dokładną kopią source; późniejsza zmiana powoduje fail-closed.
 
 ### HorseManagerX
 
-AuthGatewayX ma wbudowany adapter do usługi migracyjnej HorseManagerX. Migracja obejmuje
+LoginCoreX ma wbudowany adapter do usługi migracyjnej HorseManagerX. Migracja obejmuje
 własność koni, relacje zaufania, aktywne oferty rynku i wpisy aktora w logach. W razie błędu integracja umożliwia wycofanie zmiany UUID.
 
 Jeżeli HorseManagerX jest zainstalowany, ale jego bridge migracyjny nie jest dostępny,
-AuthGatewayX blokuje finalizację zamiast pomijać dane.
+LoginCoreX blokuje finalizację zamiast pomijać dane.
 
 
 ### PunisherX — migracja UUID
 
-Przy migracji UUID na oficjalnie zweryfikowaną tożsamość AuthGatewayX korzysta z transakcyjnego bridge
+Przy migracji UUID na oficjalnie zweryfikowaną tożsamość LoginCoreX korzysta z transakcyjnego bridge
 PunisherX. Obejmuje on aktywne kary, historię kar, raporty, wpisy bridge queue, zaszyfrowany
 player cache oraz jail cache. Integracja zachowuje kopie danych potrzebne do wycofania zmiany.
 
-Jeżeli PunisherX jest aktywny, ale jego bridge migracyjny jest niedostępny, AuthGatewayX
+Jeżeli PunisherX jest aktywny, ale jego bridge migracyjny jest niedostępny, LoginCoreX
 blokuje finalizację UUID zamiast pozostawić część danych pod poprzednią tożsamością.

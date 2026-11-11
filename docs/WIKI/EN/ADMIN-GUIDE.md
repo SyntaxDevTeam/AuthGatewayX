@@ -14,7 +14,7 @@ Choose the artifact for your Minecraft version using [Compatibility](Compatibili
 
 ## 2. Prepare configuration
 
-Paper uses `plugins/AuthGatewayX/config.yml`. Velocity uses `authgatewayx.yml` in its own plugin folder. Stop the server and back up files before editing existing sections. This example is a fragment, not a replacement for the complete file:
+Paper uses `plugins/LoginCoreX/config.yml`. Velocity uses `logincorex.yml` in its own plugin folder. Stop the server and back up files before editing existing sections. This example is a fragment, not a replacement for the complete file:
 
 ```yaml
 language: "PL"
@@ -29,7 +29,7 @@ authentication:
     duration-seconds: 600
 storage:
   type: SQLITE
-  sqlite-file: authgatewayx.db
+  sqlite-file: logincorex.db
   pool-size: 2
 ```
 
@@ -45,7 +45,7 @@ Acceptance is required after authentication by default. Rejection or revocation 
 
 ## 4. Assign staff access
 
-Use specific permissions through your permissions plugin. Basic diagnosis uses `authgatewayx.admin.info`; alerts use `authgatewayx.admin.alerts`; shared-address investigations use `authgatewayx.admin.alts`. IP, network and audit details require separate `view-ip`, `view-geo` and `view-security` permissions. Password resets require `authgatewayx.admin.password`; migration inspection requires `authgatewayx.admin.migration.view`.
+Use specific permissions through your permissions plugin. Basic diagnosis uses `logincorex.admin.info`; alerts use `logincorex.admin.alerts`; shared-address investigations use `logincorex.admin.alts`. IP, network and audit details require separate `view-ip`, `view-geo` and `view-security` permissions. Password resets require `logincorex.admin.password`; migration inspection requires `logincorex.admin.migration.view`.
 
 Operators have administrative defaults. Check inherited permissions and operator status when restricting a role. A permission never replaces authentication. See the complete [Permissions](Permissions.md) list.
 
@@ -67,11 +67,11 @@ Minecraft dialog inputs display password characters. Ask players to hide the gam
 
 ## 6. Daily account support
 
-**Forgotten server password:** confirm ownership, then use `/agx setpassword <name>` in-game and enter the new password in the form. The target is disconnected. Deliver the temporary password privately and ask the owner to use `/changepassword`. This does not reset Microsoft credentials.
+**Forgotten server password:** confirm ownership, then use `/lcx setpassword <name>` in-game and enter the new password in the form. The target is disconnected. Deliver the temporary password privately and ask the owner to use `/changepassword`. This does not reset Microsoft credentials.
 
-**Cannot connect:** inspect the message, `/agx info <name>`, service availability and console errors. For an invalid Minecraft session, sign in again in the official launcher; do not bypass Minecraft identity verification.
+**Cannot connect:** inspect the message, `/lcx info <name>`, service availability and console errors. For an invalid Minecraft session, sign in again in the official launcher; do not bypass Minecraft identity verification.
 
-**Suspected alternate accounts:** inspect `/agx alts <name>`. Shared IP is a clue; households, schools and carrier NAT may join unrelated people. The report does not automatically punish users.
+**Suspected alternate accounts:** inspect `/lcx alts <name>`. Shared IP is a clue; households, schools and carrier NAT may join unrelated people. The report does not automatically punish users.
 
 **Verified identity UUID migration:** after Mojang verification the player confirms the old server password. Data migrates after disconnect. Diagnose with `migrate status` and `inspect`; never manually replace account UUIDs. See [Account identity verification](Premium.md).
 
@@ -85,7 +85,7 @@ External IP reputation is disabled by default and sends public IPs to the provid
 
 ## 8. Restart, backup and update
 
-Most settings require a full restart. `/agx reload` only refreshes `migration.unmanaged-plugin-scan.ignored-plugin-directories`; it does not reload all settings, messages or database connections.
+Most settings require a full restart. `/lcx reload` only refreshes `migration.unmanaged-plugin-scan.ignored-plugin-directories`; it does not reload all settings, messages or database connections.
 
 Before upgrading, stop the server, back up the plugin folder and database, and test the new JAR on a copy. When reverting, restore matching plugin, configuration and database versions. See [Database and backups](Database.md).
 

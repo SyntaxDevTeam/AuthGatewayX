@@ -4,7 +4,7 @@
 
 [Home](Home.md) · [Ochrona serwera](Ochrona-serwera.md) · [Baza danych](Baza-danych.md)
 
-Ustawienia serwera gry znajdziesz w `plugins/AuthGatewayX/config.yml`. Na początek możesz zostawić wartości domyślne. Poniżej opisano wszystkie opcje dostarczane w tym pliku.
+Ustawienia serwera gry znajdziesz w `plugins/LoginCoreX/config.yml`. Na początek możesz zostawić wartości domyślne. Poniżej opisano wszystkie opcje dostarczane w tym pliku.
 
 ## Jak zmieniać ustawienia?
 
@@ -113,16 +113,16 @@ Stan jest zapisany w bazie i przeżywa restart. Tabela tego mechanizmu jest prze
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
 | `storage.type` | `SQLITE` | `SQLITE`, `MYSQL`, `MARIADB` lub `POSTGRESQL` |
-| `storage.sqlite-file` | `authgatewayx.db` | Nazwa pliku bazy w folderze pluginu |
+| `storage.sqlite-file` | `logincorex.db` | Nazwa pliku bazy w folderze pluginu |
 | `storage.pool-size` | `2` | Maksymalna liczba jednoczesnych połączeń z bazą |
 | `storage.remote.host` | `127.0.0.1` | Adres osobnej bazy danych |
 | `storage.remote.port` | `3306` | Port bazy; dla PostgreSQL ustaw port swojej usługi, zwykle `5432` |
-| `storage.remote.database` | `authgatewayx` | Nazwa bazy |
-| `storage.remote.username` | `authgatewayx` | Użytkownik bazy |
+| `storage.remote.database` | `logincorex` | Nazwa bazy |
+| `storage.remote.username` | `logincorex` | Użytkownik bazy |
 | `storage.remote.password` | pusty tekst | Hasło bazy |
 | `storage.remote.parameters` | pusty tekst | Dodatkowe ustawienia połączenia wymagane przez hosting |
 
-`storage.remote` jest używane przy bazie innej niż SQLite. Hasło ustawione w środowisku hostingu jako `AUTHGATEWAYX_DB_PASSWORD` ma pierwszeństwo przed hasłem w pliku. Instrukcje i kopie opisuje [Baza danych](Baza-danych.md).
+`storage.remote` jest używane przy bazie innej niż SQLite. Hasło ustawione w środowisku hostingu jako `LOGINCOREX_DB_PASSWORD` ma pierwszeństwo przed hasłem w pliku. Instrukcje i kopie opisuje [Baza danych](Baza-danych.md).
 
 ## Ustawienia obciążenia
 
@@ -182,7 +182,7 @@ ip-intelligence:
 
 Wklej brakujące sekcje do istniejącego configu, bez duplikowania kluczy. Włączenie
 `ip-intelligence` wysyła publiczne IP do proxycheck.io. Klucz z
-`AUTHGATEWAYX_PROXYCHECK_API_KEY` ma pierwszeństwo nad YAML. Sprawdzenia obejmują tylko
+`LOGINCOREX_PROXYCHECK_API_KEY` ma pierwszeństwo nad YAML. Sprawdzenia obejmują tylko
 udane uwierzytelnienia hasłem; alerty są informacyjne. Obie opcje `enabled` są
 niezależne: aby wyłączyć wszystkie sprawdzenia, ustaw obie na `false`.
 
@@ -198,7 +198,7 @@ cache i limity, ale nie zmienia dziennego limitu planu dostawcy.
 
 ## VPN i multi-konta na proxy
 
-Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+Velocity ma własne ustawienia w `logincorex.yml`: `storage.enabled` włącza odczyt
 wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
 `ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
 `show-geo` dodaje kraj i ASN. Kontrole odrzucają połączenie przed serwerem gry.
@@ -206,8 +206,8 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 
 `alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
-Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
-`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Nadaj na proxy `logincorex.admin.alerts` oraz `logincorex.admin.alts` dla raportu
+`/logincorex alts <nick>`. Pozostałe podkomendy trafiają do Paper.
 Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
@@ -225,7 +225,7 @@ Przy zgłoszeniu problemu dołącz odpowiedni fragment logu bez danych prywatnyc
 
 ### Krótkie awarie uwierzytelniania na samodzielnym Paper
 
-AuthGatewayX utrzymuje połączenie z oficjalnym kontem Minecraft i ponawia weryfikację sesji przy błędzie
+LoginCoreX utrzymuje połączenie z oficjalnym kontem Minecraft i ponawia weryfikację sesji przy błędzie
 dostępności usługi: maksymalnie 3 próby, przerwy 1 s i 2 s. Cały etap ma limit 12 s.
 Niepoprawna sesja jest odrzucana od razu, bez przejścia na niezweryfikowaną tożsamość. Dłuższa awaria
 nadal kończy się odmową. Mechanizm działa automatycznie na Paper/Purpur/Folia

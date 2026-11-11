@@ -55,7 +55,7 @@ Wait briefly. Staff should check for connection floods, database problems or una
 
 ## Authentication temporarily unavailable
 
-Startup may still be preparing services. If the message persists, inspect the first AuthGatewayX error, database access, runtime-library downloads and configuration. For proxy-specific `AGX-STARTUP` diagnostics see [Velocity](Velocity.md).
+Startup may still be preparing services. If the message persists, inspect the first LoginCoreX error, database access, runtime-library downloads and configuration. For proxy-specific `LCX-STARTUP` diagnostics see [Velocity](Velocity.md).
 
 ## Password-change command opens nothing
 
@@ -63,7 +63,7 @@ Run it in-game after authenticating. Check [Permissions](Permissions.md). Consol
 
 ## Can I reload without restarting?
 
-`/agx reload` reloads only the migration directory exclusion list. Other settings and messages need a full restart. PlugManX lifecycle behavior and its disconnect/maintenance implications are described in [Compatibility](Compatibility.md).
+`/lcx reload` reloads only the migration directory exclusion list. Other settings and messages need a full restart. PlugManX lifecycle behavior and its disconnect/maintenance implications are described in [Compatibility](Compatibility.md).
 
 ## Bedrock, 2FA or email recovery?
 

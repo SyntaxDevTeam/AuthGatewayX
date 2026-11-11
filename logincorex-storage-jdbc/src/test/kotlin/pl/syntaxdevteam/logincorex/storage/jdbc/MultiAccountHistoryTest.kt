@@ -1,0 +1,233 @@
+package pl.syntaxdevteam.logincorex.storage.jdbc
+
+import pl.syntaxdevteam.logincorex.domain.account.AccountId
+import pl.syntaxdevteam.logincorex.domain.account.AccountUsername
+import pl.syntaxdevteam.logincorex.domain.account.OfflineIdentity
+import pl.syntaxdevteam.logincorex.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.logincorex.storage.MojangIdentityBindingResult
+import pl.syntaxdevteam.logincorex.storage.OfflineRegistration
+import pl.syntaxdevteam.logincorex.storage.PremiumMigrationCompletionResult
+import pl.syntaxdevteam.logincorex.storage.PremiumMigrationPreparationResult
+import pl.syntaxdevteam.logincorex.storage.RegistrationResult
+import pl.syntaxdevteam.logincorex.storage.VerifiedMojangIdentity
+import java.net.InetAddress
+import java.nio.file.Files
+import java.sql.DriverManager
+import java.time.Duration
+import java.time.Instant
+import java.util.UUID
+import java.util.concurrent.TimeUnit
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
+
+class MultiAccountHistoryTest {
+    private val now = Instant.parse("2026-09-11T12:00:00Z")
+    private fun ip(last: Int) = InetAddress.getByAddress(byteArrayOf(10, 0, 0, last.toByte()))
+    private fun name(value: String) = AccountUsername.parse(value)
+    private fun JdbcAccountStorage.register(value: String, address: Int, at: Instant = now): OfflineRegistration {
+        val username = name(value)
+        val registration = OfflineRegistration(AccountId.random(), username, OfflineIdentity.minecraftUuid(username),
+            "test-hash", ip(address), at, 100)
+        assertIs<RegistrationResult.Created>(registerOffline(registration).toCompletableFuture().get(10, TimeUnit.SECONDS))
+        return registration
+    }
+    private fun JdbcAccountStorage.report(value: String, at: Instant = now) =
+        findRelatedOfflineAccounts(name(value), at).toCompletableFuture().get(10, TimeUnit.SECONDS)
+
+    @Test
+    fun `v4 upgrade preserves accounts and starts history without guessing old observations`() = withStorage { storage, url, _ ->
+        val first = storage.register("First", 1)
+        storage.register("Second", 1)
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use {
+                it.executeUpdate("DROP TABLE offline_account_addresses")
+                it.executeUpdate("DELETE FROM schema_history WHERE version = 5")
+            }
+        }
+        storage.migrate().toCompletableFuture().get()
+        storage.migrate().toCompletableFuture().get()
+        assertTrue(storage.report("First")!!.accounts.isEmpty())
+        assertEquals(first.accountId, storage.findByUsername(first.username).toCompletableFuture().get()!!.id)
+        storage.recordLoginSuccess(first.accountId, ip(1), now).toCompletableFuture().get()
+        assertTrue(storage.report("First")!!.accounts.isEmpty())
+    }
+
+    @Test
+    fun `v6 backfill preserves historical observation time instead of refreshing old addresses`() = withStorage { storage, url, _ ->
+        val old = now.minus(Duration.ofDays(31))
+        storage.register("First", 1, old)
+        storage.register("Second", 1, old)
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use {
+                it.executeUpdate("DELETE FROM offline_account_addresses")
+                it.executeUpdate("DELETE FROM schema_history WHERE version = 6")
+            }
+        }
+        storage.migrate().toCompletableFuture().get()
+        assertTrue(storage.report("First", now)!!.accounts.isEmpty())
+        DriverManager.getConnection(url).use { connection ->
+            connection.prepareStatement("SELECT MAX(last_seen) FROM offline_account_addresses").use { statement ->
+                statement.executeQuery().use {
+                    assertTrue(it.next())
+                    assertEquals(old.toEpochMilli(), it.getLong(1))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `shared history survives changed IP and restart without linking unrelated accounts`() = withStorage { storage, url, executor ->
+        val first = storage.register("First", 1)
+        storage.register("Second", 1)
+        storage.register("Unrelated", 2)
+        storage.recordLoginSuccess(first.accountId, ip(3), now.plusSeconds(1)).toCompletableFuture().get()
+        assertEquals(listOf("Second"), storage.report("fIrSt")!!.accounts.map { it.username.value })
+        storage.close()
+        JdbcAccountStorage(url, 2, executor).use { reopened ->
+            reopened.migrate().toCompletableFuture().get()
+            assertEquals(listOf("Second"), reopened.report("First")!!.accounts.map { it.username.value })
+        }
+    }
+
+    @Test
+    fun `unknown accounts stay null while premium accounts keep shared address history`() = withStorage { storage, url, _ ->
+        storage.register("First", 1)
+        val second = storage.register("Second", 1)
+        val officialUuid = UUID.randomUUID()
+        assertIs<MojangIdentityBindingResult.MigrationRequired>(
+            storage.bindVerifiedMojangIdentity(VerifiedMojangIdentity(second.username, officialUuid, ip(1), now))
+                .toCompletableFuture().get(),
+        )
+        val prepared = assertIs<PremiumMigrationPreparationResult.Prepared>(
+            storage.preparePremiumMigration(
+                second.accountId, second.username, second.minecraftUuid, officialUuid, ip(1), now,
+            ).toCompletableFuture().get(),
+        )
+        assertTrue(storage.markPremiumMigrationStarted(prepared.ticket.id, now).toCompletableFuture().get())
+        assertIs<PremiumMigrationCompletionResult.Completed>(
+            storage.completePremiumMigration(prepared.ticket.id, now).toCompletableFuture().get(),
+        )
+        assertNull(storage.report("Missing"))
+        assertEquals(listOf("First"), storage.report("Second")!!.accounts.map { it.username.value })
+        assertEquals(listOf("Second"), storage.report("First")!!.accounts.map { it.username.value })
+        val inspection = assertNotNull(storage.inspect(second.username).toCompletableFuture().get())
+        assertEquals(officialUuid, inspection.account.minecraftUuid)
+        assertEquals("MOJANG", inspection.account.identityType.name)
+        assertEquals(ip(1), inspection.lastLoginAddress)
+        assertTrue(inspection.addresses.any { it.address == ip(1) })
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT COUNT(*) FROM offline_account_addresses").use {
+                    assertTrue(it.next()); assertEquals(2, it.getInt(1))
+                }
+            }
+        }
+        // Officially verified identities may also authenticate with a server password.
+        storage.recordLoginSuccess(second.accountId, ip(1), now).toCompletableFuture().get()
+        assertEquals(listOf("First"), storage.report("Second")!!.accounts.map { it.username.value })
+    }
+
+    @Test
+    fun `both sides must have recent observations and failures do not refresh history`() = withStorage { storage, _, _ ->
+        val first = storage.register("First", 1, now.minus(Duration.ofDays(31)))
+        storage.register("Second", 1)
+        assertTrue(storage.report("First")!!.accounts.isEmpty())
+        storage.recordLoginFailure(first.accountId, now, 5, Duration.ofMinutes(10)).toCompletableFuture().get()
+        assertTrue(storage.report("First")!!.accounts.isEmpty())
+        storage.recordLoginSuccess(first.accountId, ip(1), now).toCompletableFuture().get()
+        assertEquals(1, storage.report("First")!!.accounts.size)
+        assertTrue(storage.report("First", now.plus(Duration.ofDays(30)).plusMillis(1))!!.accounts.isEmpty())
+    }
+
+    @Test
+    fun `distinct shared addresses are counted once and results are explicitly bounded`() = withStorage { storage, _, _ ->
+        val first = storage.register("First", 1)
+        for (index in 1..22) storage.register("Alt$index", 1)
+        val second = storage.register("Second", 2)
+        storage.recordLoginSuccess(first.accountId, ip(2), now).toCompletableFuture().get()
+        repeat(3) { storage.recordLoginSuccess(second.accountId, ip(1), now).toCompletableFuture().get() }
+        val report = assertNotNull(storage.report("First"))
+        assertTrue(report.truncated)
+        assertEquals(20, report.accounts.size)
+        assertEquals("Second", report.accounts.first().username.value)
+        assertEquals(2, report.accounts.first().sharedAddressCount)
+        assertFalse(report.accounts.any { it.username.value == "First" })
+    }
+
+    @Test
+    fun `concurrent address rotation is bounded and evicts the oldest address`() = withStorage { storage, url, _ ->
+        val first = storage.register("First", 1, now.minusSeconds(100))
+        storage.register("Second", 1)
+        val futures = (2..40).map { storage.recordLoginSuccess(first.accountId, ip(it), now.plusSeconds(it.toLong())).toCompletableFuture() }
+        futures.forEach { it.get(15, TimeUnit.SECONDS) }
+        assertTrue(storage.report("First", now.plusSeconds(60))!!.accounts.isEmpty())
+        DriverManager.getConnection(url).use { connection ->
+            connection.prepareStatement("SELECT COUNT(*) FROM offline_account_addresses WHERE account_id = ?").use { statement ->
+                statement.setString(1, first.accountId.value.toString())
+                statement.executeQuery().use { assertTrue(it.next()); assertEquals(16, it.getInt(1)) }
+            }
+        }
+    }
+
+    @Test
+    fun `address write failure rolls back registration and login state`() = withStorage { storage, url, _ ->
+        val first = storage.register("First", 1)
+        storage.recordLoginFailure(first.accountId, now, 5, Duration.ofMinutes(10)).toCompletableFuture().get()
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { it.executeUpdate("""CREATE TRIGGER reject_address BEFORE INSERT ON offline_account_addresses
+                BEGIN SELECT RAISE(ABORT, 'test address failure'); END""") }
+        }
+        assertFailsWith<java.util.concurrent.ExecutionException> {
+            storage.recordLoginSuccess(first.accountId, ip(2), now).toCompletableFuture().get()
+        }
+        assertEquals(1, storage.findCredentials(first.username).toCompletableFuture().get()!!.failedLoginCount)
+        assertFailsWith<java.util.concurrent.ExecutionException> { storage.register("Rejected", 2) }
+        assertNull(storage.findByUsername(name("Rejected")).toCompletableFuture().get())
+    }
+
+    @Test
+    fun `proxy matches current address for a new name without writing an account`() = withStorage { storage, _, _ ->
+        storage.register("Existing", 1)
+        val result = storage.findOfflineAccountsByAddress(ip(1), name("NewName"), now).toCompletableFuture().get()
+        assertEquals(listOf("Existing"), result.accounts.map { it.username.value })
+        assertNull(storage.findByUsername(name("NewName")).toCompletableFuture().get())
+        assertTrue(storage.findOfflineAccountsByAddress(ip(1), name("existing"), now).toCompletableFuture().get().accounts.isEmpty())
+        assertTrue(storage.findOfflineAccountsByAddress(ip(2), name("NewName"), now).toCompletableFuture().get().accounts.isEmpty())
+        assertTrue(storage.findOfflineAccountsByAddress(ip(1), name("NewName"), now.plus(Duration.ofDays(31))).toCompletableFuture().get().accounts.isEmpty())
+        storage.verifyHistorySchema().toCompletableFuture().get()
+    }
+
+    @Test
+    fun `proxy schema verification rejects missing account columns without migrating`() = withStorage { storage, url, _ ->
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { it.executeUpdate("ALTER TABLE accounts RENAME COLUMN canonical_username TO renamed_username") }
+        }
+        assertFailsWith<java.util.concurrent.ExecutionException> { storage.verifyHistorySchema().toCompletableFuture().get() }
+        DriverManager.getConnection(url).use { connection ->
+            connection.createStatement().use { statement ->
+                statement.executeQuery("SELECT renamed_username FROM accounts WHERE 1 = 0").close()
+            }
+        }
+    }
+
+    private fun withStorage(test: (JdbcAccountStorage, String, BoundedTaskExecutor) -> Unit) {
+        val file = Files.createTempFile("logincorex-alts-", ".sqlite")
+        val executor = BoundedTaskExecutor(4, 128, "alts-test")
+        val url = "jdbc:sqlite:$file"
+        val storage = JdbcAccountStorage(url, 4, executor)
+        try {
+            storage.migrate().toCompletableFuture().get()
+            test(storage, url, executor)
+        } finally {
+            storage.close()
+            executor.close()
+            Files.deleteIfExists(file)
+        }
+    }
+}

@@ -6,7 +6,7 @@
 
 ## Start with SQLite
 
-Accounts are stored in `plugins/AuthGatewayX/authgatewayx.db` by default. Keep the database across restarts and upgrades. Do not open the same SQLite file concurrently from independent servers.
+Accounts are stored in `plugins/LoginCoreX/logincorex.db` by default. Keep the database across restarts and upgrades. Do not open the same SQLite file concurrently from independent servers.
 
 ## MySQL, MariaDB and PostgreSQL
 
@@ -15,18 +15,18 @@ Create a database and a dedicated user, then enter your hosting provider's conne
 ```yaml
 storage:
   type: MYSQL
-  sqlite-file: authgatewayx.db
+  sqlite-file: logincorex.db
   pool-size: 2
   remote:
     host: "127.0.0.1"
     port: 3306
-    database: "authgatewayx"
-    username: "authgatewayx"
+    database: "logincorex"
+    username: "logincorex"
     password: "REPLACE_WITH_YOUR_PASSWORD"
     parameters: ""
 ```
 
-Use your actual values. Select `MARIADB` for MariaDB or `POSTGRESQL` for PostgreSQL, normally on port `5432`. Agree TLS requirements and connection parameters with your host. `AUTHGATEWAYX_DB_PASSWORD` overrides the YAML password. Never publish credentials or an unredacted configuration.
+Use your actual values. Select `MARIADB` for MariaDB or `POSTGRESQL` for PostgreSQL, normally on port `5432`. Agree TLS requirements and connection parameters with your host. `LOGINCOREX_DB_PASSWORD` overrides the YAML password. Never publish credentials or an unredacted configuration.
 
 ## Back up and restore
 

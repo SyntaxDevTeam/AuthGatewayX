@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: authgatewayx-${{ github.workflow }}-${{ github.ref }}
+  group: logincorex-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -15,7 +15,7 @@ permissions:
 
 env:
   MINI_PORTAL_URL: https://syntaxdevteam.pl
-  BUILD_SLUG: authgatewayx
+  BUILD_SLUG: logincorex
 
 jobs:
   verify:
@@ -25,9 +25,9 @@ jobs:
       mysql:
         image: mysql:26.10
         env:
-          MYSQL_DATABASE: authgatewayx_test
-          MYSQL_USER: authgatewayx
-          MYSQL_PASSWORD: authgatewayx
+          MYSQL_DATABASE: logincorex_test
+          MYSQL_USER: logincorex
+          MYSQL_PASSWORD: logincorex
           MYSQL_ROOT_PASSWORD: root
         ports:
           # Bind IPv4 only: Docker may assign different ports for IPv4 and IPv6.
@@ -40,9 +40,9 @@ jobs:
       mariadb:
         image: mariadb:13.0
         env:
-          MARIADB_DATABASE: authgatewayx_test
-          MARIADB_USER: authgatewayx
-          MARIADB_PASSWORD: authgatewayx
+          MARIADB_DATABASE: logincorex_test
+          MARIADB_USER: logincorex
+          MARIADB_PASSWORD: logincorex
           MARIADB_ROOT_PASSWORD: root
         ports:
           # Bind IPv4 only: Docker may assign different ports for IPv4 and IPv6.
@@ -55,20 +55,20 @@ jobs:
       postgres:
         image: postgres:18
         env:
-          POSTGRES_DB: authgatewayx_test
-          POSTGRES_USER: authgatewayx
-          POSTGRES_PASSWORD: authgatewayx
+          POSTGRES_DB: logincorex_test
+          POSTGRES_USER: logincorex
+          POSTGRES_PASSWORD: logincorex
         ports:
           - "127.0.0.1::5432"
         options: >-
-          --health-cmd="pg_isready -U authgatewayx -d authgatewayx_test"
+          --health-cmd="pg_isready -U logincorex -d logincorex_test"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=10
     steps:
       - name: Isolate Gradle user home
         shell: bash
-        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/authgatewayx-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/logincorex-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@v7
 
@@ -77,10 +77,10 @@ jobs:
           git ls-files --error-unmatch \
             tools/benchmark_local_login.py \
             tools/test_benchmark_local_login.py \
-            authgatewayx-paper/src/main/kotlin/pl/syntaxdevteam/authgatewayx/paper/premium/PremiumSessionVerification.kt \
-            authgatewayx-paper/src/main/kotlin/pl/syntaxdevteam/authgatewayx/paper/privacy/ConsentPolicyLink.kt \
-            authgatewayx-paper/src/test/kotlin/pl/syntaxdevteam/authgatewayx/paper/premium/PremiumSessionVerificationTest.kt \
-            authgatewayx-paper/src/test/kotlin/pl/syntaxdevteam/authgatewayx/paper/privacy/ConsentPolicyLinkTest.kt > /dev/null
+            logincorex-paper/src/main/kotlin/pl/syntaxdevteam/logincorex/paper/premium/PremiumSessionVerification.kt \
+            logincorex-paper/src/main/kotlin/pl/syntaxdevteam/logincorex/paper/privacy/ConsentPolicyLink.kt \
+            logincorex-paper/src/test/kotlin/pl/syntaxdevteam/logincorex/paper/premium/PremiumSessionVerificationTest.kt \
+            logincorex-paper/src/test/kotlin/pl/syntaxdevteam/logincorex/paper/privacy/ConsentPolicyLinkTest.kt > /dev/null
 
       - name: Set up Java
         uses: actions/setup-java@v6
@@ -124,16 +124,16 @@ jobs:
 
       - name: Test and build distributable JARs
         env:
-          AGX_REQUIRE_REMOTE_DATABASES: "true"
-          AGX_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:${{ job.services.mysql.ports[3306] }}/authgatewayx_test?useSSL=false&allowPublicKeyRetrieval=true
-          AGX_TEST_MYSQL_USER: authgatewayx
-          AGX_TEST_MYSQL_PASSWORD: authgatewayx
-          AGX_TEST_MARIADB_URL: jdbc:mariadb://127.0.0.1:${{ job.services.mariadb.ports[3306] }}/authgatewayx_test
-          AGX_TEST_MARIADB_USER: authgatewayx
-          AGX_TEST_MARIADB_PASSWORD: authgatewayx
-          AGX_TEST_POSTGRESQL_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/authgatewayx_test
-          AGX_TEST_POSTGRESQL_USER: authgatewayx
-          AGX_TEST_POSTGRESQL_PASSWORD: authgatewayx
+          LCX_REQUIRE_REMOTE_DATABASES: "true"
+          LCX_TEST_MYSQL_URL: jdbc:mysql://127.0.0.1:${{ job.services.mysql.ports[3306] }}/logincorex_test?useSSL=false&allowPublicKeyRetrieval=true
+          LCX_TEST_MYSQL_USER: logincorex
+          LCX_TEST_MYSQL_PASSWORD: logincorex
+          LCX_TEST_MARIADB_URL: jdbc:mariadb://127.0.0.1:${{ job.services.mariadb.ports[3306] }}/logincorex_test
+          LCX_TEST_MARIADB_USER: logincorex
+          LCX_TEST_MARIADB_PASSWORD: logincorex
+          LCX_TEST_POSTGRESQL_URL: jdbc:postgresql://127.0.0.1:${{ job.services.postgres.ports[5432] }}/logincorex_test
+          LCX_TEST_POSTGRESQL_USER: logincorex
+          LCX_TEST_POSTGRESQL_PASSWORD: logincorex
         run: |
           chmod +x ./gradlew
           ./gradlew clean buildAll --console=plain --no-daemon
@@ -152,21 +152,21 @@ jobs:
 
       - name: Measure bounded in-process security workloads
         run: |
-          ./gradlew :authgatewayx-security:securityBenchmark --console=plain --no-daemon
-          cat authgatewayx-security/build/reports/benchmarks/security.json
+          ./gradlew :logincorex-security:securityBenchmark --console=plain --no-daemon
+          cat logincorex-security/build/reports/benchmarks/security.json
 
       - name: Verify Paper distributable JAR
         run: |
-          jar="$(find authgatewayx-paper/build/libs -maxdepth 1 -name 'AuthGatewayX-Paper-*.jar' ! -name '*-plain.jar' | head -n 1)"
+          jar="$(find logincorex-paper/build/libs -maxdepth 1 -name 'LoginCoreX-Paper-*.jar' ! -name '*-plain.jar' | head -n 1)"
           test -n "${jar}"
           unzip -p "${jar}" paper-plugin.yml > paper-plugin-check.yml
-          grep -q '^loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader$' paper-plugin-check.yml
+          grep -q '^loader: pl.syntaxdevteam.logincorex.paper.loader.SyntaxLoader$' paper-plugin-check.yml
           unzip -Z1 "${jar}" > paper-jar-entries.txt
-          grep -Fxq 'pl/syntaxdevteam/authgatewayx/storage/jdbc/JdbcAccountStorage.class' paper-jar-entries.txt
+          grep -Fxq 'pl/syntaxdevteam/logincorex/storage/jdbc/JdbcAccountStorage.class' paper-jar-entries.txt
 
       - name: Verify Velocity distributable JAR
         run: |
-          python3 tools/verify_velocity_distribution.py authgatewayx-velocity/build/libs
+          python3 tools/verify_velocity_distribution.py logincorex-velocity/build/libs
 
   publish:
     name: Publish ${{ matrix.name }}
@@ -181,19 +181,19 @@ jobs:
           - name: Paper
             platform: paper
             platform_family: server
-            gradle_task: :authgatewayx-paper:build
-            properties_task: :authgatewayx-paper:properties
-            jar_dir: authgatewayx-paper/build/libs
-            artifact_prefix: AuthGatewayX-
-            version_source: authgatewayx-paper/src/main/kotlin/pl/syntaxdevteam/authgatewayx/paper/compatibility/VersionChecker.kt
+            gradle_task: :logincorex-paper:build
+            properties_task: :logincorex-paper:properties
+            jar_dir: logincorex-paper/build/libs
+            artifact_prefix: LoginCoreX-
+            version_source: logincorex-paper/src/main/kotlin/pl/syntaxdevteam/logincorex/paper/compatibility/VersionChecker.kt
             compatible_platforms: paper,purpur,folia
           - name: Velocity
             platform: velocity
             platform_family: proxy
-            gradle_task: :authgatewayx-velocity:build
-            properties_task: :authgatewayx-velocity:properties
-            jar_dir: authgatewayx-velocity/build/libs
-            artifact_prefix: authgatewayx-velocity-
+            gradle_task: :logincorex-velocity:build
+            properties_task: :logincorex-velocity:properties
+            jar_dir: logincorex-velocity/build/libs
+            artifact_prefix: logincorex-velocity-
             version_source: ""
             compatible_platforms: velocity
     env:
@@ -209,7 +209,7 @@ jobs:
     steps:
       - name: Isolate Gradle user home
         shell: bash
-        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/authgatewayx-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+        run: echo "GRADLE_USER_HOME=${RUNNER_TEMP}/logincorex-gradle-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
       - name: Checkout
         uses: actions/checkout@v7
         with:

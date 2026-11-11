@@ -4,7 +4,7 @@
 
 [Home](Home.md) · [Server protection](Server-protection.md) · [Database](Database.md)
 
-Paper settings live in `plugins/AuthGatewayX/config.yml`; Velocity uses its own [configuration](Velocity.md). Start with defaults. Stop the server, back up the file, edit existing sections and restart. Use spaces, preserve indentation and never duplicate keys.
+Paper settings live in `plugins/LoginCoreX/config.yml`; Velocity uses its own [configuration](Velocity.md). Start with defaults. Stop the server, back up the file, edit existing sections and restart. Use spaces, preserve indentation and never duplicate keys.
 
 Dotted names in the tables represent nested YAML sections. For example:
 
@@ -107,16 +107,16 @@ State persists in the database through restarts. This table belongs to one Paper
 | Setting | Default | Meaning |
 | --- | --- | --- |
 | `storage.type` | `SQLITE` | `SQLITE`, `MYSQL`, `MARIADB` or `POSTGRESQL` |
-| `storage.sqlite-file` | `authgatewayx.db` | Database filename in the plugin folder |
+| `storage.sqlite-file` | `logincorex.db` | Database filename in the plugin folder |
 | `storage.pool-size` | `2` | Maximum concurrent database connections |
 | `storage.remote.host` | `127.0.0.1` | Remote database host |
 | `storage.remote.port` | `3306` | Database port; usually `5432` for PostgreSQL |
-| `storage.remote.database` | `authgatewayx` | Database name |
-| `storage.remote.username` | `authgatewayx` | Database user |
+| `storage.remote.database` | `logincorex` | Database name |
+| `storage.remote.username` | `logincorex` | Database user |
 | `storage.remote.password` | empty | Database password |
 | `storage.remote.parameters` | empty | Additional connection parameters required by your host |
 
-Remote settings apply outside SQLite. `AUTHGATEWAYX_DB_PASSWORD` takes precedence over YAML. See [Database and backups](Database.md).
+Remote settings apply outside SQLite. `LOGINCOREX_DB_PASSWORD` takes precedence over YAML. See [Database and backups](Database.md).
 
 ## Work limits and Argon2id
 
@@ -170,7 +170,7 @@ ip-intelligence:
   requests-per-minute: 30
 ```
 
-Enabling IP intelligence sends public IP addresses to proxycheck.io. `AUTHGATEWAYX_PROXYCHECK_API_KEY` overrides YAML. Paper checks run after successful password authentication and produce informational alerts. The two `enabled` switches are independent; disable both to turn off both kinds of checks.
+Enabling IP intelligence sends public IP addresses to proxycheck.io. `LOGINCOREX_PROXYCHECK_API_KEY` overrides YAML. Paper checks run after successful password authentication and produce informational alerts. The two `enabled` switches are independent; disable both to turn off both kinds of checks.
 
 `show-geo` adds country and ASN to suspicious alerts rather than reporting every connection. `notify-on-vpn` controls separate VPN/proxy/Tor alerts. Multi-account cooldown, concurrency and console settings also cover network alerts.
 
@@ -180,7 +180,7 @@ Proxy risk controls are configured separately in [Velocity](Velocity.md). They c
 
 ## Migration reload and diagnostics
 
-`/agx reload` reloads only `migration.unmanaged-plugin-scan.ignored-plugin-directories`. The list is empty by default; excluding a directory means deliberately leaving its data under the old UUID. See [Account identity verification](Premium.md).
+`/lcx reload` reloads only `migration.unmanaged-plugin-scan.ignored-plugin-directories`. The list is empty by default; excluding a directory means deliberately leaving its data under the old UUID. See [Account identity verification](Premium.md).
 
 Set `premium.authentication.diagnostics.enabled: true` and restart to enable standalone traces. `maximum-lines-per-minute` defaults to `120`. `[premium-diag]` lines show verification stages, timings, limit usage and reasons for denial without player names, IPs, UUIDs or secrets. Summaries every 30 s include suppressed/dropped counts. `SESSION_RETRY` marks a scheduled retry. See [Help and diagnostics](Help.md).
 

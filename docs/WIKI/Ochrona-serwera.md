@@ -12,7 +12,7 @@ Ochrona obejmuje również mniej oczywiste akcje, takie jak używanie wiader, ks
 
 ## Zgadywanie hasła
 
-AuthGatewayX ogranicza próby logowania. Domyślnie po 5 błędnych próbach konto zostaje czasowo zablokowane na 10 minut. Dodatkowe limity mogą zatrzymać próby wcześniej.
+LoginCoreX ogranicza próby logowania. Domyślnie po 5 błędnych próbach konto zostaje czasowo zablokowane na 10 minut. Dodatkowe limity mogą zatrzymać próby wcześniej.
 
 Hasła są przechowywane w postaci wyniku zabezpieczającego obliczenia, a nie czytelnego tekstu. Nie da się po prostu otworzyć pliku kont i przeczytać hasła gracza.
 
@@ -32,11 +32,11 @@ Jeśli prowadzisz serwer dla większej grupy korzystającej z jednego internetu,
 
 Historia bezpieczeństwa obejmuje takie zdarzenia jak rejestracja, logowanie, odmowy, zmiana hasła i wylogowanie. Może zawierać nick, identyfikator konta i IP. Nie publikuj bazy ani pełnych danych graczy. Hasła nie są treścią tych wpisów.
 
-AuthGatewayX pomaga ograniczać nadużycia w logowaniu. Nie zastępuje ochrony hostingu przed atakiem przeciążającym całe łącze.
+LoginCoreX pomaga ograniczać nadużycia w logowaniu. Nie zastępuje ochrony hostingu przed atakiem przeciążającym całe łącze.
 
 ## Detektor podejrzanych multi-kont
 
-Administrator może użyć `/authgatewayx alts <nick>`. Raport porównuje historię
+Administrator może użyć `/logincorex alts <nick>`. Raport porównuje historię
 poprawnych uwierzytelnień kont, więc wcześniejsze wspólne IP może
 pozostać widoczne po zmianie adresu. Nie zapisuje powiązań na podstawie błędnych haseł
 ani samego wejścia pod cudzym nickiem. Nie nakłada automatycznie kar.
@@ -59,14 +59,14 @@ Velocity modern forwarding. Komendę wykonuje się na serwerze gry lub w jego ko
 
 `multi-account.alerts.enabled: true` włącza powiadomienia o podejrzanych kontach po
 poprawnym logowaniu/rejestracji hasłem. Odbiorcy muszą być zalogowani i mieć
-`authgatewayx.admin.alerts` (domyślnie operatorzy). `multi-account.alerts.console`
+`logincorex.admin.alerts` (domyślnie operatorzy). `multi-account.alerts.console`
 steruje kopią w konsoli. Domyślny cooldown jednego konta to 300 sekund.
-Alert pokazuje do pięciu powiązanych nicków; pełniejszy raport daje `/authgatewayx alts`.
+Alert pokazuje do pięciu powiązanych nicków; pełniejszy raport daje `/logincorex alts`.
 
 Opcjonalne `ip-intelligence.enabled: true` uruchamia [proxycheck.io v3](https://proxycheck.io/api/).
 Domyślnie ta opcja jest wyłączona. Po włączeniu publiczne IP gracza trafia do dostawcy
 przez HTTPS; nick, UUID i hasło nie są wysyłane. Klucz można ustawić w
-`AUTHGATEWAYX_PROXYCHECK_API_KEY` albo `ip-intelligence.api-key`. Pusty klucz korzysta
+`LOGINCOREX_PROXYCHECK_API_KEY` albo `ip-intelligence.api-key`. Pusty klucz korzysta
 z limitów anonimowych; sprawdź aktualny limit planu u dostawcy.
 
 `ip-intelligence.notify-on-vpn` pozwala zgłaszać VPN/proxy/Tor także bez powiązanego
@@ -83,7 +83,7 @@ Po zmianie configu wykonaj pełny restart. Jeśli alerty nie docierają, sprawd�
 
 ## VPN i multi-konta na proxy
 
-Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+Velocity ma własne ustawienia w `logincorex.yml`: `storage.enabled` włącza odczyt
 wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
 `ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
 `show-geo` dodaje kraj i ASN. Kontrole odrzucają połączenie przed serwerem gry.
@@ -91,8 +91,8 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 
 `alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
-Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
-`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Nadaj na proxy `logincorex.admin.alerts` oraz `logincorex.admin.alts` dla raportu
+`/logincorex alts <nick>`. Pozostałe podkomendy trafiają do Paper.
 Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
@@ -109,10 +109,10 @@ limit timeoutów połączenia z jednego IP: domyślnie `attempts: 3`,
 Dodatnie `window-seconds` włącza okno zliczania w sekundach.
 Po timeoutach klient widzi pozostałe próby; po trzecim IP otrzymuje lokalną blokadę
 „Suspicious connections.”. Dotyczy ona również innych graczy ze wspólnego IP.
-Licznik i blokada są trwale zapisane w skonfigurowanej bazie AuthGatewayX, w tabeli
+Licznik i blokada są trwale zapisane w skonfigurowanej bazie LoginCoreX, w tabeli
 `connection_timeout_state`. Restart zachowuje próby oraz pierwotny termin wygaśnięcia.
 Backup bazy obejmuje ten stan. Błąd odczytu lub zapisu blokuje dostęp zamiast zerować
-ochronę. Blokada jest egzekwowana przez AuthGatewayX; nie trafia do PunisherX ani
+ochronę. Blokada jest egzekwowana przez LoginCoreX; nie trafia do PunisherX ani
 banlisty Minecraft. Tabela obsługuje jedną instancję Paper na bazę — nie współdziel jej
 między równocześnie uruchomionymi serwerami Paper.
 Błędne hasła `/login`, timeout po wejściu do świata oraz awarie usług Mojang

@@ -1,12 +1,12 @@
-# AuthGatewayX
+# LoginCoreX
 
 **Język / Language:** Polski · [English](EN/Home.md)
 
 ## Twoje konto. Twój nick. Twoja gra.
 
-AuthGatewayX to plugin do logowania na serwerach Minecraft Java Edition. Pomaga chronić konta graczy i pilnuje, żeby osoba, która jeszcze się nie zalogowała, nie mogła grzebać w skrzynkach, niszczyć budowli ani przeszkadzać innym.
+LoginCoreX to plugin do logowania na serwerach Minecraft Java Edition. Pomaga chronić konta graczy i pilnuje, żeby osoba, która jeszcze się nie zalogowała, nie mogła grzebać w skrzynkach, niszczyć budowli ani przeszkadzać innym.
 
-Masz serwer dla znajomych albo rozwijasz własną społeczność? AuthGatewayX zapewnia rejestrację i logowanie wszystkim graczom, również przy `online-mode=false`, oraz zabezpieczenia przed spamem połączeń.
+Masz serwer dla znajomych albo rozwijasz własną społeczność? LoginCoreX zapewnia rejestrację i logowanie wszystkim graczom, również przy `online-mode=false`, oraz zabezpieczenia przed spamem połączeń.
 
 ## Co zyskujesz?
 
@@ -19,7 +19,7 @@ Masz serwer dla znajomych albo rozwijasz własną społeczność? AuthGatewayX z
 
 ## Zacznij tutaj
 
-Chcesz wypróbować AuthGatewayX? Przejdź do [pobierania i instalacji](Instalacja.md), przygotuj serwer testowy i sprawdź pierwsze logowanie.
+Chcesz wypróbować LoginCoreX? Przejdź do [pobierania i instalacji](Instalacja.md), przygotuj serwer testowy i sprawdź pierwsze logowanie.
 
 Wolisz przejść przez całą konfigurację krok po kroku? Otwórz [przewodnik administratora](ADMIN-GUIDE.md). Wymagania środowiska znajdziesz na stronie [zgodności](Zgodnosc.md).
 

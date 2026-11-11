@@ -4,13 +4,13 @@
 
 [Home](Home.md) · [Instalacja](Instalacja.md) · [Zgodność](Zgodnosc.md)
 
-Velocity to wejście do sieci serwerów: gracz łączy się z jednym adresem, a proxy przekazuje go do serwera gry. AuthGatewayX ma osobną wersję na Velocity oraz wersję Paper na serwer gry.
+Velocity to wejście do sieci serwerów: gracz łączy się z jednym adresem, a proxy przekazuje go do serwera gry. LoginCoreX ma osobną wersję na Velocity oraz wersję Paper na serwer gry.
 
 Poniższa instrukcja opisuje ustawienia proxy i backendu. Oba moduły są potrzebne do obsługi logowania w sieci.
 
 ## Co zainstalować?
 
-Plik AuthGatewayX dla Velocity umieść w `plugins` proxy. Plik Paper umieść w `plugins` serwera gry. Sam plugin na proxy nie zapewnia formularzy i ochrony świata na serwerze Paper.
+Plik LoginCoreX dla Velocity umieść w `plugins` proxy. Plik Paper umieść w `plugins` serwera gry. Sam plugin na proxy nie zapewnia formularzy i ochrony świata na serwerze Paper.
 
 ## Ustawienia Velocity
 
@@ -22,7 +22,7 @@ player-info-forwarding-mode = "modern"
 forwarding-secret-file = "forwarding.secret"
 ```
 
-AuthGatewayX wybiera sposób sprawdzenia konta osobno dla każdego połączenia. Użyj prawdziwego sekretu z pliku wskazanego przez `forwarding-secret-file`.
+LoginCoreX wybiera sposób sprawdzenia konta osobno dla każdego połączenia. Użyj prawdziwego sekretu z pliku wskazanego przez `forwarding-secret-file`.
 
 ## Ustawienia serwera Paper
 
@@ -44,7 +44,7 @@ proxies:
 
 Oba miejsca muszą korzystać z tego samego sekretu. Nie zostawiaj tekstu przykładowego i nie publikuj wartości. `online-mode` w tej sekcji ma odpowiadać ogólnemu ustawieniu Velocity.
 
-Włączona obsługa Velocity na Paper pozwala AuthGatewayX rozpoznać, że działa za proxy. Na samodzielnym serwerze pozostaje wyłączona.
+Włączona obsługa Velocity na Paper pozwala LoginCoreX rozpoznać, że działa za proxy. Na samodzielnym serwerze pozostaje wyłączona.
 
 ## Zamknij bezpośrednie wejście na serwer gry
 
@@ -52,7 +52,7 @@ W panelu hostingu lub zaporze sieciowej dopuść do portu Paper tylko połączen
 
 ## Config pluginu na Velocity
 
-W folderze danych AuthGatewayX na proxy znajduje się `authgatewayx.yml`. To osobny plik od `config.yml` na Paper.
+W folderze danych LoginCoreX na proxy znajduje się `logincorex.yml`. To osobny plik od `config.yml` na Paper.
 
 | Opcja | Domyślnie | Znaczenie |
 | --- | --- | --- |
@@ -69,7 +69,7 @@ W folderze danych AuthGatewayX na proxy znajduje się `authgatewayx.yml`. To oso
 Przy `storage.enabled: true` schemat URL JDBC musi odpowiadać rzeczywistemu silnikowi:
 `jdbc:mysql://...` dla MySQL, `jdbc:mariadb://...` dla MariaDB,
 `jdbc:postgresql://...` dla PostgreSQL oraz `jdbc:sqlite:...` dla SQLite.
-AuthGatewayX jawnie wybiera klasę sterownika na podstawie tego schematu zamiast
+LoginCoreX jawnie wybiera klasę sterownika na podstawie tego schematu zamiast
 polegać wyłącznie na automatycznym ServiceLoaderze classloadera Velocity.
 
 Po zmianach wykonaj restart odpowiedniego serwera lub proxy.
@@ -82,7 +82,7 @@ Komunikat `Backend server is online-mode` może oznaczać, że serwer gry używa
 
 ## VPN i multi-konta na proxy
 
-Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+Velocity ma własne ustawienia w `logincorex.yml`: `storage.enabled` włącza odczyt
 wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
 `ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
 `show-geo` dodaje kraj i ASN. Kontrole odrzucają połączenie przed serwerem gry.
@@ -90,8 +90,8 @@ Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje 
 
 `alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
-Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
-`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Nadaj na proxy `logincorex.admin.alerts` oraz `logincorex.admin.alts` dla raportu
+`/logincorex alts <nick>`. Pozostałe podkomendy trafiają do Paper.
 Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
@@ -102,10 +102,10 @@ powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować 
 
 ## Diagnostyka startu i plik języka
 
-`language: PL` należy do `authgatewayx.yml`. Adapter MessageHandler odczytuje ten
+`language: PL` należy do `logincorex.yml`. Adapter MessageHandler odczytuje ten
 plik i nie tworzy dodatkowego `config.yml`. Istniejący stary plik pozostaje bez zmian;
 gdy w głównym pliku brakuje `language`, jego dotychczasowa wartość jest nadal odczytywana.
-Po przeniesieniu `language` do `authgatewayx.yml` można usunąć stary `config.yml`.
+Po przeniesieniu `language` do `logincorex.yml` można usunąć stary `config.yml`.
 
 `shared history is unavailable; proxy admission remains closed` oznacza błąd
 otwarcia wspólnej bazy lub sprawdzenia wymaganych tabel/kolumn i uprawnień SELECT.
@@ -117,15 +117,15 @@ w tej samej bazie. Oddzielna pusta baza proxy nie wystarczy. Przy zdalnym proxy
 `127.0.0.1` wskazuje maszynę proxy, nie serwer Paper. Po poprawieniu ustawień wykonaj restart.
 Sprawdzenie startowe obejmuje zarówno historię, jak i tabelę kont; proxy nie wykonuje migracji.
 
-### Powtarzana odmowa AGX-STARTUP
+### Powtarzana odmowa LCX-STARTUP
 
-Odmowa `Authentication service is unavailable. [AGX-STARTUP]` oznacza brak READY,
+Odmowa `Authentication service is unavailable. [LCX-STARTUP]` oznacza brak READY,
 przed kontrolą VPN i Mojang. Przy próbie wejścia konsola powtarza zapamiętany etap
 STARTING lub FAILED i bezpieczny opis przyczyny, najwyżej raz na 10 sekund dla całego
 proxy. Etap DATABASE oznacza oczekiwanie na wspólną bazę albo jej błąd; CONFIGURATION,
 MESSAGES, STAFF_PROOF i LISTENERS wskazują inne części startu. Pełny wyjątek nadal
 znajduje się w logu inicjalizacji (dla JDBC stosowana jest diagnostyka bez sekretów).
-Startup podaje bezwzględną ścieżkę używanego `authgatewayx.yml` i stan włączenia
+Startup podaje bezwzględną ścieżkę używanego `logincorex.yml` i stan włączenia
 integracji. Edycja pliku `src/main/resources` nie aktualizuje istniejącego pliku proxy.
 Jeżeli po pełnym restarcie brak znacznika zarówno przy starcie, jak i w odmowie,
 należy sprawdzić, jaki JAR i która instancja proxy rzeczywiście obsługują połączenie.
@@ -136,21 +136,21 @@ Nie omijamy wymaganej inicjalizacji przez wymuszenie READY.
 Ponowne połączenie gracza tworzy nową sesję proxy; zmiana backendu za tym samym Velocity zachowuje sesję. Jej identyfikator służy diagnostyce i nie daje uprawnień. Tryb `OFFLINE` w raporcie proxy nie oznacza, że gracz podał już poprawne hasło na Paper.
 
 Velocity domyślnie rozłącza logowania trwające ponad 30 sekund
-(`-Dvelocity.login-timeout`). AGX ma odrębny, krótszy domyślny deadline
+(`-Dvelocity.login-timeout`). LCX ma odrębny, krótszy domyślny deadline
 20 sekund (`connections.admission-timeout-millis`), aby zakończyć własne
 futures i zwolnić slot przed limitem proxy. Nie ustawiaj go większego niż
 limit login-timeout. Powolne zewnętrzne usługi powinny kończyć się odmową,
 a nie bezterminowo blokować przyjęcia kolejnych graczy.
 
 Ochrona Velocity 4.3.0 przed nadmiernymi pakietami i floodem działa **w samym
-proxy**, niezależnie od filtrów AuthGatewayX. AGX utrzymuje swoje limity
+proxy**, niezależnie od filtrów LoginCoreX. LCX utrzymuje swoje limity
 weryfikacji i ryzyka, nie próbuje zastępować mechanizmów Netty ani modyfikować
 limitów pakietów Velocity. Przy aktualizacji zrób test rejestracji i logowania każdego gracza,
 ponownego połączenia oraz przełączenia backendu.
 
 ### Komenda diagnostyczna sesji proxy
 
-`/authgatewayx session <nick>` (uprawnienie Velocity `authgatewayx.admin.session`)
+`/logincorex session <nick>` (uprawnienie Velocity `logincorex.admin.session`)
 wyświetla identyfikator bieżącej sesji, tryb weryfikacji proxy oraz nazwę
 backendu. Tak jak raport `alts`, wymaga potwierdzonej tożsamości
 administratora: dla lokalnie przypisanego konta weryfikacji `staff-proof` przez Paper.
@@ -163,7 +163,7 @@ Starsze przykładowe pliki konfiguracyjne zawierały ten sam, publicznie
 znany sekret `staff-proof`. **Nie używaj go w produkcji.** Wygeneruj
 własną losową wartość (co najmniej 32 bajty, najlepiej 32 bajty z CSPRNG
 zakodowane hex/base64), ustaw identyczną na Velocity i Paper lub przekaż
-ją obu procesom przez `AUTHGATEWAYX_STAFF_PROOF_SECRET`.
+ją obu procesom przez `LOGINCOREX_STAFF_PROOF_SECRET`.
 W nowych instalacjach ustawienie jest domyślnie puste: pracownicy z lokalnie przypisaną tożsamością
 nie przejdą proof, dopóki administrator świadomie nie włączy bezpiecznej
 integracji. Zmiana szablonu nie modyfikuje istniejącego pliku na serwerze:
@@ -179,7 +179,7 @@ limitu całego przyjęcia połączenia. Wpisy `[mojang-lookup]` opisano w [Pomoc
 
 ## Diagnostyka połączeń
 
-W pliku `authgatewayx.yml` pluginu na Velocity można włączyć:
+W pliku `logincorex.yml` pluginu na Velocity można włączyć:
 
 ```yaml
 connections:

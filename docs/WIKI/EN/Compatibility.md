@@ -6,7 +6,7 @@
 
 ## Choose your server distribution
 
-AuthGatewayX requires **Java 25**. Choose the JAR for your server platform and Minecraft version.
+LoginCoreX requires **Java 25**. Choose the JAR for your server platform and Minecraft version.
 
 | Platform | Installation guidance |
 | --- | --- |
@@ -26,7 +26,7 @@ By default, the player is isolated from gameplay while waiting to sign in. The o
 
 Use PlugManX only if it supports native Paper plugins and your exact server build. Older versions without native Paper support are incompatible. A full process restart is the preferred way to apply configuration changes.
 
-`/plugman restart AuthGatewayX` and `/plugman reload AuthGatewayX` disconnect all players. Connections resume after the console reports READY; everyone signs in again. After disable/unload, connections and status pings remain blocked until enable/load or a process restart. Do not manually remove the connection protection.
+`/plugman restart LoginCoreX` and `/plugman reload LoginCoreX` disconnect all players. Connections resume after the console reports READY; everyone signs in again. After disable/unload, connections and status pings remain blocked until enable/load or a process restart. Do not manually remove the connection protection.
 
 If cleanup fails or times out, restart the server process before trying again.
 

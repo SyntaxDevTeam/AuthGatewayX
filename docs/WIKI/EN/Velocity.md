@@ -4,7 +4,7 @@
 
 [Home](Home.md) · [Installation](Installation.md) · [Compatibility](Compatibility.md)
 
-Install AuthGatewayX Velocity in the proxy's `plugins` folder and AuthGatewayX Paper on the game backend. The proxy module alone does not provide password forms or world isolation. Validate your complete network on a private environment.
+Install LoginCoreX Velocity in the proxy's `plugins` folder and LoginCoreX Paper on the game backend. The proxy module alone does not provide password forms or world isolation. Validate your complete network on a private environment.
 
 ## Forwarding setup
 
@@ -16,7 +16,7 @@ player-info-forwarding-mode = "modern"
 forwarding-secret-file = "forwarding.secret"
 ```
 
-AuthGatewayX verifies official Minecraft session ownership when applicable and requires server authentication for every player by default. On Paper, set `online-mode=false` in `server.properties` and edit the existing `proxies` section in `config/paper-global.yml`:
+LoginCoreX verifies official Minecraft session ownership when applicable and requires server authentication for every player by default. On Paper, set `online-mode=false` in `server.properties` and edit the existing `proxies` section in `config/paper-global.yml`:
 
 ```yaml
 proxies:
@@ -32,7 +32,7 @@ Restrict the backend port in your firewall/hosting panel to trusted proxy connec
 
 ## Plugin settings
 
-Velocity uses `authgatewayx.yml` in its AuthGatewayX data folder, separately from Paper's `config.yml`.
+Velocity uses `logincorex.yml` in its LoginCoreX data folder, separately from Paper's `config.yml`.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -46,7 +46,7 @@ Velocity uses `authgatewayx.yml` in its AuthGatewayX data folder, separately fro
 | `executors.mojang-threads` | `4` | Concurrent username lookup tasks |
 | `executors.mojang-queue` | `128` | Queued lookup tasks |
 
-Restart after changes. With `storage.enabled: true`, use the same Paper account/history database and the correct JDBC scheme: `jdbc:mysql:`, `jdbc:mariadb:`, `jdbc:postgresql:` or `jdbc:sqlite:`. AuthGatewayX explicitly selects the driver by scheme. A separate empty proxy database is insufficient; the proxy reads existing schema and does not run migrations. Do not concurrently share a SQLite file between independent servers.
+Restart after changes. With `storage.enabled: true`, use the same Paper account/history database and the correct JDBC scheme: `jdbc:mysql:`, `jdbc:mariadb:`, `jdbc:postgresql:` or `jdbc:sqlite:`. LoginCoreX explicitly selects the driver by scheme. A separate empty proxy database is insufficient; the proxy reads existing schema and does not run migrations. Do not concurrently share a SQLite file between independent servers.
 
 ## VPN and related-account admission
 
@@ -58,25 +58,25 @@ The full setting reference, failure policies and rollout order are in [Velocity 
 
 ## Staff authentication and secrets
 
-Assign `authgatewayx.admin.alerts` and `authgatewayx.admin.alts` on the proxy. Staff with locally assigned identities additionally need authenticated backend sessions and matching separate `staff-proof.secret` values on Paper and Velocity. Console and Mojang-authenticated staff do not require offline proof.
+Assign `logincorex.admin.alerts` and `logincorex.admin.alts` on the proxy. Staff with locally assigned identities additionally need authenticated backend sessions and matching separate `staff-proof.secret` values on Paper and Velocity. Console and Mojang-authenticated staff do not require offline proof.
 
-Generate your own cryptographically random secret of at least 32 bytes, preferably 32 random bytes encoded as hex/base64. Set it on both processes or supply `AUTHGATEWAYX_STAFF_PROOF_SECRET` to both. Never reuse the old publicly known example or the Velocity forwarding secret. New installs default to an empty proof secret; staff proof for locally assigned identities stays unavailable until configured. Updating the JAR does not replace secrets in existing files.
+Generate your own cryptographically random secret of at least 32 bytes, preferably 32 random bytes encoded as hex/base64. Set it on both processes or supply `LOGINCOREX_STAFF_PROOF_SECRET` to both. Never reuse the old publicly known example or the Velocity forwarding secret. New installs default to an empty proof secret; staff proof for locally assigned identities stays unavailable until configured. Updating the JAR does not replace secrets in existing files.
 
 ## Session diagnostics
 
-`/authgatewayx session <name>` requires `authgatewayx.admin.session` and verified staff identity. It reports a connected player's proxy session identifier, verification mode and backend. The identifier correlates events; it is not an authentication token.
+`/logincorex session <name>` requires `logincorex.admin.session` and verified staff identity. It reports a connected player's proxy session identifier, verification mode and backend. The identifier correlates events; it is not an authentication token.
 
 Reconnect creates a new proxy session; switching backends within the same proxy retains it. `OFFLINE` in the proxy report does not prove successful password login on Paper. Never treat a session identifier as an access credential.
 
-Keep `connections.admission-timeout-millis` below Velocity's login timeout, normally 30 seconds (`-Dvelocity.login-timeout`). AGX defaults to 20 seconds so it can finish futures and free slots first. Proxy packet/flood protection operates independently; AGX does not replace it.
+Keep `connections.admission-timeout-millis` below Velocity's login timeout, normally 30 seconds (`-Dvelocity.login-timeout`). LCX defaults to 20 seconds so it can finish futures and free slots first. Proxy packet/flood protection operates independently; LCX does not replace it.
 
 ## Startup diagnostics
 
-`language: PL` belongs in `authgatewayx.yml`. MessageHandler does not create an additional `config.yml`. Existing legacy language values are still read when the main file lacks the key; after moving it, the old file can be removed.
+`language: PL` belongs in `logincorex.yml`. MessageHandler does not create an additional `config.yml`. Existing legacy language values are still read when the main file lacks the key; after moving it, the old file can be removed.
 
 `shared history is unavailable; proxy admission remains closed` indicates a database/schema/SELECT-permission problem. Check that Paper has initialized the same database, including account and history tables. On another machine, `127.0.0.1` means the proxy host, not the Paper host. Logs show the cause class, SQLState, driver code and a hint without the password or JDBC URL. `JDBC driver is unavailable` indicates a missing driver class or incorrect scheme, even when SQLState is `08001`.
 
-`Authentication service is unavailable. [AGX-STARTUP]` means the proxy has not reached READY. It repeats the remembered STARTING/FAILED stage and safe cause at most once every ten seconds. Stages include DATABASE, CONFIGURATION, MESSAGES, STAFF_PROOF and LISTENERS. Check the first initialization error and the absolute configuration path logged at startup. Editing source resources does not modify an existing runtime file. If startup and denial markers are absent after restart, check which JAR and proxy instance are serving the connection. Do not force READY to bypass initialization.
+`Authentication service is unavailable. [LCX-STARTUP]` means the proxy has not reached READY. It repeats the remembered STARTING/FAILED stage and safe cause at most once every ten seconds. Stages include DATABASE, CONFIGURATION, MESSAGES, STAFF_PROOF and LISTENERS. Check the first initialization error and the absolute configuration path logged at startup. Editing source resources does not modify an existing runtime file. If startup and denial markers are absent after restart, check which JAR and proxy instance are serving the connection. Do not force READY to bypass initialization.
 
 For username lookup/backoff errors see [Help](Help.md). `Backend server is online-mode` suggests checking backend `server.properties`, forwarding enablement and secret agreement.
 
@@ -86,7 +86,7 @@ Test registration and login for both officially verified and locally assigned id
 
 ## Connection diagnostics
 
-In the Velocity plugin's `authgatewayx.yml`, add `diagnostics: true` to the existing
+In the Velocity plugin's `logincorex.yml`, add `diagnostics: true` to the existing
 `connections` section and restart the proxy. The default is `false`.
 `[login-diag]` entries include the username, session ID (`null` on older Velocity),
 `LOOKUP_PREMIUM` / `LOOKUP_NOT_PREMIUM` / `LOOKUP_UNAVAILABLE`, selected `MOJANG` / `OFFLINE`

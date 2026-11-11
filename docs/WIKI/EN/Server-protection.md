@@ -12,7 +12,7 @@ Server passwords are stored as Argon2id hashes, not readable text. By default, f
 
 ## Bots and reconnect abuse
 
-Connection guards apply before expensive database or external work. AuthGatewayX observes connections, rapidly changing names, failed authentication and leaving before login. Suspicious behavior can quarantine an address.
+Connection guards apply before expensive database or external work. LoginCoreX observes connections, rapidly changing names, failed authentication and leaving before login. Suspicious behavior can quarantine an address.
 
 By default, more than five distinct usernames from one IP within 30 seconds trigger ten minutes of quarantine. Behavior scoring adds another signal. Timeouts and pending-player limits prevent incomplete authentication from occupying unlimited capacity.
 
@@ -24,7 +24,7 @@ Audit records include registrations, logins, denials, password changes and logou
 
 ## Related-account reports
 
-`/authgatewayx alts <name>` compares account address history, rather than trusting failed passwords or an unauthenticated attempt under someone else's name. The report does not automatically punish users or reveal raw addresses.
+`/logincorex alts <name>` compares account address history, rather than trusting failed passwords or an unauthenticated attempt under someone else's name. The report does not automatically punish users or reveal raw addresses.
 
 History keeps up to 16 distinct addresses per account; reports compare observations from the last 30 days and return at most 20 accounts. Expired observations are ignored and physically cleaned on a later write. History survives restarts and account UUID migration. These limits are independent of registration limits.
 
@@ -32,9 +32,9 @@ A shared address may mean one person, a household, carrier NAT or a VPN exit. A 
 
 ## Automatic alerts and optional VPN/GeoIP
 
-`multi-account.alerts.enabled: true` enables alerts following successful password authentication. Recipients must be authenticated and have `authgatewayx.admin.alerts`. Console delivery is controlled separately. Default per-account cooldown is 300 s; alerts show up to five related names, with the fuller report available through `alts`.
+`multi-account.alerts.enabled: true` enables alerts following successful password authentication. Recipients must be authenticated and have `logincorex.admin.alerts`. Console delivery is controlled separately. Default per-account cooldown is 300 s; alerts show up to five related names, with the fuller report available through `alts`.
 
-`ip-intelligence.enabled: true` enables optional proxycheck.io v3 checks. It is off by default. Public player IPs are sent over HTTPS; names, UUIDs and passwords are not. `AUTHGATEWAYX_PROXYCHECK_API_KEY` overrides the YAML API key. An empty key uses the provider's anonymous quota.
+`ip-intelligence.enabled: true` enables optional proxycheck.io v3 checks. It is off by default. Public player IPs are sent over HTTPS; names, UUIDs and passwords are not. `LOGINCOREX_PROXYCHECK_API_KEY` overrides the YAML API key. An empty key uses the provider's anonymous quota.
 
 `notify-on-vpn` permits VPN/proxy/Tor alerts without a related account. `show-geo` adds country and ASN to suspicious alerts; country, ASN or hosting alone does not trigger one. Network data describes an exit point, not a person's physical location. `?` means unavailable data; provider failure does not mean no VPN.
 
@@ -48,6 +48,6 @@ Velocity separately supports shared-history and VPN/proxy/Tor checks before the 
 
 Standalone Paper/Purpur/Folia tracks native LOGIN timeouts per IP. Defaults are `attempts: 3`, `window-seconds: 0` (attempts do not expire) and `ban-seconds: 86400` (24 hours). A positive window enables timed counting. Clients see remaining attempts; the third timeout produces a local “Suspicious connections.” block affecting everyone sharing that IP.
 
-Counters and deadlines persist in `connection_timeout_state` in the configured database. Restarts preserve them; database backups include them. Read/write errors fail closed. The block belongs to AuthGatewayX, not PunisherX or Minecraft's ban list. One Paper instance owns this table per database; do not share it between concurrently running Paper servers.
+Counters and deadlines persist in `connection_timeout_state` in the configured database. Restarts preserve them; database backups include them. Read/write errors fail closed. The block belongs to LoginCoreX, not PunisherX or Minecraft's ban list. One Paper instance owns this table per database; do not share it between concurrently running Paper servers.
 
 Incorrect passwords, PRE_AUTH timeouts and Mojang outages do not increment this counter. Velocity timeouts are not counted. Configuration changes require restart.

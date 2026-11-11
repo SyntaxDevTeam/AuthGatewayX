@@ -46,7 +46,7 @@ Poczekaj chwilę. Administrator powinien sprawdzić, czy nie trwa fala połącze
 
 ## Uwierzytelnianie jest chwilowo niedostępne
 
-Podczas uruchamiania serwer może jeszcze przygotowywać logowanie. Jeśli komunikat nie znika, administrator powinien sprawdzić pierwszy błąd AuthGatewayX w konsoli, połączenie z bazą, pobieranie bibliotek i poprawność configu.
+Podczas uruchamiania serwer może jeszcze przygotowywać logowanie. Jeśli komunikat nie znika, administrator powinien sprawdzić pierwszy błąd LoginCoreX w konsoli, połączenie z bazą, pobieranie bibliotek i poprawność configu.
 
 ## Komenda zmiany hasła nic nie otwiera
 
@@ -54,7 +54,7 @@ Wykonaj ją w grze po zalogowaniu. Sprawdź [uprawnienia](Uprawnienia.md). Konso
 
 ## Czy mogę przeładować plugin bez restartu?
 
-`/agx reload` przeładowuje wyłącznie listę pomijanych katalogów migracji. Pozostałe ustawienia i wiadomości wymagają pełnego restartu. Zachowanie PlugManX, w tym rozłączanie graczy i blokadę połączeń podczas wyłączenia, opisuje [Zgodność](Zgodnosc.md).
+`/lcx reload` przeładowuje wyłącznie listę pomijanych katalogów migracji. Pozostałe ustawienia i wiadomości wymagają pełnego restartu. Zachowanie PlugManX, w tym rozłączanie graczy i blokadę połączeń podczas wyłączenia, opisuje [Zgodność](Zgodnosc.md).
 
 ## Czy działa Bedrock, 2FA albo odzyskiwanie przez e-mail?
 
@@ -62,7 +62,7 @@ Te funkcje nie są dostępne w obecnym wydaniu. Geyser/Floodgate, 2FA i odzyskiw
 
 ## Jak zgłosić problem?
 
-Podaj wersję AuthGatewayX, wersję serwera i klienta, informację o Velocity oraz kroki prowadzące do błędu. Dołącz treść komunikatu i potrzebny fragment logu. Usuń hasła bazy, sekret Velocity, adresy IP i inne prywatne dane. Nie wysyłaj całej bazy graczy ani zdjęcia widocznego hasła.
+Podaj wersję LoginCoreX, wersję serwera i klienta, informację o Velocity oraz kroki prowadzące do błędu. Dołącz treść komunikatu i potrzebny fragment logu. Usuń hasła bazy, sekret Velocity, adresy IP i inne prywatne dane. Nie wysyłaj całej bazy graczy ani zdjęcia widocznego hasła.
 
 ## „Nie można bezpiecznie zweryfikować statusu nicku”
 

@@ -1,0 +1,154 @@
+package pl.syntaxdevteam.logincorex.auth.premium
+
+import pl.syntaxdevteam.logincorex.auth.session.SessionRegistry
+import pl.syntaxdevteam.logincorex.auth.session.AccountActivationGuard
+import java.util.concurrent.CompletableFuture
+import pl.syntaxdevteam.logincorex.domain.account.AccountUsername
+import pl.syntaxdevteam.logincorex.domain.account.AuthAccount
+import pl.syntaxdevteam.logincorex.domain.account.IdentityType
+import pl.syntaxdevteam.logincorex.domain.session.AuthenticationMethod
+import pl.syntaxdevteam.logincorex.domain.session.ConnectionId
+import pl.syntaxdevteam.logincorex.security.audit.SecurityAuditSink
+import pl.syntaxdevteam.logincorex.security.audit.SecurityEvent
+import pl.syntaxdevteam.logincorex.security.audit.SecurityEventType
+import pl.syntaxdevteam.logincorex.storage.AccountStorage
+import pl.syntaxdevteam.logincorex.storage.MojangIdentityBindingResult
+import pl.syntaxdevteam.logincorex.storage.VerifiedMojangIdentity
+import java.net.InetAddress
+import java.time.Clock
+import java.util.UUID
+import java.util.concurrent.CompletionStage
+
+enum class MojangIdentityHandoffDecision {
+    ALLOW_VERIFIED_MOJANG,
+    DENY_FORWARDED_IDENTITY_MISMATCH,
+}
+
+object MojangIdentityHandoffPolicy {
+    fun decide(forwardedMinecraftUuid: UUID, officialMinecraftUuid: UUID): MojangIdentityHandoffDecision =
+        if (forwardedMinecraftUuid == officialMinecraftUuid) {
+            MojangIdentityHandoffDecision.ALLOW_VERIFIED_MOJANG
+        } else {
+            MojangIdentityHandoffDecision.DENY_FORWARDED_IDENTITY_MISMATCH
+        }
+}
+
+data class VerifiedMojangAuthenticationContext(
+    val connectionId: ConnectionId,
+    val username: AccountUsername,
+    val sourceAddress: InetAddress,
+    val minecraftUuid: UUID,
+    val sessionNonce: UUID? = null,
+    val passwordRequired: Boolean = false,
+)
+
+sealed interface VerifiedMojangAuthenticationResult {
+    data class PasswordRequired(val account: AuthAccount) : VerifiedMojangAuthenticationResult
+    data class Success(val account: AuthAccount, val migratedFromOffline: Boolean) : VerifiedMojangAuthenticationResult
+    data class MigrationRequired(
+        val account: AuthAccount,
+        val targetMinecraftUuid: UUID,
+    ) : VerifiedMojangAuthenticationResult
+    data class MigrationInProgress(
+        val account: AuthAccount,
+        val migrationId: UUID,
+    ) : VerifiedMojangAuthenticationResult
+    data object IdentityConflict : VerifiedMojangAuthenticationResult
+    data object AccessDenied : VerifiedMojangAuthenticationResult
+}
+
+fun interface VerifiedMojangAuthenticationUseCase {
+    fun authenticate(context: VerifiedMojangAuthenticationContext): CompletionStage<VerifiedMojangAuthenticationResult>
+}
+
+class VerifiedMojangAuthenticationService(
+    private val storage: AccountStorage,
+    private val sessions: SessionRegistry,
+    private val auditSink: SecurityAuditSink,
+    private val clock: Clock = Clock.systemUTC(),
+    private val activationGuard: AccountActivationGuard = AccountActivationGuard.ALLOW,
+) : VerifiedMojangAuthenticationUseCase {
+    override fun authenticate(context: VerifiedMojangAuthenticationContext): CompletionStage<VerifiedMojangAuthenticationResult> {
+        val verifiedAt = clock.instant()
+        return storage.bindVerifiedMojangIdentity(
+            VerifiedMojangIdentity(context.username, context.minecraftUuid, context.sourceAddress, verifiedAt),
+        ).thenCompose { binding ->
+            val result = when (binding) {
+                null -> error("Async authentication operation returned null: binding")
+                is MojangIdentityBindingResult.Bound ->
+                    return@thenCompose if (context.passwordRequired) {
+                        CompletableFuture.completedFuture(VerifiedMojangAuthenticationResult.PasswordRequired(binding.account))
+                    } else activateVerified(context, binding, verifiedAt)
+                is MojangIdentityBindingResult.MigrationRequired -> {
+                    audit(
+                        context,
+                        binding.account,
+                        SecurityEventType.PREMIUM_MIGRATION_REQUIRED,
+                        "OFFLINE_ACCOUNT_REQUIRES_EXPLICIT_MIGRATION",
+                    )
+                    VerifiedMojangAuthenticationResult.MigrationRequired(
+                        binding.account,
+                        binding.targetMinecraftUuid,
+                    )
+                }
+                is MojangIdentityBindingResult.MigrationInProgress -> {
+                    audit(
+                        context,
+                        binding.account,
+                        SecurityEventType.PREMIUM_AUTH_FAILURE,
+                        "IDENTITY_MIGRATION_IN_PROGRESS",
+                    )
+                    VerifiedMojangAuthenticationResult.MigrationInProgress(
+                        binding.account,
+                        binding.migrationId,
+                    )
+                }
+                MojangIdentityBindingResult.IdentityConflict -> {
+                    audit(context, null, SecurityEventType.PREMIUM_AUTH_FAILURE, "IDENTITY_CONFLICT")
+                    VerifiedMojangAuthenticationResult.IdentityConflict
+                }
+            }
+            CompletableFuture.completedFuture(result)
+        }
+    }
+
+    private fun activateVerified(
+        context: VerifiedMojangAuthenticationContext,
+        binding: MojangIdentityBindingResult.Bound,
+        verifiedAt: java.time.Instant,
+    ): CompletionStage<VerifiedMojangAuthenticationResult> =
+        activationGuard.allows(binding.account, context.sourceAddress).thenApply { allowed ->
+            if (allowed != true) VerifiedMojangAuthenticationResult.AccessDenied
+            else {
+                sessions.activate(context.connectionId, binding.account.id, context.minecraftUuid,
+                    IdentityType.MOJANG, AuthenticationMethod.MOJANG, verifiedAt,
+                    expectedSessionNonce = context.sessionNonce)
+                audit(context, binding.account,
+                    if (binding.migratedFromOffline) SecurityEventType.OFFLINE_TO_PREMIUM_MIGRATION
+                    else SecurityEventType.PREMIUM_VERIFIED,
+                    if (binding.migratedFromOffline) "OFFLINE_ACCOUNT_MIGRATED" else "FORWARDED_UUID_MATCH")
+                VerifiedMojangAuthenticationResult.Success(binding.account, binding.migratedFromOffline)
+            }
+        }
+
+    private fun audit(
+        context: VerifiedMojangAuthenticationContext,
+        account: AuthAccount?,
+        type: SecurityEventType,
+        reasonCode: String,
+    ) {
+        runCatching {
+            auditSink.record(
+                SecurityEvent(
+                    timestamp = clock.instant(),
+                    accountId = account?.id?.value,
+                    minecraftUuid = context.minecraftUuid,
+                    username = context.username.value,
+                    sourceAddress = context.sourceAddress,
+                    type = type,
+                    reasonCode = reasonCode,
+                ),
+            )
+        }
+    }
+}

@@ -6,7 +6,7 @@
 
 ## Dobierz plik do serwera
 
-AuthGatewayX wymaga **Javy 25**. Wybierz JAR zgodny z platformą i wersją Minecraft swojego serwera.
+LoginCoreX wymaga **Javy 25**. Wybierz JAR zgodny z platformą i wersją Minecraft swojego serwera.
 
 | Platforma | Sposób instalacji |
 | --- | --- |
@@ -26,7 +26,7 @@ Domyślnie gracz czekający na logowanie pozostaje odizolowany od rozgrywki. Opc
 
 Używaj PlugManX tylko wtedy, gdy obsługuje natywne pluginy Paper i konkretną wersję Twojego serwera. Starsze wersje bez obsługi natywnego Paper są niezgodne. Do wprowadzania zmian konfiguracji zalecany jest pełny restart procesu serwera.
 
-`/plugman restart AuthGatewayX` i `/plugman reload AuthGatewayX` rozłączają wszystkich graczy. Połączenia są przyjmowane po komunikacie READY w konsoli; każdy gracz loguje się ponownie. Po disable/unload połączenia i ping statusu pozostają zablokowane do enable/load lub restartu procesu. Nie usuwaj ręcznie ochrony połączeń.
+`/plugman restart LoginCoreX` i `/plugman reload LoginCoreX` rozłączają wszystkich graczy. Połączenia są przyjmowane po komunikacie READY w konsoli; każdy gracz loguje się ponownie. Po disable/unload połączenia i ping statusu pozostają zablokowane do enable/load lub restartu procesu. Nie usuwaj ręcznie ochrony połączeń.
 
 Jeżeli sprzątanie zasobów zakończy się błędem lub przekroczy czas oczekiwania, zrestartuj proces serwera przed kolejną próbą.
 

@@ -6,7 +6,7 @@
 
 ## Najprostszy start: SQLite
 
-Domyślnie konta są zapisywane w `plugins/AuthGatewayX/authgatewayx.db`. Nie trzeba zakładać osobnego serwera bazy ani wpisywać do niego hasła. Zachowaj ten plik między restartami i aktualizacjami.
+Domyślnie konta są zapisywane w `plugins/LoginCoreX/logincorex.db`. Nie trzeba zakładać osobnego serwera bazy ani wpisywać do niego hasła. Zachowaj ten plik między restartami i aktualizacjami.
 
 Nie używaj tego samego pliku SQLite jednocześnie w kilku niezależnych serwerach.
 
@@ -19,25 +19,25 @@ Utwórz bazę i osobnego użytkownika, a następnie wpisz dane otrzymane od host
 ```yaml
 storage:
   type: MYSQL
-  sqlite-file: authgatewayx.db
+  sqlite-file: logincorex.db
   pool-size: 2
   remote:
     host: "127.0.0.1"
     port: 3306
-    database: "authgatewayx"
-    username: "authgatewayx"
+    database: "logincorex"
+    username: "logincorex"
     password: "WPISZ_WLASNE_HASLO"
     parameters: ""
 ```
 
 Zastąp dane przykładowe własnymi. Dla MariaDB wybierz `MARIADB`, a dla PostgreSQL `POSTGRESQL` i właściwy port — zwykle `5432`. Wymagania szyfrowania połączenia i pole `parameters` uzgodnij z hostingiem.
 
-Możesz ustawić hasło w panelu hostingu jako zmienną `AUTHGATEWAYX_DB_PASSWORD`. Wtedy ma ono pierwszeństwo przed wartością z configu. Nie udostępniaj nikomu publicznie hasła ani całego pliku z danymi dostępu.
+Możesz ustawić hasło w panelu hostingu jako zmienną `LOGINCOREX_DB_PASSWORD`. Wtedy ma ono pierwszeństwo przed wartością z configu. Nie udostępniaj nikomu publicznie hasła ani całego pliku z danymi dostępu.
 
 ## Kopia zapasowa
 
 1. Wyłącz serwer, aby dane nie zmieniały się podczas kopiowania.
-2. Przy SQLite skopiuj cały folder `plugins/AuthGatewayX`, razem z plikami bazy, jeśli obok głównego pliku znajdują się dodatkowe pliki SQLite.
+2. Przy SQLite skopiuj cały folder `plugins/LoginCoreX`, razem z plikami bazy, jeśli obok głównego pliku znajdują się dodatkowe pliki SQLite.
 3. Przy osobnej bazie wykonaj jej pełny backup narzędziem hostingu i zachowaj również folder pluginu.
 4. Zapisz wersję pluginu i serwera, z którymi wykonano kopię.
 5. Przechowuj kopię poza folderem działającego serwera, z dostępem tylko dla zaufanych osób.

@@ -1,0 +1,231 @@
+prefix: "<gradient:#55ffff:#5555ff>[<b>LoginCoreX</b>]</gradient>"
+help:
+  header: '<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline><gradient:#55ffff:#5555ff><b>LoginCoreX</b></gradient> <gray>v<version></gray> <dark_gray>•</dark_gray> <white>Lista komend</white>'
+  player_section: '<yellow><b>Komendy gracza</b></yellow>'
+  admin_section: '<gold><b>Administracja</b></gold>'
+  change_password: '<dark_gray>›</dark_gray> <aqua>/changepassword</aqua> <dark_gray>—</dark_gray> <gray>zmiana hasła konta serwerowego</gray>'
+  logout: '<dark_gray>›</dark_gray> <aqua>/logout</aqua> <dark_gray>—</dark_gray> <gray>bezpieczne zakończenie sesji</gray>'
+  info: '<dark_gray>›</dark_gray> <aqua>/lcx info ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>pełny raport konta gracza</gray>'
+  alts: '<dark_gray>›</dark_gray> <aqua>/lcx alts ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>powiązania kont przez wspólne IP</gray>'
+  set_password: '<dark_gray>›</dark_gray> <aqua>/lcx setpassword ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>administracyjne ustawienie hasła</gray>'
+  migrate_status: '<dark_gray>›</dark_gray> <aqua>/lcx migrate status ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>stan ostatniej migracji UUID</gray>'
+  migrate_inspect: '<dark_gray>›</dark_gray> <aqua>/lcx migrate inspect ‹nick› [stare-uuid]</aqua> <dark_gray>—</dark_gray> <gray>diagnostyka danych przed migracją</gray>'
+  migrate_retry: '<dark_gray>›</dark_gray> <aqua>/lcx migrate retry ‹nick›</aqua> <dark_gray>—</dark_gray> <gray>ponowienie istniejącej migracji</gray>'
+  migrate_recover: '<dark_gray>›</dark_gray> <aqua>/lcx migrate recover ‹nick› [stare-uuid]</aqua> <dark_gray>—</dark_gray> <gray>bezpieczne recovery migracji</gray>'
+  reload: '<dark_gray>›</dark_gray> <aqua>/lcx reload</aqua> <dark_gray>—</dark_gray> <gray>przeładowanie ustawień obsługiwanych w runtime</gray>'
+  hover: '<gray>Kliknij, aby wstawić komendę do czatu.</gray>'
+  footer: '<dark_gray>Alias: /logincorex  •  Pomoc: /lcx help</dark_gray><newline><dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray>'
+
+reload:
+  success: '<green>Przeładowano ustawienia migracji dostępne w runtime. Aktywnych pominiętych katalogów: <count>.</green>'
+  failure: '<red>Nie udało się przeładować konfiguracji. Popraw config.yml i sprawdź log serwera; poprzednie ustawienia nadal obowiązują.</red>'
+
+auth:
+  connection_attempts_remaining: "<red>Pozostały Ci <remaining> próby połączenia.</red>"
+  suspicious_connections: "<red>Suspicious connections.</red>"
+  login_title: "<aqua>Logowanie konta dla <white><username></white></aqua>"
+  registration_title: "<aqua>Rejestracja konta dla <white><username></white></aqua>"
+  login_prompt: "<gray>Wprowadź hasło do swojego konta.</gray>"
+  registration_prompt: "<gray>Utwórz hasło i wpisz je ponownie.</gray>"
+  password_label: "Hasło"
+  repeat_password_label: "Powtórz hasło"
+  submit_label: "Potwierdź"
+  cancel_label: "Wróć"
+  disconnect_label: "Wyjdź z serwera"
+  cancelled: "<yellow>Anulowano logowanie. Rozłączono z serwerem.</yellow>"
+  timeout: "<red>Przekroczono czas uwierzytelnienia.</red>"
+  startup_failed: "<red>Uwierzytelnianie jest chwilowo niedostępne.</red>"
+  premium_authentication_required: "<red>Konto Minecraft zostało rozpoznane, ale backend nie otrzymał zgodnej zweryfikowanej tożsamości z proxy.</red>"
+  premium_authentication_overloaded: "<red>Zbyt wiele równoczesnych weryfikacji sesji Minecraft. Spróbuj ponownie za chwilę.</red>"
+  premium_session_invalid: "<red><b>LoginCoreX: nie potwierdzono sesji Minecraft.</b></red><newline><gray>Ten nick jest chroniony, ale usługi Minecraft nie potwierdziły, że klient jest zalogowany na konto właściciela. Zaloguj się w launcherze na konto Microsoft/Mojang będące właścicielem tego nicku, uruchom ponownie grę i spróbuj ponownie. Nie można użyć tego nicku bez potwierdzenia własności konta Minecraft.</gray>"
+  mojang_unavailable: "<red>Nie można bezpiecznie zweryfikować statusu nicku. Spróbuj ponownie później.</red>"
+  pre_auth_full: "<red>Serwer osiągnął limit trwających uwierzytelnień. Spróbuj ponownie za chwilę.</red>"
+  password_mismatch: "<red>Podane hasła nie są identyczne.</red>"
+  invalid_credentials: "<red>Nieprawidłowe dane logowania.</red>"
+  account_locked: "<red>Konto jest tymczasowo zablokowane.</red>"
+  rate_limited: "<red>Zbyt wiele prób. Odczekaj chwilę.</red>"
+  account_exists: "<red>Konto o tej nazwie już istnieje.</red>"
+  identity_conflict: "<red>Nie można bezpiecznie powiązać tej tożsamości z kontem.</red>"
+  internal_failure: "<red>Operacja uwierzytelniania nie powiodła się. Spróbuj ponownie.</red>"
+  offline_authentication_success: "<green>Pomyślnie zalogowano na serwerze!</green>"
+  premium_authentication_success: "<green>Pomyślnie zweryfikowano konto i zalogowano na serwerze!</green>"
+  logout_success: "<green>Sesja została bezpiecznie zakończona. Połącz się ponownie, aby się zalogować.</green>"
+  integration_denied: "<red>Połączenie zostało odrzucone przez politykę bezpieczeństwa nazwy lub aktywną karę.</red>"
+migration:
+  title: "<gold>Migracja UUID konta — <white><username></white></gold>"
+  prompt: "<yellow>Wykryto istniejące konto serwerowe o tym samym nicku.</yellow><newline><gray>Stare UUID:</gray> <white><old_uuid></white><newline><gray>Oficjalne UUID Minecraft:</gray> <white><new_uuid></white><newline><newline><gray>Aby potwierdzić, że oba profile należą do Ciebie, wpisz dotychczasowe hasło serwerowe. LoginCoreX nie zmieni UUID konta, dopóki migracja danych nie zostanie bezpiecznie zakończona.</gray>"
+  password_label: "Dotychczasowe hasło serwerowe"
+  identity_conflict: "<red>Stan konta zmienił się lub docelowe UUID jest już używane. Migracja została zatrzymana.</red>"
+  in_progress: "<yellow>Migracja danych tego konta nie została jeszcze bezpiecznie zakończona. Poczekaj na automatyczne wznowienie albo poproś administratora o sprawdzenie /logincorex migrate status.</yellow>"
+  prepared: "<yellow>Potwierdzono własność starego i nowego konta. Zostaniesz rozłączony, aby LoginCoreX mógł bezpiecznie przenieść dane poza aktywną sesją. Po zakończeniu migracji połącz się ponownie. Jeśli wykryte zostaną dane pluginu bez bezpiecznego migratora, zmiana UUID zostanie zatrzymana.</yellow>"
+  cancelled: "<yellow>Migracja UUID została anulowana. Poprzednie konto i jego dane pozostały bez zmian.</yellow>"
+
+migration_admin:
+  title: '<aqua>LoginCoreX — migracja <username></aqua>'
+  close: '<gray>Zamknij</gray>'
+  not_found: '<red>Nie znaleziono konta o podanej nazwie.</red>'
+  unavailable: '<red>System migracji jest chwilowo niedostępny. Sprawdź logi i spróbuj ponownie.</red>'
+  invalid_uuid: '<red>Podane źródłowe UUID ma nieprawidłowy format.</red>'
+  online_blocked: '<red>Docelowe konto jest teraz online. Migrację można uruchomić dopiero po jego pełnym rozłączeniu.</red>'
+  no_evidence: '<yellow>Nie znaleziono wiarygodnego śladu danych dla starego UUID <source_uuid>. Recovery nie zostanie utworzone tylko na podstawie nicku.</yellow>'
+  not_premium: '<red>Recovery dotyczy kont już przełączonych do MOJANG. Wskazane konto nie ma obecnie oficjalnie zweryfikowanej tożsamości Minecraft.</red>'
+  identity_conflict: '<red>Stan tożsamości jest sprzeczny z bezpiecznym recovery. Niczego nie zmieniono.</red>'
+  status: '<gold><b>Plan migracji</b></gold><newline><gray>Tryb:</gray> <white><kind></white><newline><gray>Stan:</gray> <white><status></white><newline><gray>Stare UUID:</gray> <white><source_uuid></white><newline><gray>Nowe UUID:</gray> <white><target_uuid></white><newline><gray>Ostatni problem:</gray> <white><failure></white>'
+  summary_ready: '<green><b>✓ Nie wykryto blokad migracji.</b></green><newline><gray>Gotowe:</gray> <green><ready></green> <dark_gray>•</dark_gray> <gray>bez danych:</gray> <white><no_data></white> <dark_gray>•</dark_gray> <gray>blokady:</gray> <green><blocked></green>'
+  summary_blocked: '<red><b>✖ Migracja jest zablokowana.</b></red><newline><gray>Gotowe:</gray> <green><ready></green> <dark_gray>•</dark_gray> <gray>bez danych:</gray> <white><no_data></white> <dark_gray>•</dark_gray> <gray>blokady:</gray> <red><blocked></red><newline><yellow>Rozwiąż czerwone pozycje przed uruchomieniem migracji.</yellow>'
+  provider_ready: '<green>✓ <b><provider></b></green><newline><gray><description></gray>'
+  provider_no_data: '<dark_gray>○</dark_gray> <gray><b><provider></b></gray><newline><gray><description></gray>'
+  provider_blocked: '<red>✖ <b><provider></b></red><newline><gray><description></gray><newline><dark_gray>Kod techniczny: <code></dark_gray>'
+  reason_fallback: '<gray>Provider zwrócił kod diagnostyczny:</gray> <white><reason></white>'
+  no_ticket: '<gray>Brak zapisanego ticketu migracji dla tego konta.</gray>'
+  retry_started: '<yellow>Ponowiono istniejący ticket migracji. LoginCoreX użyje tych samych backupów i bezpiecznie ponowi operacje.</yellow>'
+  completed: '<green>Migracja zakończyła się pomyślnie.</green>'
+  failed: '<red>Migracja nie powiodła się w: <provider>.</red><newline><gray><reason></gray><newline><dark_gray>Kod techniczny: <code></dark_gray>'
+  blocked: '<yellow>Migracja została bezpiecznie zatrzymana przez: <provider>.</yellow><newline><gray><reason></gray><newline><dark_gray>Kod techniczny: <code></dark_gray>'
+  already_running: '<yellow>Ta migracja jest już wykonywana.</yellow>'
+  recovery_prepared: '<yellow>Utworzono recovery po potwierdzeniu śladów starego UUID. Bieżąca zweryfikowana tożsamość Minecraft pozostanie bez zmian.</yellow>'
+  kind_upgrade: '<white>MIGRACJA UUID</white>'
+  kind_recovery: '<white>odzyskanie danych po wcześniejszej zmianie UUID</white>'
+  kind_candidate: '<white>kandydat do odzyskania danych</white>'
+  state_inspect: '<aqua>tylko analiza — niczego nie zmieniono</aqua>'
+  state_prepared: '<yellow>przygotowana</yellow>'
+  state_migrating: '<yellow>w trakcie</yellow>'
+  state_completed: '<green>zakończona</green>'
+  state_failed: '<red>zatrzymana po błędzie</red>'
+  provider_system: '<white>pipeline migracji</white>'
+  provider_vanilla: '<white>Minecraft (vanilla)</white>'
+  provider_plotsx: '<white>PlotsX</white>'
+  provider_horsemanagerx: '<white>HorseManagerX</white>'
+  provider_punisherx: '<white>PunisherX</white>'
+  provider_luckperms: '<white>LuckPerms</white>'
+  provider_essentialsx: '<white>EssentialsX</white>'
+  provider_external_guard: '<white>Dane zewnętrzne pluginów</white>'
+  provider_unmanaged_scan: '<white>Pozostałe pluginy</white>'
+  provider_universal_local: '<white>Lokalne dane innych pluginów</white>'
+  reason_NO_VANILLA_UUID_DATA: 'Nie znaleziono plików playerdata, statystyk ani postępów zapisanych pod starym UUID. Nie ma tu nic do przeniesienia.'
+  reason_VANILLA_FILES: 'Znaleziono <files> plików Minecraft powiązanych ze starym UUID. Zostaną skopiowane z backupem bieżącego celu.'
+  reason_VANILLA_SYMLINK_REJECTED: 'Dane Minecraft używają dowiązania symbolicznego. LoginCoreX nie będzie modyfikował takiej ścieżki automatycznie.'
+  reason_PLOTSX_COUNTS: 'Znaleziono: działki właściciela <owner>, członkostwa <member>, wpisy historii <history>, operacje <operations>.'
+  reason_PLOTSX_MIGRATION_BRIDGE_UNAVAILABLE: 'PlotsX jest zainstalowany, ale jego bezpieczny bridge migracji UUID jest niedostępny. Zaktualizuj PlotsX do wersji udostępniającej bridge.'
+  reason_PLOTSX_NOT_INSTALLED: 'PlotsX nie jest zainstalowany — nie ma danych tego systemu do migracji.'
+  reason_HORSEMANAGERX_COUNTS: 'Znaleziono: konie właściciela <owner>, relacje zaufania <trust>, oferty rynku <listing>, wpisy logów <log>.'
+  reason_HORSEMANAGERX_MIGRATION_BRIDGE_UNAVAILABLE: 'HorseManagerX jest zainstalowany, ale jego bezpieczny bridge migracji UUID jest niedostępny. Zaktualizuj plugin.'
+  reason_HORSEMANAGERX_NOT_INSTALLED: 'HorseManagerX nie jest zainstalowany — nie ma danych tego systemu do migracji.'
+  reason_PUNISHERX_COUNTS: 'Znaleziono: aktywne kary <active>, historia <history>, reporter <reporter>, podejrzany <suspect>, bridge <bridge>, wpisy IP <ip>, jail <jail>.'
+  reason_PUNISHERX_MIGRATION_BRIDGE_UNAVAILABLE: 'PunisherX jest zainstalowany, ale jego bezpieczny bridge migracji UUID jest niedostępny. Zaktualizuj PunisherX.'
+  reason_PUNISHERX_NOT_INSTALLED: 'PunisherX nie jest zainstalowany — nie ma danych tego systemu do migracji.'
+  reason_LUCKPERMS_SOURCE_ABSENT: 'LuckPerms nie ma użytkownika zapisanego pod starym UUID. Nie ma uprawnień ani rang do przeniesienia.'
+  reason_LUCKPERMS_NOT_INSTALLED: 'LuckPerms nie jest zainstalowany.'
+  reason_LUCKPERMS_API_UNAVAILABLE: 'LuckPerms jest aktywny, ale jego publiczne API nie jest dostępne. Migracja pozostaje zablokowana, aby nie zgubić rang i uprawnień.'
+  reason_LUCKPERMS_USER_NODES_READY: 'Stare UUID ma dane LuckPerms, a profil docelowy można bezpiecznie uzupełnić.'
+  reason_LUCKPERMS_TARGET_HAS_DIFFERENT_DATA: 'Nowe UUID ma już inne rangi lub uprawnienia. LoginCoreX nie nadpisze ich bez odwracalnego backupu węzłów LuckPerms; konflikt wymaga świadomego rozstrzygnięcia administratora.'
+  reason_ESSENTIALSX_SOURCE_ABSENT: 'EssentialsX nie ma userdata pod starym UUID. Nie ma danych do przeniesienia.'
+  reason_ESSENTIALSX_USERDATA_READY: 'Dane starego profilu EssentialsX są gotowe do migracji.'
+  reason_ESSENTIALSX_TARGET_WILL_BE_BACKED_UP_AND_REPLACED: 'Nowe UUID ma już inny profil EssentialsX. Nie blokuje to migracji: jego dokładna kopia zostanie zapisana w backupie, następnie zostanie odtworzony profil starego UUID z nową tożsamością. Rollback może przywrócić poprzedni profil docelowy.'
+  reason_ESSENTIALSX_TARGET_HAS_DIFFERENT_DATA: 'Starsza wersja LoginCoreX blokowała różny profil docelowy EssentialsX. W aktualnej wersji jest on najpierw backupowany i może zostać bezpiecznie zastąpiony. Wykonaj inspect ponownie po aktualizacji.'
+  reason_ESSENTIALSX_SYMLINK_REJECTED: 'Plik userdata EssentialsX jest dowiązaniem symbolicznym. LoginCoreX nie modyfikuje takich ścieżek automatycznie.'
+  reason_ESSENTIALSX_TARGET_NOT_REGULAR_FILE: 'Docelowa ścieżka userdata EssentialsX istnieje, ale nie jest zwykłym plikiem. Sprawdź katalog plugins/Essentials/userdata.'
+  reason_EXTERNAL_IDENTITY_DATA_CLAIMED_OR_ABSENT: 'Nie wykryto aktywnego chronionego magazynu danych, który pozostawałby bez dedykowanego providera migracji.'
+  reason_IDENTITY_MIGRATION_PROVIDER_REQUIRED: 'Plugin <plugin> może przechowywać dane tożsamości poza bezpiecznie obsługiwanym magazynem, ale nie zarejestrował providera migracji UUID.'
+  reason_NO_UNMANAGED_LOCAL_UUID_REFERENCES: 'Przeskanowano lokalne katalogi pluginów bez providera i nie znaleziono starego UUID.'
+  reason_UNMANAGED_PLUGIN_SYMLINK: 'Skan napotkał dowiązanie symboliczne: <path>. Nie podąża za nim, aby nie wyjść poza kontrolowany katalog danych.'
+  reason_UNMANAGED_SCAN_FILE_LIMIT: 'Skan osiągnął limit <limit> plików przy <path>. Zwiększ migration.unmanaged-plugin-scan.maximum-files albo dodaj dedykowany provider dla dużego magazynu.'
+  reason_UNMANAGED_SCAN_BYTE_LIMIT: 'Skan zatrzymał się przed <path>. Ten plik ma <size>, wcześniej przeskanowano <used>, a łączny limit wynosi <limit>. Zwiększ migration.unmanaged-plugin-scan.maximum-total-bytes albo dodaj dedykowany provider.'
+  reason_UNMANAGED_UUID_REFERENCES: 'Stare UUID występuje w nieobsługiwanych danych pluginów: <owners>. Przykładowe pliki: <paths>. Dodaj provider migracji lub przenieś te dane świadomie przed ponowieniem.'
+  reason_UNMANAGED_SCAN_LARGE_FILE: 'Starsza wersja skanera zatrzymywała migrację po napotkaniu pojedynczego dużego pliku. Ten sztuczny limit został usunięty; aktualny skaner ogranicza łączny odczyt. Wykonaj inspect ponownie po aktualizacji.'
+  reason_PLUGIN_ROOT_UNAVAILABLE: 'LoginCoreX nie może odczytać katalogu plugins. Sprawdź ścieżkę i uprawnienia systemu plików.'
+  reason_NO_UNIVERSAL_LOCAL_UUID_DATA: 'Nie znaleziono lokalnych danych starego UUID w pluginach bez dedykowanego providera.'
+  reason_UNIVERSAL_LOCAL_READY: 'Możliwa jest bezpieczna migracja <total> plików lokalnych: recepty <recipe>, reguła uniwersalna <generic>. Przykłady: <paths>. Źródła pozostaną zachowane, a istniejące cele zostaną zbackupowane.'
+  reason_UNIVERSAL_LOCAL_READY_WITH_IGNORED: 'Możliwa jest bezpieczna migracja <total> plików lokalnych: recepty <recipe>, reguła uniwersalna <generic>. Przykłady: <paths>. Decyzją administratora nie zostaną przeniesione dane pluginów: <ignored>.'
+  reason_UNIVERSAL_LOCAL_IGNORED: 'Stare dane znaleziono wyłącznie w katalogach świadomie pominiętych przez administratora: <ignored>. Te dane nie zostaną przeniesione; recovery może zakończyć się bez nich.'
+  reason_UNIVERSAL_LOCAL_REVIEW_REQUIRED: 'Wykryto dane wymagające interpretacji semantycznej. <safe> bezpiecznych operacji jest już rozpoznanych, ale migrację blokują pluginy: <owners>. Przykładowe pliki: <paths>. Dodaj receptę migracji lub dedykowany provider.'
+  reason_UNIVERSAL_LOCAL_RECIPE_INVALID: 'Nie można użyć recepty migracji <file>: <detail>. Popraw lub usuń plik z plugins/LoginCoreX/migration-recipes.'
+  reason_UNIVERSAL_LOCAL_UNSAFE_PATH: 'Recepta lub plan wskazuje niedozwoloną ścieżkę (<recipe>: <path>). Dozwolone są wyłącznie ścieżki względne wewnątrz katalogu danego pluginu.'
+  reason_UNIVERSAL_LOCAL_RECIPE_NOT_UTF8: 'Recepta <recipe> wymaga modyfikacji tekstu, ale plik <path> nie jest poprawnym UTF-8. Użyj dedykowanego providera albo recepty bez modyfikacji treści.'
+  reason_UNIVERSAL_LOCAL_SYMLINK: 'Docelowa ścieżka <path> zawiera dowiązanie symboliczne. LoginCoreX nie zapisuje przez symlinki.'
+  reason_UNIVERSAL_LOCAL_TARGET_NOT_REGULAR_FILE: 'Docelowa ścieżka <path> istnieje, ale nie jest zwykłym plikiem.'
+  reason_UNIVERSAL_LOCAL_TARGET_COLLISION: 'Dwie reguły próbują zapisać ten sam plik docelowy: <path>. Plan został zatrzymany.'
+  reason_UNIVERSAL_LOCAL_SOURCE_CHANGED: 'Plik źródłowy zmienił się lub zniknął pomiędzy inspekcją a migracją. Uruchom inspect ponownie.'
+  reason_UNIVERSAL_LOCAL_JOURNAL_MISMATCH: 'Journal rollbacku nie odpowiada bieżącemu planowi migracji. LoginCoreX nie nadpisze istniejącego journalu.'
+  reason_UNIVERSAL_LOCAL_BACKUP_CONFLICT: 'Backup celu jest niespójny: jednocześnie istnieje kopia pliku i znacznik jego wcześniejszego braku.'
+  reason_UNIVERSAL_LOCAL_ROLLBACK_SYMLINK: 'Rollback został zatrzymany, ponieważ ścieżka celu zaczęła prowadzić przez dowiązanie symboliczne.'
+  reason_UNIVERSAL_LOCAL_ROLLBACK_BACKUP_MISSING: 'Rollback nie znalazł wymaganej kopii celu ani znacznika wcześniejszego braku pliku.'
+  reason_UNIVERSAL_LOCAL_UNSAFE_BACKUP_PATH: 'Wyliczona ścieżka backupu wychodzi poza kontrolowany katalog migracji.'
+
+password:
+  own_title: "<aqua>Zmiana hasła</aqua>"
+  admin_title: "<red>Administracyjne ustawienie hasła</red>"
+  own_prompt: "<gray>Podaj obecne hasło oraz dwukrotnie nowe hasło.</gray>"
+  admin_prompt: "<yellow>Ustaw nowe hasło konta gracza. Operacja zostanie zapisana w audycie.</yellow>"
+  current_label: "Obecne hasło"
+  new_label: "Nowe hasło"
+  repeat_label: "Powtórz nowe hasło"
+  invalid_current: "<red>Obecne hasło jest nieprawidłowe.</red>"
+  account_not_found: "<red>Nie znaleziono konta o tej nazwie.</red>"
+  offline_only: "<red>Hasło może zmienić wyłącznie zalogowany gracz z ustawionym hasłem serwerowym.</red>"
+  success: "<green>Hasło zostało bezpiecznie zmienione.</green>"
+  admin_target_kick: "<red>Administrator zmienił hasło tego konta. Zaloguj się ponownie przy użyciu nowego hasła.</red>"
+
+info:
+  title: '<aqua>LoginCoreX — <username></aqua>'
+  close: '<gray>Zamknij</gray>'
+  not_found: '<red>Brak konta o podanej nazwie w bazie LoginCoreX.</red>'
+  unavailable: '<red>Raport konta jest chwilowo niedostępny. Spróbuj ponownie później.</red>'
+  external_identity: '<gold><b>Status Mojang</b></gold><newline><gray>Klasyfikacja nicku:</gray> <white><status></white><newline><gray>Oficjalny UUID:</gray><newline><white><uuid></white>'
+  identity: '<gold><b>Tożsamość</b></gold><newline><gray>Nick:</gray> <white><username></white><newline><gray>ID konta LCX:</gray><newline><white><account_id></white><newline><gray>Minecraft UUID:</gray><newline><white><minecraft_uuid></white><newline><gray>Typ / stan:</gray> <white><identity> / <state></white><newline><gray>Mojang teraz:</gray> <white><mojang_status></white><newline><gray>Oficjalny UUID Mojang:</gray><newline><white><official_uuid></white>'
+  lifecycle: '<gold><b>Historia konta</b></gold><newline><gray>Utworzono:</gray> <white><created_at></white><newline><gray>Zaktualizowano:</gray> <white><updated_at></white><newline><gray>Ostatnie logowanie:</gray> <white><last_login_at></white><newline><gray>Weryfikacja Minecraft:</gray> <white><premium_verified_at></white>'
+  session: '<gold><b>Sesja</b></gold><newline><gray>Online / metoda:</gray> <white><online> / <method></white><newline><gray>Uwierzytelniono:</gray> <white><authenticated_at></white><newline><gray>Wygasa:</gray> <white><expires_at></white>'
+  ip: '<gold>Adresy IP</gold><newline><gray>Aktualne IP sesji:</gray> <white><current_ip></white><newline><gray>Ostatnie zapisane IP:</gray> <white><last_ip></white>'
+  ip_history_header: '<yellow>Historia IP (<count>)</yellow>'
+  ip_history_entry: '<white><ip></white><newline><dark_gray>ostatnio: <last_seen></dark_gray>'
+  geo: '<gold>GeoIP</gold><newline><gray>Lokalizacja:</gray> <white><city>, <region>, <country> (<country_code>)</white><newline><gray>Kontynent:</gray> <white><continent></white><newline><gray>Strefa:</gray> <white><timezone></white>'
+  network: '<gold>Sieć i reputacja</gold><newline><gray>ASN:</gray> <white><asn></white><newline><gray>Właściciel/operator:</gray> <white><owner></white><newline><gray>Typ sieci:</gray> <white><network_type></white><newline><gray>VPN:</gray> <white><vpn></white> <dark_gray>•</dark_gray> <gray>Proxy:</gray> <white><proxy></white> <dark_gray>•</dark_gray> <gray>TOR:</gray> <white><tor></white><newline><gray>Pewność:</gray> <white><confidence></white> <dark_gray>•</dark_gray> <gray>Ryzyko:</gray> <white><risk></white><newline><gray>Operator anonimizujący:</gray> <white><operator></white>'
+  security_header: '<gold>Bezpieczeństwo i audyt</gold>'
+  security_summary: '<gray>Nieudane logowania:</gray> <white><failed_logins></white><newline><gray>Blokada do:</gray> <white><locked_until></white><newline><gray>Ostatnie zdarzenia audytu:</gray> <white><event_count></white>'
+  security_entry: '<dark_gray>•</dark_gray> <gray><time></gray> <yellow><type></yellow> <white><reason></white><dark_gray><ip></dark_gray>'
+  alts_header: '<gold>Powiązane konta z ostatnich 30 dni</gold><newline><gray>Wspólne IP jest poszlaką, nie dowodem jednej osoby.</gray>'
+  alts_entry: '<dark_gray>•</dark_gray> <yellow><username></yellow><gray> — wspólne adresy: <count></gray>'
+  no_data: '<gray>Brak danych.</gray>'
+
+alts:
+  title: '<aqua>Powiązania konta — <username></aqua>'
+  close: '<gray>Zamknij</gray>'
+  header: '<gold>Podejrzane powiązania konta <username> (ostatnie 30 dni).</gold><newline><gray>Wspólne IP to poszlaka, nie dowód jednej osoby. NAT i VPN mogą łączyć różnych graczy.</gray>'
+  entry: '<yellow><username></yellow><gray> — wspólne adresy: <count></gray>'
+  empty: '<gray>Brak powiązań w dostępnej historii. Nie wyklucza to multi-konta ani użycia VPN.</gray>'
+  truncated: '<yellow>Pokazano pierwsze 20 wyników; istnieją dalsze powiązania.</yellow>'
+  unavailable: '<red>Raport jest chwilowo niedostępny lub trwa inne sprawdzanie. Spróbuj ponownie później.</red>'
+  not_found: '<red>Nie znaleziono konta o podanej nazwie.</red>'
+
+risk_alert:
+  header: '<gold>[LoginCoreX] Podejrzane logowanie: <yellow><username></yellow></gold>'
+  identity: '<gray>UUID:</gray> <white><uuid></white> <dark_gray>•</dark_gray> <gray>typ:</gray> <white><identity></white> <dark_gray>•</dark_gray> <gray>auth:</gray> <white><method></white>'
+  ip: '<gray>IP:</gray> <white><ip></white>'
+  accounts: '<gray>Powiązane konta (<count>):</gray> <yellow><accounts></yellow>'
+  network: '<gray>Reputacja IP:</gray> <yellow><signals></yellow><gray> • pewność <confidence> • ryzyko <risk></gray>'
+  geo: '<gray>GeoIP:</gray> <white><city>, <region>, <country> (<country_code>)</white><gray> • <continent> • <timezone></gray>'
+  network_owner: '<gray>Sieć:</gray> <white><asn></white><gray> • <owner> • typ <network_type></gray>'
+  operator: '<gray>Operator anonimizujący:</gray> <yellow><operator></yellow>'
+  hint: '<dark_gray>Sygnały są pomocnicze, nie stanowią dowodu jednej osoby. Szczegóły: /logincorex alts <username></dark_gray>'
+
+
+privacy:
+  # Gotowa skrócona informacja — możesz zachować treść lub dostosować ją do serwera.
+  title: "<gold><b>Polityka prywatności serwera</b></gold>"
+  summary: "<gray>• Przechowujemy nick, UUID oraz dane uwierzytelnienia i połączeń, w tym adres IP, aby obsługiwać konto i chronić serwer przed nadużyciami.<newline>• Zapisujemy Twoją decyzję oraz wersję zaakceptowanych zasad.<newline>• Akceptację możesz wycofać komendą /privacy revoke — zakończy to sesję, ale nie usunie automatycznie danych konta.<newline>• Bez akceptacji nie uzyskasz dostępu do rozgrywki; odrzucenie zasad rozłączy Cię z serwerem.<newline>• Szczegóły przetwarzania danych znajdziesz w pełnej polityce prywatności poniżej.</gray>"
+  version: "<gray>Wersja zasad: <white><version></white></gray>"
+  # Zastąp przykładowy adres adresem HTTPS swojej strony. privacy.policy-url w config.yml ma pierwszeństwo.
+  link: "<click:open_url:'https://example.com/privacy/'><aqua><underlined>Otwórz pełną politykę prywatności</underlined></aqua></click>"
+  # Przyciski czatu wykonują komendy; w Dialogu decyzję obsługują natywne przyciski.
+  accept_button: "<click:run_command:'/privacy accept'><green>[Akceptuję]</green></click>"
+  reject_button: "<click:run_command:'/privacy reject'><red>[Odrzucam]</red></click>"
+  accepted: "<green>Zasady zaakceptowane. Dostęp do gry został odblokowany.</green>"
+  rejected: "<red>Odrzuciłeś zasady prywatności. Nie możesz teraz korzystać z serwera.</red>"
+  revoked: "<yellow>Wycofałeś akceptację zasad. Sesja została zakończona.</yellow>"
+  already_accepted: "<green>Aktualna wersja zasad prywatności jest zaakceptowana.</green>"
+  revoke_hint: "<yellow>Aby wycofać akceptację, użyj /privacy revoke.</yellow>"
+  processing: "<yellow>Zapisywanie decyzji dotyczącej prywatności...</yellow>"
+  unavailable: "<red>Nie można zweryfikować lub zapisać decyzji. Spróbuj ponownie później.</red>"
+  pending: "<yellow>Aktualna polityka prywatności wymaga Twojej decyzji. Użyj /privacy.</yellow>"
+  usage: "<yellow>Użycie: /privacy [show|accept|reject|revoke|status]</yellow>"
+  timeout: "<red>Upłynął czas na podjęcie decyzji o zasadach prywatności.</red>"

@@ -1,0 +1,9 @@
+{
+  "id": "logincorex",
+  "name": "LoginCoreX",
+  "version": "${version}",
+  "description": "Player authentication and protection system for Velocity",
+  "url": "https://syntaxdevteam.pl",
+  "authors": ["SyntaxDevTeam"],
+  "main": "pl.syntaxdevteam.logincorex.velocity.loader.SyntaxLoader"
+}

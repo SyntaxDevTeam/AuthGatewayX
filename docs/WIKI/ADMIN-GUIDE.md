@@ -17,7 +17,7 @@ Dobierz plik do wersji Minecraft według [wymagań platformowych](Zgodnosc.md). 
 
 ## 2. Przygotuj konfigurację
 
-Plik serwera gry: `plugins/AuthGatewayX/config.yml`. Plik proxy: `authgatewayx.yml` w folderze danych pluginu na Velocity. To dwa różne zestawy ustawień.
+Plik serwera gry: `plugins/LoginCoreX/config.yml`. Plik proxy: `logincorex.yml` w folderze danych pluginu na Velocity. To dwa różne zestawy ustawień.
 
 Zatrzymaj serwer i wykonaj kopię plików. Poniższy fragment pokazuje podstawowe wartości Paper — edytuj istniejące sekcje, zamiast zastępować nim cały plik:
 
@@ -34,7 +34,7 @@ authentication:
     duration-seconds: 600
 storage:
   type: SQLITE
-  sqlite-file: authgatewayx.db
+  sqlite-file: logincorex.db
   pool-size: 2
 ```
 
@@ -56,12 +56,12 @@ Nadaj konkretne uprawnienia przez swój system rang. Nie każdy moderator potrze
 
 | Rola / zadanie | Uprawnienia |
 | --- | --- |
-| Podstawowa diagnostyka kont | `authgatewayx.admin.info` |
-| Odbieranie alertów | `authgatewayx.admin.alerts` |
-| Analiza wspólnych adresów | `authgatewayx.admin.alts` |
-| Podgląd IP, GeoIP lub audytu | Osobno `authgatewayx.admin.view-ip`, `authgatewayx.admin.view-geo`, `authgatewayx.admin.view-security` |
-| Reset hasła konta | `authgatewayx.admin.password` |
-| Diagnostyka migracji UUID | `authgatewayx.admin.migration.view` |
+| Podstawowa diagnostyka kont | `logincorex.admin.info` |
+| Odbieranie alertów | `logincorex.admin.alerts` |
+| Analiza wspólnych adresów | `logincorex.admin.alts` |
+| Podgląd IP, GeoIP lub audytu | Osobno `logincorex.admin.view-ip`, `logincorex.admin.view-geo`, `logincorex.admin.view-security` |
+| Reset hasła konta | `logincorex.admin.password` |
+| Diagnostyka migracji UUID | `logincorex.admin.migration.view` |
 
 Operatorzy mają domyślnie uprawnienia administracyjne. Nadając rolę z ograniczonym dostępem, sprawdź również dziedziczone permisje i status operatora. Uprawnienie nie zastępuje uwierzytelnionej sesji.
 
@@ -85,13 +85,13 @@ Hasła w polach Minecraft Dialog są widoczne na ekranie. Uprzedź graczy, by uk
 
 ## 6. Codzienna obsługa
 
-**Gracz zapomniał hasła serwerowego:** najpierw potwierdź własność konta. Zalogowany administrator używa `/agx setpassword <nick>` i podaje nowe hasło w formularzu. Reset rozłącza aktywnego gracza. Przekaż hasło prywatnie i poproś o zmianę przez `/changepassword`. Nie jest to reset konta Microsoft.
+**Gracz zapomniał hasła serwerowego:** najpierw potwierdź własność konta. Zalogowany administrator używa `/lcx setpassword <nick>` i podaje nowe hasło w formularzu. Reset rozłącza aktywnego gracza. Przekaż hasło prywatnie i poproś o zmianę przez `/changepassword`. Nie jest to reset konta Microsoft.
 
-**Gracz nie może wejść:** sprawdź komunikat, `/agx info <nick>` oraz stan usług i bazy w konsoli. Przy błędzie sesji Minecraft poproś o ponowne zalogowanie w oficjalnym launcherze. Nie wyłączaj weryfikacji tożsamości w celu obejścia problemu.
+**Gracz nie może wejść:** sprawdź komunikat, `/lcx info <nick>` oraz stan usług i bazy w konsoli. Przy błędzie sesji Minecraft poproś o ponowne zalogowanie w oficjalnym launcherze. Nie wyłączaj weryfikacji tożsamości w celu obejścia problemu.
 
-**Podejrzenie multi-kont:** sprawdź `/agx alts <nick>`. Wspólny IP jest poszlaką — sieci domowe, szkoły i CGNAT mogą łączyć różne osoby. Raport nie nakłada automatycznie kar.
+**Podejrzenie multi-kont:** sprawdź `/lcx alts <nick>`. Wspólny IP jest poszlaką — sieci domowe, szkoły i CGNAT mogą łączyć różne osoby. Raport nie nakłada automatycznie kar.
 
-**Migracja UUID po weryfikacji konta Minecraft:** gracz musi potwierdzić stare hasło po oficjalnej weryfikacji Minecraft. Migracja danych odbywa się po rozłączeniu. Użyj `/agx migrate status <nick>` i `inspect`, aby sprawdzić stan; nie zamieniaj UUID ręcznie w bazie. [Procedura migracji](Premium.md).
+**Migracja UUID po weryfikacji konta Minecraft:** gracz musi potwierdzić stare hasło po oficjalnej weryfikacji Minecraft. Migracja danych odbywa się po rozłączeniu. Użyj `/lcx migrate status <nick>` i `inspect`, aby sprawdzić stan; nie zamieniaj UUID ręcznie w bazie. [Procedura migracji](Premium.md).
 
 ## 7. Zabezpieczenia i integracje
 
@@ -103,7 +103,7 @@ Zewnętrzna reputacja IP jest domyślnie wyłączona. Włączenie jej przekazuje
 
 ## 8. Zmiany ustawień, backup i aktualizacja
 
-Większość zmian wymaga pełnego restartu. `/agx reload` odświeża obecnie wyłącznie `migration.unmanaged-plugin-scan.ignored-plugin-directories`; nie przeładowuje wszystkich ustawień, wiadomości ani połączeń z bazą.
+Większość zmian wymaga pełnego restartu. `/lcx reload` odświeża obecnie wyłącznie `migration.unmanaged-plugin-scan.ignored-plugin-directories`; nie przeładowuje wszystkich ustawień, wiadomości ani połączeń z bazą.
 
 Przed aktualizacją zatrzymaj serwer, wykonaj kopię folderu pluginu i bazy, a następnie przetestuj nowy JAR na kopii środowiska. W razie cofania wersji przywracaj pasujące do siebie pliki pluginu, konfiguracji oraz danych. [Backup i przywracanie](Baza-danych.md).
 

@@ -1,4 +1,4 @@
-# AuthGatewayX WIKI — English
+# LoginCoreX WIKI — English
 
 **Language / Język:** English · [Polski](../README.md)
 

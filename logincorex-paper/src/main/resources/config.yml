@@ -1,0 +1,357 @@
+# /********************************************/
+#    Global settings
+# /********************************************/
+
+# Plugin language used for messages shown to players and administrators.
+# The selected language must have a matching file in the plugin's lang directory.
+language: "PL"
+
+# /********************************************/
+#    Minecraft identity verification
+# /********************************************/
+
+premium:
+  authentication:
+    # Maximum concurrent official Minecraft session handshakes on standalone Paper.
+    maximum-concurrent-handshakes: 32
+    # Diagnostic counters and bounded trace output; never include player secrets.
+    diagnostics:
+      enabled: false
+      maximum-lines-per-minute: 120
+
+  lookup:
+    # Total time budget in milliseconds, including waiting for a lookup worker and HTTP.
+    # Expired queued work is removed. Unverified usernames remain denied.
+    # A short timeout limits how long external service problems can occupy login workers.
+    timeout-millis: 3000
+    # HTTP 429 pauses uncached lookups according to Retry-After (up to 24h; default 60s).
+    # Other service/transport failures pause them for 2s. Valid cached results remain usable.
+    # Rate-limited [mojang-lookup] diagnostics explain the reason without player data.
+
+    # How long, in seconds, a successful official Minecraft profile lookup remains cached.
+    # Default: 21600 seconds = 6 hours.
+    # A longer TTL reduces requests to Minecraft Services at the cost of slower refreshes.
+    positive-ttl-seconds: 21600
+
+    # How long, in seconds, a negative lookup result remains cached.
+    # Default: 300 seconds = 5 minutes.
+    # Keeping this significantly shorter than the positive TTL reduces the chance of retaining
+    # outdated missing-profile information after an account/name change.
+    negative-ttl-seconds: 300
+
+    # Maximum number of username lookup results stored in the identity lookup cache.
+    # The limit prevents the cache from growing without bounds during scans or bot attacks.
+    maximum-cache-size: 50000
+
+# /********************************************/
+#    Anti-bot and abuse protection
+# /********************************************/
+
+anti-bot:
+  # Repeated native LOGIN timeouts (standalone Paper/Purpur/Folia).
+  # Counters and ban deadlines survive restarts in the configured database.
+  # One Paper runtime owns the connection_timeout_state table per database.
+  login-timeouts:
+    attempts: 3
+    # 0 keeps failures without an observation time limit until the ban expires.
+    window-seconds: 0
+    ban-seconds: 86400
+
+  # Maximum number of source IP addresses remembered by anti-bot state trackers.
+  # This is a memory-safety limit: old/unused state may be discarded when the limit is reached.
+  maximum-tracked-addresses: 50000
+
+  # Behavioral scoring assigns penalty points to suspicious activity from one IP address.
+  # When the accumulated score reaches "threshold" inside "window-seconds",
+  # the address is quarantined for "quarantine-seconds".
+  behavior-score:
+    # Score required to classify the source address as abusive.
+    threshold: 40
+
+    # Points added for every observed connection attempt.
+    connection-weight: 1
+
+    # Points added when the address starts using additional distinct usernames.
+    # Higher values make username rotation/scanning trigger protection faster.
+    distinct-username-weight: 5
+
+    # Points added after a failed authentication attempt.
+    authentication-failure-weight: 8
+
+    # Points added when a connection ends before authentication is completed.
+    # This helps detect repeated connect/disconnect loops commonly used by bots.
+    pre-auth-disconnect-weight: 8
+
+    # Time window, in seconds, in which behavioral signals contribute to the score.
+    window-seconds: 60
+
+    # How long, in seconds, a source address remains quarantined after reaching the threshold.
+    # Default: 600 seconds = 10 minutes.
+    quarantine-seconds: 600
+
+  # Detects one source address rapidly trying many different Minecraft usernames.
+  username-burst:
+    # Maximum number of distinct usernames allowed from one address within the configured window.
+    # Exceeding this value causes the address to be quarantined.
+    maximum-distinct-usernames: 5
+
+    # Observation window for distinct usernames, in seconds.
+    window-seconds: 30
+
+    # Quarantine duration after the username-burst limit is exceeded.
+    # Default: 600 seconds = 10 minutes.
+    quarantine-seconds: 600
+
+  reconnect-loop:
+    # Maximum number of pre-authentication disconnects tolerated from one address
+    # before the username/reconnect protection treats the behavior as abusive.
+    maximum-pre-auth-disconnects: 5
+
+  # Limits new account registrations from one source address.
+  registration-attempts:
+    # Maximum total number of accounts that one address may register.
+    # This is an account-abuse limit, separate from the temporary token-bucket rate limit below.
+    maximum-accounts-per-address: 3
+
+    # Number of registration-attempt tokens initially available to one address.
+    # Each registration attempt consumes a token.
+    capacity: 3
+
+    # Number of tokens restored every "refill-seconds".
+    refill-tokens: 1
+
+    # Token refill interval, in seconds.
+    refill-seconds: 60
+
+    # How long, in seconds, inactive registration rate-limit state is retained in memory.
+    # Default: 600 seconds = 10 minutes.
+    state-ttl-seconds: 600
+
+# /********************************************/
+#    Player authentication
+# /********************************************/
+
+authentication:
+  # Experimental pre-world authentication during Minecraft Configuration Phase.
+  # Leave disabled in production until runtime compatibility is confirmed.
+  prejoin:
+    experimental-enabled: false
+    maximum-pending: 64
+
+  # Maximum time, in seconds, an unauthenticated player may remain in the protected pre-auth state.
+  # If authentication is not completed before the timeout, the player is disconnected.
+  timeout-seconds: 120
+
+  # Maximum number of players that may simultaneously occupy the pre-authentication state.
+  # This is a hard capacity guard protecting the game server from excessive unauthenticated sessions.
+  maximum-pre-auth-players: 500
+
+  password:
+    # Minimum password length accepted for player accounts.
+    minimum-length: 8
+
+    # Maximum accepted password length.
+    # Limiting the input size also prevents unnecessarily expensive password hashing of huge payloads.
+    maximum-length: 128
+
+    # Argon2 password-hashing parameters.
+    # Increasing these values strengthens password hashing but also increases CPU/RAM cost per operation.
+    # Change them only after load-testing the server. Existing hashes keep their own Argon2 parameters.
+    argon2:
+      # Number of Argon2 iterations (time cost).
+      iterations: 3
+
+      # Memory used by one Argon2 operation, in KiB.
+      # Default: 65536 KiB = 64 MiB per active password-hashing operation.
+      memory-kib: 65536
+
+      # Argon2 parallelism parameter (number of lanes used by the hashing algorithm).
+      parallelism: 1
+
+  lockout:
+    # Number of failed password attempts allowed before an account is temporarily locked.
+    attempts: 5
+
+    # Account lock duration after reaching the failed-attempt limit, in seconds.
+    # Default: 600 seconds = 10 minutes.
+    duration-seconds: 600
+
+# /********************************************/
+#    Privacy / RODO: shown only after account authentication
+# /********************************************/
+privacy:
+  # All authenticated players must accept the current policy.
+  enabled: true
+  # Increase after changes to the policy to require a new decision from existing players.
+  policy-version: "1"
+  # Enter the actual HTTPS URL of your server's full privacy policy before production.
+  # Overrides the link from lang/messages_*.yml. Empty keeps that link (an example by default).
+  policy-url: ""
+  # After login, disconnect a player who does not decide in time.
+  timeout-seconds: 120
+  dialogs:
+    # Automatically use Minecraft Dialog for server Minecraft 1.21.7+; older versions use chat.
+    # Set false to force the clickable chat fallback even on modern servers.
+    # This setting does not alter the minimum Paper API required by the plugin JAR.
+    enabled: true
+
+# /********************************************/
+#    Storage settings
+# /********************************************/
+
+storage:
+  # Backend: SQLITE, MYSQL, MARIADB or POSTGRESQL.
+  type: SQLITE
+
+  # SQLite database filename stored inside the LoginCoreX plugin data directory.
+  # A relative filename is recommended. Do not point multiple independent servers at the same SQLite file.
+  sqlite-file: logincorex.db
+
+  # Maximum JDBC connection pool size used by the SQLite storage implementation.
+  # SQLite does not benefit from a large write-concurrency pool; keep this value small unless testing proves otherwise.
+  pool-size: 2
+
+  # Settings used by MYSQL, MARIADB and POSTGRESQL. Password may also be supplied through
+  # LOGINCOREX_DB_PASSWORD, which takes precedence and avoids committing a secret to disk.
+  remote:
+    host: "127.0.0.1"
+    port: 3306
+    database: "logincorex"
+    username: "logincorex"
+    password: ""
+    # Appended as JDBC query parameters. Syntax is driver-specific, for example:
+    # MySQL/MariaDB: useSSL=true&serverTimezone=UTC
+    # PostgreSQL: sslmode=require
+    parameters: ""
+
+# /********************************************/
+#    Async executor settings
+# /********************************************/
+
+# LoginCoreX separates blocking/expensive tasks into bounded executors.
+# "*-threads" controls how many jobs can execute concurrently.
+# "*-queue" controls how many additional jobs may wait before overload protection rejects new work.
+# Avoid arbitrarily increasing these values: bounded queues are part of the plugin's protection against overload.
+executors:
+  # Database operations and storage migrations.
+  storage-threads: 2
+  storage-queue: 256
+
+  # Argon2 password hashing and password verification.
+  # Remember that each concurrent Argon2 operation may use authentication.password.argon2.memory-kib of RAM.
+  password-threads: 2
+  password-queue: 64
+
+  # Minecraft Services/Mojang HTTP profile lookups.
+  mojang-threads: 4
+  mojang-queue: 128
+
+  # Rare OFFLINE -> PREMIUM migration file scans/copies. Keep this separate from storage
+  # so large player/plugin files cannot occupy JDBC workers.
+  migration-threads: 1
+  migration-queue: 16
+
+# /********************************************/
+#    OFFLINE -> PREMIUM identity migration
+# /********************************************/
+
+migration:
+  unmanaged-plugin-scan:
+    # Local fallback for plugin data directories not claimed by a dedicated provider.
+    # LoginCoreX first applies known migration recipes, then may migrate exact UUID-named
+    # text files when the old UUID does not also occur in their contents. Everything else
+    # remains fail-closed and is shown in /lcx migrate inspect for manual review.
+    enabled: true
+
+    # Exact plugin data-directory names whose old identity records are deliberately not
+    # migrated. These directories are scanned only to confirm recovery evidence; their files
+    # are never copied or modified. Keep this empty unless losing access to those records
+    # under the new UUID is an accepted decision. Matching is case-insensitive.
+    ignored-plugin-directories: []
+
+    # Hard bounds keep one migration inspection from consuming unbounded disk I/O.
+    maximum-files: 50000
+
+    # Maximum total bytes inspected across unmanaged plugin directories.
+    # Files are streamed; databases and binary formats are never modified by this fallback.
+    maximum-total-bytes: 1073741824
+
+    generic-uuid-files:
+      # Safe generic fallback for files named exactly <uuid>.<extension>.
+      # Source files are preserved; the target is backed up before replacement.
+      enabled: true
+
+      # Only these text-like formats are eligible for generic filename migration.
+      # If the old UUID is also found inside the file, the operation is NOT automatic.
+      extensions:
+        - yml
+        - yaml
+        - json
+        - toml
+        - properties
+
+  recovery:
+    # Maximum number of PREPARED/MIGRATING tickets inspected after one server start.
+    # Recovery is deliberately bounded; remaining tickets can be handled on the next start
+    # or by /logincorex migrate retry <nick>.
+    startup-batch-limit: 100
+
+# /********************************************/
+#    Optional integrations
+# /********************************************/
+
+integrations:
+  cleanerx:
+    # AUTO uses CleanerX when its public ServicesManager API is present.
+    # REQUIRED with FAIL_CLOSED rejects login when the service is absent or fails.
+    # DISABLED skips the integration.
+    mode: AUTO
+    failure-strategy: FAIL_CLOSED
+
+  punisherx:
+    # LoginCoreX first looks for its platform-neutral PunishmentProvider service.
+    # It also supports the current PunisherX public UUID API as a compatibility fallback.
+    mode: AUTO
+    failure-strategy: FAIL_CLOSED
+
+# Advisory alerts after successful password login/registration. No automatic bans.
+multi-account:
+  alerts:
+    # Notify authenticated staff with logincorex.admin.alerts about shared IP history.
+    enabled: true
+    # Console output applies to both account and VPN alerts.
+    console: true
+    # Reconnect suppression per account, including checks with no suspicious result.
+    cooldown-seconds: 300
+    maximum-tracked-accounts: 10000
+    # Bound advisory database/network work; excess checks are skipped, login continues.
+    maximum-concurrent: 2
+
+# Optional proxycheck.io v3: enabling sends the player's public IP to this provider.
+# No username, UUID or password is sent. Geo describes the exit IP, not the person.
+# Disabled means no external requests. This feature observes successful password authentication.
+ip-intelligence:
+  enabled: false
+  # LOGINCOREX_PROXYCHECK_API_KEY overrides this value. Empty uses anonymous provider quota.
+  api-key: ""
+  # Independent of multi-account.alerts.enabled; requires ip-intelligence.enabled.
+  notify-on-vpn: true
+  # Allow approximate GeoIP (country/region/city/timezone) plus ASN/provider/operator metadata.
+  # Staff players still need logincorex.admin.view-geo to see these fields in alerts.
+  # Coordinates are intentionally not displayed because IP geolocation is approximate, not a player location.
+  show-geo: true
+  timeout-millis: 2000
+  cache-ttl-seconds: 3600
+  # Negative/error cache and global backoff on provider failure (no automatic retry).
+  failure-ttl-seconds: 60
+  maximum-cache-size: 10000
+  maximum-concurrent: 2
+  # Local quota guard, reset on restart; provider daily plan limits still apply.
+  requests-per-minute: 30
+
+# Optional proof of ACTIVE status for proxy administrators with locally assigned identities; no auth bypass.
+# Use the same independent random secret (at least 32 bytes) on Velocity and Paper.
+# LOGINCOREX_STAFF_PROOF_SECRET overrides this value. Empty disables the responder.
+# Only used when Paper runs behind Velocity modern forwarding.
+staff-proof:
+  secret: "" # Configure a unique random shared secret for your own network (>=32 bytes).

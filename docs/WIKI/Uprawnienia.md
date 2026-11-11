@@ -8,42 +8,42 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 
 | Uprawnienie | Dostęp | Domyślnie |
 | --- | --- | --- |
-| `authgatewayx.command.changepassword` | Zmiana własnego hasła | Wszyscy gracze |
-| `authgatewayx.auth.skip-password` | Pominięcie hasła serwerowego po potwierdzeniu tożsamości Minecraft | Domyślnie wyłączone |
-| `authgatewayx.command.privacy` | Wyświetlanie polityki i zarządzanie akceptacją | Wszyscy gracze |
-| `authgatewayx.command.logout` | Wylogowanie | Wszyscy gracze |
-| `authgatewayx.admin.info` | Podstawowy raport `/authgatewayx info <nick>` | Operatorzy serwera |
-| `authgatewayx.admin.alerts` | Odbiór automatycznych alertów po zalogowaniu | Operatorzy serwera |
-| `authgatewayx.admin.view-ip` | Pokazywanie źródłowego adresu IP w alertach administracyjnych | Operatorzy serwera |
-| `authgatewayx.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
-| `authgatewayx.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
-| `authgatewayx.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
-| `authgatewayx.admin.password` | Ustawianie hasła konta wskazanego gracza | Operatorzy serwera |
-| `authgatewayx.admin.reload` | Przeładowanie ustawień obsługiwanych w runtime przez `/agx reload` | Operatorzy serwera |
-| `authgatewayx.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
-| `authgatewayx.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
-| `authgatewayx.admin.migration.recover` | Tworzenie recovery dla kont zmigrowanych przez starsze wersje AGX | Operatorzy serwera |
+| `logincorex.command.changepassword` | Zmiana własnego hasła | Wszyscy gracze |
+| `logincorex.auth.skip-password` | Pominięcie hasła serwerowego po potwierdzeniu tożsamości Minecraft | Domyślnie wyłączone |
+| `logincorex.command.privacy` | Wyświetlanie polityki i zarządzanie akceptacją | Wszyscy gracze |
+| `logincorex.command.logout` | Wylogowanie | Wszyscy gracze |
+| `logincorex.admin.info` | Podstawowy raport `/logincorex info <nick>` | Operatorzy serwera |
+| `logincorex.admin.alerts` | Odbiór automatycznych alertów po zalogowaniu | Operatorzy serwera |
+| `logincorex.admin.view-ip` | Pokazywanie źródłowego adresu IP w alertach administracyjnych | Operatorzy serwera |
+| `logincorex.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
+| `logincorex.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
+| `logincorex.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
+| `logincorex.admin.password` | Ustawianie hasła konta wskazanego gracza | Operatorzy serwera |
+| `logincorex.admin.reload` | Przeładowanie ustawień obsługiwanych w runtime przez `/lcx reload` | Operatorzy serwera |
+| `logincorex.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
+| `logincorex.admin.migration.execute` | Ponawianie istniejących migracji UUID | Operatorzy serwera |
+| `logincorex.admin.migration.recover` | Tworzenie recovery dla kont zmigrowanych przez starsze wersje LCX | Operatorzy serwera |
 
 Uprawnienia możesz przypisać w używanym na serwerze pluginie do zarządzania rangami. Zachowaj dokładną pisownię z tabeli.
 
 ## Jak rozdzielić dostęp?
 
-Graczom wystarczą domyślne uprawnienia komend gracza. Dostęp do `authgatewayx.admin.password` daj tylko osobom, którym powierzasz odzyskiwanie kont. Nie musi go mieć każdy moderator czatu. Jeśli moderator ma otrzymywać alerty, ale nie powinien widzieć danych sieciowych, nadaj mu samo `authgatewayx.admin.alerts`. `authgatewayx.admin.info` otwiera raport podstawowy, natomiast `view-ip`, `view-geo`, `view-security` i `alts` niezależnie dodają sekcje wrażliwe. Konsola serwera otrzymuje pełny wariant diagnostyczny.
+Graczom wystarczą domyślne uprawnienia komend gracza. Dostęp do `logincorex.admin.password` daj tylko osobom, którym powierzasz odzyskiwanie kont. Nie musi go mieć każdy moderator czatu. Jeśli moderator ma otrzymywać alerty, ale nie powinien widzieć danych sieciowych, nadaj mu samo `logincorex.admin.alerts`. `logincorex.admin.info` otwiera raport podstawowy, natomiast `view-ip`, `view-geo`, `view-security` i `alts` niezależnie dodają sekcje wrażliwe. Konsola serwera otrzymuje pełny wariant diagnostyczny.
 
-Samo nadanie uprawnienia nie omija weryfikacji tożsamości Minecraft, zabezpieczeń przed wejściem do świata ani limitów połączeń. Zmiana hasła oraz wylogowanie dotyczą uwierzytelnionych kont. Uprawnienie `authgatewayx.auth.skip-password` umożliwia pominięcie dodatkowego hasła wyłącznie graczowi z już zweryfikowaną oficjalną tożsamością Minecraft. Domyślnie każdy gracz korzysta z rejestracji i logowania hasłem.
+Samo nadanie uprawnienia nie omija weryfikacji tożsamości Minecraft, zabezpieczeń przed wejściem do świata ani limitów połączeń. Zmiana hasła oraz wylogowanie dotyczą uwierzytelnionych kont. Uprawnienie `logincorex.auth.skip-password` umożliwia pominięcie dodatkowego hasła wyłącznie graczowi z już zweryfikowaną oficjalną tożsamością Minecraft. Domyślnie każdy gracz korzysta z rejestracji i logowania hasłem.
 
 ## VPN i multi-konta na proxy
 
-Velocity ma własne ustawienia w `authgatewayx.yml`: `storage.enabled` włącza odczyt
+Velocity ma własne ustawienia w `logincorex.yml`: `storage.enabled` włącza odczyt
 wspólnej bazy Paper, `multi-account.action` wybiera `ALERT`, `DENY` lub `DISABLED`.
 `ip-intelligence.enabled` włącza VPN/proxy/Tor (domyślna akcja `DENY`);
-`show-geo` pozwala przetwarzać i prezentować rozszerzone GeoIP/metadane sieciowe, ale gracz administracji zobaczy je wyłącznie z `authgatewayx.admin.view-geo`. Kontrole odrzucają połączenie przed serwerem gry.
+`show-geo` pozwala przetwarzać i prezentować rozszerzone GeoIP/metadane sieciowe, ale gracz administracji zobaczy je wyłącznie z `logincorex.admin.view-geo`. Kontrole odrzucają połączenie przed serwerem gry.
 Obie integracje są domyślnie wyłączone; brak wspólnej historii nie wykryje zmiany IP.
 
 `alerts.enabled`, `alerts.console` i `alerts.cooldown-seconds` sterują powiadomieniami
 proxy. Alert dotyczy próby wejścia pod nickiem, nie potwierdzonego logowania hasłem.
-Nadaj na proxy `authgatewayx.admin.alerts` oraz `authgatewayx.admin.alts` dla raportu
-`/authgatewayx alts <nick>`. Pozostałe podkomendy trafiają do Paper.
+Nadaj na proxy `logincorex.admin.alerts` oraz `logincorex.admin.alts` dla raportu
+`/logincorex alts <nick>`. Pozostałe podkomendy trafiają do Paper.
 Administrator z lokalnie przypisanym UUID wymaga poprawnego zalogowania na backendzie i wspólnego,
 osobnego `staff-proof.secret` (co najmniej 32 bajty) na Paper i proxy.
 Konsola i administrator uwierzytelniony przez Mojang nie potrzebują tego sekretu.
@@ -56,9 +56,9 @@ powyżej dla Paper pozostają lokalne; można je wyłączyć, aby nie dublować 
 ## Uprawnienia migracji
 
 Rozdzielenie `view`, `execute` i `recover` jest celowe. Osoba mająca wyłącznie
-`authgatewayx.admin.migration.view` może diagnozować stan, ale nie uruchomi operacji
+`logincorex.admin.migration.view` może diagnozować stan, ale nie uruchomi operacji
 zmieniającej dane. `recover` jest najbardziej wrażliwą operacją i warto pozostawić ją
 wyłącznie administratorom odpowiedzialnym za dane graczy.
 
 Konsola serwera może wykonywać wszystkie podkomendy migracji. Administrator w grze musi
-mieć aktywną, uwierzytelnioną sesję AuthGatewayX; sama permisja nie omija logowania.
+mieć aktywną, uwierzytelnioną sesję LoginCoreX; sama permisja nie omija logowania.

@@ -1,4 +1,4 @@
-# WIKI AuthGatewayX
+# WIKI LoginCoreX
 
 **Język / Language:** Polski · [English](EN/README.md)
 

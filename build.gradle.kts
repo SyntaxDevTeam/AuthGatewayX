@@ -10,17 +10,17 @@ plugins {
 
 group = "pl.syntaxdevteam"
 version = "1.0.0"
-description = "Uwierzytelnianie premium i offline dla Paper/Folia oraz Velocity."
+description = "LoginCoreX - System uwierzytelniania i ochrony graczy."
 
 val targetJavaVersion = libs.versions.java.get().toInt()
 val modules = listOf(
-    ":authgatewayx-domain", ":authgatewayx-api", ":authgatewayx-auth",
-    ":authgatewayx-security", ":authgatewayx-integrations", ":authgatewayx-storage-api",
-    ":authgatewayx-storage-jdbc", ":authgatewayx-paper", ":authgatewayx-velocity",
+    ":logincorex-domain", ":logincorex-api", ":logincorex-auth",
+    ":logincorex-security", ":logincorex-integrations", ":logincorex-storage-api",
+    ":logincorex-storage-jdbc", ":logincorex-paper", ":logincorex-velocity",
 )
 val releaseVersion = version.toString()
-val paperDistribution = layout.projectDirectory.file("authgatewayx-paper/build/libs/AuthGatewayX-Paper-$releaseVersion.jar").asFile
-val velocityDistribution = layout.projectDirectory.file("authgatewayx-velocity/build/libs/AuthGatewayX-Velocity-$releaseVersion.jar").asFile
+val paperDistribution = layout.projectDirectory.file("logincorex-paper/build/libs/LoginCoreX-Paper-$releaseVersion.jar").asFile
+val velocityDistribution = layout.projectDirectory.file("logincorex-velocity/build/libs/LoginCoreX-Velocity-$releaseVersion.jar").asFile
 val candidateMinecraft = providers.gradleProperty("paperDevBundleVersion")
     .getOrElse(libs.versions.paper.api.get()).substringBefore(".build.")
 val expectedPaperLibraries = listOf(
@@ -36,7 +36,7 @@ subprojects {
         dependencies.add("testCompileOnly", rootProject.libs.jetbrains.annotations)
         extensions.configure<KotlinJvmProjectExtension> { jvmToolchain(targetJavaVersion) }
     }
-    if (name in setOf("authgatewayx-api", "authgatewayx-domain")) {
+    if (name in setOf("logincorex-api", "logincorex-domain")) {
         apply(plugin = "maven-publish")
         plugins.withId("org.jetbrains.kotlin.jvm") {
             extensions.configure<JavaPluginExtension> { withSourcesJar(); withJavadocJar() }
@@ -45,8 +45,8 @@ subprojects {
                     from(components["java"])
                     pom {
                         name.set(project.name)
-                        description.set("Platform-independent AuthGatewayX integration contracts")
-                        url.set("https://github.com/SyntaxDevTeam/AuthGatewayX")
+                        description.set("Platform-independent LoginCoreX integration contracts")
+                        url.set("https://github.com/SyntaxDevTeam/LoginCoreX")
                     }
                 }
                 repositories.maven {
@@ -62,7 +62,7 @@ subprojects {
                 }
             }
             tasks.withType<org.gradle.api.publish.maven.tasks.PublishToMavenRepository>().configureEach {
-                dependsOn(":authgatewayx-api:check", ":authgatewayx-domain:check")
+                dependsOn(":logincorex-api:check", ":logincorex-domain:check")
                 doFirst {
                     check(!repository.credentials.username.isNullOrBlank() && !repository.credentials.password.isNullOrBlank()) {
                         "Nexus requires nexusUser/nexusPassword or NEXUS_USER/NEXUS_PASSWORD"
@@ -96,26 +96,26 @@ tasks {
     register<Sync>("stagePaperCandidate") {
         description = "Stages the Paper candidate distribution for compatibility testing."
         group = "distribution"
-        dependsOn(":authgatewayx-paper:shadowJar")
+        dependsOn(":logincorex-paper:shadowJar")
         from(paperDistribution)
         into(layout.buildDirectory.dir("compatibility/paper"))
         inputs.property("minecraftVersion", candidateMinecraft)
-        val candidateName = "AuthGatewayX-Paper-$releaseVersion-MC$candidateMinecraft.jar"
+        val candidateName = "LoginCoreX-Paper-$releaseVersion-MC$candidateMinecraft.jar"
         rename { candidateName }
     }
     register<Sync>("stageVelocityCandidate") {
         description = "Stages the Velocity candidate distribution for compatibility testing."
         group = "distribution"
-        dependsOn(":authgatewayx-velocity:shadowJar")
+        dependsOn(":logincorex-velocity:shadowJar")
         from(velocityDistribution)
         into(layout.buildDirectory.dir("compatibility/velocity"))
-        val candidateName = "AuthGatewayX-Velocity-$releaseVersion-Velocity4.jar"
+        val candidateName = "LoginCoreX-Velocity-$releaseVersion-Velocity4.jar"
         rename { candidateName }
     }
     register("verifyDistributions") {
         group = "verification"
         description = "Checks distribution descriptors, runtime catalog consistency and archive contents."
-        dependsOn(":authgatewayx-paper:shadowJar", ":authgatewayx-velocity:shadowJar")
+        dependsOn(":logincorex-paper:shadowJar", ":logincorex-velocity:shadowJar")
         val paper = paperDistribution
         val velocity = velocityDistribution
         val coordinates = expectedPaperLibraries
@@ -128,15 +128,15 @@ tasks {
                     check(jar.getEntry("kotlin/Unit.class") == null || file == velocity) { "Paper bundles Kotlin" }
                     val names = jar.entries().asSequence().map { it.name }.toList()
                     check(names.size == names.toSet().size) { "Duplicate entries in ${file.name}" }
-                    check(jar.getEntry("pl/syntaxdevteam/authgatewayx/domain/session/AuthSession.class") != null)
-                    check(jar.getEntry("pl/syntaxdevteam/authgatewayx/storage/jdbc/JdbcAccountStorage.class") != null)
+                    check(jar.getEntry("pl/syntaxdevteam/logincorex/domain/session/AuthSession.class") != null)
+                    check(jar.getEntry("pl/syntaxdevteam/logincorex/storage/jdbc/JdbcAccountStorage.class") != null)
                     if (file == paper) {
                         val descriptor = jar.getInputStream(jar.getJarEntry("paper-plugin.yml")).bufferedReader().use { it.readText() }
                         check(descriptor.lineSequence().any {
                             it.trim().removePrefix("version:").trim().trim('\"', '\'') == expectedVersion && it.startsWith("version:")
                         }) { "Paper descriptor version differs from project" }
-                        check("loader: pl.syntaxdevteam.authgatewayx.paper.loader.SyntaxLoader" in descriptor)
-                        check("bootstrapper: pl.syntaxdevteam.authgatewayx.paper.bootstrap.AuthGatewayXBootstrap" in descriptor)
+                        check("loader: pl.syntaxdevteam.logincorex.paper.loader.SyntaxLoader" in descriptor)
+                        check("bootstrapper: pl.syntaxdevteam.logincorex.paper.bootstrap.LoginCoreXBootstrap" in descriptor)
                         check("api-version: '26.1'" in descriptor) { "Paper minimum API version must be 26.1" }
                         val manifest = jar.getInputStream(jar.getJarEntry("paper-libraries.yml")).bufferedReader().use { it.readText() }
                         val actual = manifest.lineSequence().map { it.trim() }.filter { it.startsWith("- ") }
@@ -148,14 +148,14 @@ tasks {
                         }
                     } else {
                         val descriptor = jar.getInputStream(jar.getJarEntry("velocity-plugin.json")).bufferedReader().use { it.readText() }
-                        check("pl.syntaxdevteam.authgatewayx.velocity.loader.SyntaxLoader" in descriptor)
+                        check("pl.syntaxdevteam.logincorex.velocity.loader.SyntaxLoader" in descriptor)
                         check(descriptor.lineSequence().any {
                             it.trim() == "\"version\": \"$expectedVersion\","
                         }) { "Velocity descriptor version differs from project" }
                         check(jar.getEntry("velocity-libraries.txt") != null)
                         check(jar.getEntry("kotlin/Unit.class") == null)
                         check(jar.getEntry("com/zaxxer/hikari/HikariDataSource.class") == null)
-                        check(jar.getEntry("pl/syntaxdevteam/authgatewayx/velocity/loader/SyntaxLoader.class") != null)
+                        check(jar.getEntry("pl/syntaxdevteam/logincorex/velocity/loader/SyntaxLoader.class") != null)
                     }
                 }
             }
@@ -165,6 +165,6 @@ tasks {
  tasks.register("publishApiToNexus") {
     group = "publishing"
     description = "Verifies and publishes the API and its domain dependency to Nexus."
-    dependsOn(":authgatewayx-api:publishApiPublicationToNexusRepository",
-        ":authgatewayx-domain:publishApiPublicationToNexusRepository")
+    dependsOn(":logincorex-api:publishApiPublicationToNexusRepository",
+        ":logincorex-domain:publishApiPublicationToNexusRepository")
 }

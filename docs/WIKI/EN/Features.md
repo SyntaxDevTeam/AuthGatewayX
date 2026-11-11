@@ -8,7 +8,7 @@
 
 Every player registers and signs in using Minecraft dialogs by default, even when the server uses `online-mode=false`. Passwords are not command arguments or chat messages. Official Minecraft session verification protects verified usernames; only explicitly authorized verified players can skip the additional server password. Failed session verification never grants access to a protected name.
 
-AuthGatewayX manages one active account session, offers `/logout`, and supports both self-service password changes and authorized administrative resets through forms.
+LoginCoreX manages one active account session, offers `/logout`, and supports both self-service password changes and authorized administrative resets through forms.
 
 ## Protected gameplay
 

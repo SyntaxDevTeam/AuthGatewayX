@@ -1,0 +1,140 @@
+package pl.syntaxdevteam.logincorex.auth.registration
+
+import pl.syntaxdevteam.logincorex.domain.account.AccountId
+import pl.syntaxdevteam.logincorex.domain.account.AccountUsername
+import pl.syntaxdevteam.logincorex.domain.account.AuthAccount
+import pl.syntaxdevteam.logincorex.domain.account.OfflineIdentity
+import pl.syntaxdevteam.logincorex.security.executor.BoundedTaskExecutor
+import pl.syntaxdevteam.logincorex.security.password.Argon2PasswordHasher
+import pl.syntaxdevteam.logincorex.security.audit.SecurityAuditSink
+import pl.syntaxdevteam.logincorex.security.audit.SecurityEvent
+import pl.syntaxdevteam.logincorex.security.audit.SecurityEventType
+import pl.syntaxdevteam.logincorex.security.registration.RegistrationAttemptDecision
+import pl.syntaxdevteam.logincorex.security.registration.RegistrationAttemptGate
+import pl.syntaxdevteam.logincorex.storage.AccountStorage
+import pl.syntaxdevteam.logincorex.storage.OfflineRegistration
+import pl.syntaxdevteam.logincorex.storage.RegistrationResult
+import java.net.InetAddress
+import java.time.Clock
+import java.util.UUID
+import java.util.concurrent.CompletionStage
+import java.util.concurrent.CompletableFuture
+
+fun interface OfflineRegistrationUseCase {
+    fun register(username: AccountUsername, sourceAddress: InetAddress, password: CharArray): CompletionStage<RegistrationOutcome>
+
+    fun registerVerified(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        minecraftUuid: UUID,
+        password: CharArray,
+    ): CompletionStage<RegistrationOutcome> =
+        CompletableFuture.completedFuture(RegistrationOutcome.IdentityConflict)
+}
+
+sealed interface RegistrationOutcome {
+    data class Created(val account: AuthAccount) : RegistrationOutcome
+    data object UsernameAlreadyExists : RegistrationOutcome
+    data object IdentityConflict : RegistrationOutcome
+    data object RateLimited : RegistrationOutcome
+}
+
+data class PasswordPolicy(val minimumLength: Int = 8, val maximumLength: Int = 128) {
+    init { require(minimumLength in 1..maximumLength) }
+
+    fun validate(password: CharArray) {
+        require(password.size in minimumLength..maximumLength) {
+            "Password length must be between $minimumLength and $maximumLength characters"
+        }
+    }
+}
+
+class RegistrationService(
+    private val storage: AccountStorage,
+    private val hasher: Argon2PasswordHasher,
+    private val passwordExecutor: BoundedTaskExecutor,
+    private val passwordPolicy: PasswordPolicy = PasswordPolicy(),
+    private val clock: Clock = Clock.systemUTC(),
+    private val attemptGate: RegistrationAttemptGate? = null,
+    private val auditSink: SecurityAuditSink? = null,
+    private val maximumAccountsPerAddress: Int = 3,
+) : OfflineRegistrationUseCase {
+    init { require(maximumAccountsPerAddress > 0) }
+
+    override fun register(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        password: CharArray,
+    ): CompletionStage<RegistrationOutcome> = registerInternal(username, sourceAddress, password, null)
+
+    override fun registerVerified(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        minecraftUuid: UUID,
+        password: CharArray,
+    ): CompletionStage<RegistrationOutcome> = registerInternal(username, sourceAddress, password, minecraftUuid)
+
+    private fun registerInternal(
+        username: AccountUsername,
+        sourceAddress: InetAddress,
+        password: CharArray,
+        verifiedMinecraftUuid: UUID?,
+    ): CompletionStage<RegistrationOutcome> {
+        val attemptDecision = attemptGate?.evaluate(sourceAddress) ?: RegistrationAttemptDecision.ALLOW
+        if (attemptDecision != RegistrationAttemptDecision.ALLOW) {
+            password.fill('\u0000')
+            audit(username, sourceAddress, SecurityEventType.ANTI_BOT_DENY, "REGISTRATION_RATE_LIMITED")
+            return CompletableFuture.completedFuture(RegistrationOutcome.RateLimited)
+        }
+        try {
+            passwordPolicy.validate(password)
+        } catch (failure: Throwable) {
+            password.fill('\u0000')
+            throw failure
+        }
+
+        val hashStage = passwordExecutor.submit { hasher.hash(password) }
+        hashStage.whenComplete { _, _ -> password.fill('\u0000') }
+        return hashStage.thenCompose { passwordHash ->
+            val registration = if (verifiedMinecraftUuid != null) {
+                storage.registerVerifiedPassword(
+                    username, verifiedMinecraftUuid, passwordHash, sourceAddress, clock.instant(),
+                )
+            } else {
+                storage.registerOffline(OfflineRegistration(
+                    accountId = AccountId.random(),
+                    username = username,
+                    minecraftUuid = OfflineIdentity.minecraftUuid(username),
+                    passwordHash = passwordHash,
+                    sourceAddress = sourceAddress,
+                    createdAt = clock.instant(),
+                    maximumAccountsPerAddress = maximumAccountsPerAddress,
+                ))
+            }
+            registration.thenApply { result ->
+                when (result) {
+                    null -> error("Async authentication operation returned null: result")
+                    is RegistrationResult.Created -> {
+                        audit(username, sourceAddress, SecurityEventType.REGISTER, "PASSWORD", result.account.id)
+                        RegistrationOutcome.Created(result.account)
+                    }
+                    RegistrationResult.UsernameAlreadyExists -> RegistrationOutcome.UsernameAlreadyExists
+                    RegistrationResult.MinecraftUuidAlreadyExists -> RegistrationOutcome.IdentityConflict
+                    RegistrationResult.AddressLimitReached -> {
+                        audit(username, sourceAddress, SecurityEventType.ANTI_BOT_DENY, "REGISTRATION_ADDRESS_LIMIT")
+                        RegistrationOutcome.RateLimited
+                    }
+                }
+            }
+        }
+    }
+
+    private fun audit(username: AccountUsername, sourceAddress: InetAddress, type: SecurityEventType, reason: String, accountId: AccountId? = null) {
+        runCatching {
+            auditSink?.record(SecurityEvent(
+                clock.instant(), accountId?.value, OfflineIdentity.minecraftUuid(username), username.value,
+                sourceAddress, type, reason,
+            ))
+        }
+    }
+}

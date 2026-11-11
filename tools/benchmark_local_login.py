@@ -125,7 +125,7 @@ def run(port, protocol, connections=20, concurrency=2, rate=2, pattern="reconnec
                 break
             time.sleep(max(0, target - time.monotonic()))
             # No catch-up burst after a slow response: maintain spacing between submissions.
-            name = f"Agx{run_id}" if pattern == "reconnect" else f"Agx{run_id}{index:03}"
+            name = f"Lcx{run_id}" if pattern == "reconnect" else f"Lcx{run_id}{index:03}"
             jobs.append(executor.submit(attempt, port, protocol, name))
             started = max(started, time.monotonic() - index / rate)
         resolved = [job.result() for job in jobs]

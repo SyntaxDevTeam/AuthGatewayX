@@ -12,7 +12,7 @@ class VelocityDistributionTest(unittest.TestCase):
         buffer = io.BytesIO()
         checksum = base64.b64encode(bytes(32)).decode()
         entries = dict.fromkeys(REQUIRED_ENTRIES, b'class fixture')
-        entries['velocity-plugin.json'] = json.dumps({'id': 'authgatewayx', 'main': main})
+        entries['velocity-plugin.json'] = json.dumps({'id': 'logincorex', 'main': main})
         entries['velocity-libraries.txt'] = libraries if libraries is not None else '\n'.join(
             f'{library}:1.0:{checksum}' for library in sorted(REQUIRED_LIBRARIES))
         entries.pop(missing, None)
@@ -27,7 +27,7 @@ class VelocityDistributionTest(unittest.TestCase):
 
     def test_old_entrypoint(self):
         with self.assertRaisesRegex(ValueError, 'descriptor'):
-            verify(self.artifact(main='pl.syntaxdevteam.authgatewayx.velocity.AuthGatewayXVelocity'))
+            verify(self.artifact(main='pl.syntaxdevteam.logincorex.velocity.LoginCoreXVelocity'))
 
     def test_missing_entries(self):
         for entry in (*REQUIRED_ENTRIES, 'velocity-libraries.txt'):

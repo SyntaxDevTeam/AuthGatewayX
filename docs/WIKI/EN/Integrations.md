@@ -8,7 +8,7 @@
 
 CleanerX applies additional username rules, such as prohibited words. An explicitly rejected name is denied admission.
 
-PunisherX remains the punishment system. AuthGatewayX checks active punishments exposed for the player's UUID; do not treat this as complete name, IP and network-wide ban coverage.
+PunisherX remains the punishment system. LoginCoreX checks active punishments exposed for the player's UUID; do not treat this as complete name, IP and network-wide ban coverage.
 
 Neither plugin is required for basic authentication in the default `AUTO` mode.
 
@@ -41,7 +41,7 @@ Test with both punished and unpunished accounts. `REQUIRED` combined with `FAIL_
 
 ## Account UUID migration
 
-Before upgrading an account, back up player data and check `/agx migrate inspect <name>`. Plugins storing data under a player's UUID need a compatible migration integration. If a required integration is missing, resolve the reported block before retrying; do not manually replace UUIDs. See [Account identity verification](Premium.md).
+Before upgrading an account, back up player data and check `/lcx migrate inspect <name>`. Plugins storing data under a player's UUID need a compatible migration integration. If a required integration is missing, resolve the reported block before retrying; do not manually replace UUIDs. See [Account identity verification](Premium.md).
 
 ## EssentialsX and LuckPerms
 
