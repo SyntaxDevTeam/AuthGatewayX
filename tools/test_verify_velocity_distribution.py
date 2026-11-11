@@ -47,3 +47,17 @@ class VelocityDistributionTest(unittest.TestCase):
         line = 'com.zaxxer:HikariCP:1:' + base64.b64encode(bytes(32)).decode()
         with self.assertRaisesRegex(ValueError, 'Duplicate runtime library'):
             verify(self.artifact(libraries=line + '\n' + line))
+
+    def test_paper_core_cannot_replace_proxy_core(self):
+        checksum = base64.b64encode(bytes(32)).decode()
+        libraries = (REQUIRED_LIBRARIES - {'pl.syntaxdevteam:syntaxcore-proxy'}) | {'pl.syntaxdevteam:syntaxcore'}
+        manifest = '\n'.join(f'{library}:1.0:{checksum}' for library in libraries)
+        with self.assertRaisesRegex(ValueError, 'Paper SyntaxCore'):
+            verify(self.artifact(libraries=manifest))
+
+    def test_missing_proxy_core_is_rejected(self):
+        checksum = base64.b64encode(bytes(32)).decode()
+        manifest = '\n'.join(f'{library}:1.0:{checksum}' for library in REQUIRED_LIBRARIES
+                             if library != 'pl.syntaxdevteam:syntaxcore-proxy')
+        with self.assertRaisesRegex(ValueError, 'Missing runtime libraries'):
+            verify(self.artifact(libraries=manifest))

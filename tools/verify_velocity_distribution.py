@@ -17,7 +17,7 @@ REQUIRED_LIBRARIES = {
     'com.zaxxer:HikariCP', 'org.xerial:sqlite-jdbc',
     'com.mysql:mysql-connector-j', 'org.mariadb.jdbc:mariadb-java-client',
     'org.postgresql:postgresql', 'org.jetbrains.kotlin:kotlin-stdlib',
-    'pl.syntaxdevteam:syntaxcore', 'pl.syntaxdevteam:messageHandler-velocity',
+    'pl.syntaxdevteam:syntaxcore-proxy', 'pl.syntaxdevteam:messageHandler-velocity',
 }
 
 
@@ -47,6 +47,8 @@ def verify(jar):
             if library in libraries:
                 raise ValueError(f'Duplicate runtime library: {library}')
             libraries.add(library)
+        if "pl.syntaxdevteam:syntaxcore" in libraries:
+            raise ValueError("Paper SyntaxCore must not be loaded on Velocity")
         missing = REQUIRED_LIBRARIES - libraries
         if missing:
             raise ValueError(f'Missing runtime libraries: {sorted(missing)}')

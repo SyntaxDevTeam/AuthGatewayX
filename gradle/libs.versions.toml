@@ -1,7 +1,7 @@
 [versions]
 kotlin = "2.4.21"
 java = "25"
-syntaxcore = "1.4.1-R0.3-SNAPSHOT"
+syntaxcore = "1.5.0-R0.1-SNAPSHOT"
 messagehandler = "1.3.0-R0.3-SNAPSHOT"
 luckperms = "5.5"
 gson = "2.15.0"
@@ -32,7 +32,8 @@ postgresql-jdbc = { module = "org.postgresql:postgresql", version.ref = "postgre
 argon2-jvm = { module = "de.mkammerer:argon2-jvm", version.ref = "argon2" }
 jetbrains-annotations = { module = "org.jetbrains:annotations", version.ref = "jetbrains-annotations" }
 velocity-api = { module = "com.velocitypowered:velocity-api", version.ref = "velocity-api" }
-syntaxcore = { module = "pl.syntaxdevteam:syntaxcore", version.ref = "syntaxcore" }
+syntaxcore-paper = { module = "pl.syntaxdevteam:syntaxcore", version.ref = "syntaxcore" }
+syntaxcore-proxy = { module = "pl.syntaxdevteam:syntaxcore-proxy", version.ref = "syntaxcore" }
 messagehandler-paper = { module = "pl.syntaxdevteam:messageHandler-paper", version.ref = "messagehandler" }
 messagehandler-velocity = { module = "pl.syntaxdevteam:messageHandler-velocity", version.ref = "messagehandler" }
 luckperms-api = { module = "net.luckperms:api", version.ref = "luckperms" }

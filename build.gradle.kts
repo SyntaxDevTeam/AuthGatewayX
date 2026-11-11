@@ -24,7 +24,7 @@ val velocityDistribution = layout.projectDirectory.file("authgatewayx-velocity/b
 val candidateMinecraft = providers.gradleProperty("paperDevBundleVersion")
     .getOrElse(libs.versions.paper.api.get()).substringBefore(".build.")
 val expectedPaperLibraries = listOf(
-    libs.kotlin.stdlib, libs.syntaxcore, libs.messagehandler.paper, libs.hikari, libs.sqlite.jdbc,
+    libs.kotlin.stdlib, libs.syntaxcore.paper, libs.messagehandler.paper, libs.hikari, libs.sqlite.jdbc,
     libs.mysql.jdbc, libs.mariadb.jdbc, libs.postgresql.jdbc, libs.argon2.jvm, libs.gson,
 ).map { it.get().toString() }
 

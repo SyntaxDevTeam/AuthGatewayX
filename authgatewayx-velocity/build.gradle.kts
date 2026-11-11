@@ -41,7 +41,7 @@ dependencies {
     testImplementation(libs.velocity.api)
     implementation(project(":authgatewayx-security"))
     implementation(project(":authgatewayx-integrations"))
-    implementation(libs.syntaxcore)
+    implementation(libs.syntaxcore.proxy)
     implementation(libs.messagehandler.velocity)
     implementation(libs.snakeyaml)
 

@@ -30,7 +30,7 @@ dependencies {
     implementation(project(":authgatewayx-storage-api"))
     implementation(project(":authgatewayx-integrations"))
     implementation(libs.kotlin.stdlib)
-    compileOnly(libs.syntaxcore)
+    compileOnly(libs.syntaxcore.paper)
     compileOnly(libs.messagehandler.paper)
     compileOnly(libs.luckperms.api)
     compileOnly(libs.snakeyaml)
@@ -39,7 +39,7 @@ dependencies {
 
 val runtimeLibraries = mapOf(
     "kotlin" to libs.kotlin.stdlib.get().toString(),
-    "syntaxcore" to libs.syntaxcore.get().toString(),
+    "syntaxcore" to libs.syntaxcore.paper.get().toString(),
     "messagehandler" to libs.messagehandler.paper.get().toString(),
     "hikari" to libs.hikari.get().toString(),
     "sqlite" to libs.sqlite.jdbc.get().toString(),
