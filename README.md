@@ -19,7 +19,7 @@
 
 ---
 
-AuthGatewayX secures every Minecraft Java Edition player connection, including on servers configured with `online-mode=false`. New players register an account and returning players sign in through Minecraft dialogs. Official Minecraft session verification additionally protects verified identities, while administrators get account-security, connection-protection and diagnostic tools.
+AuthGatewayX secures every Minecraft Java Edition player connection to your server via form registration/login.. New players register an account and returning players sign in through Minecraft dialogs. Official Minecraft session verification additionally protects verified identities, while administrators get account-security, connection-protection and diagnostic tools.
 
 **Premium username impersonation protection: players cannot access an official Minecraft account owner's protected username without successfully verifying ownership of that account.**
 
