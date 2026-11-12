@@ -10,7 +10,7 @@ plugins {
 
 group = "pl.syntaxdevteam"
 version = "1.0.0"
-description = "LoginCoreX - System uwierzytelniania i ochrony graczy."
+description = "LoginCoreX - LoginCoreX is an advanced authentication and identity protection system for Minecraft servers."
 
 val targetJavaVersion = libs.versions.java.get().toInt()
 val modules = listOf(
@@ -161,10 +161,11 @@ tasks {
             }
         }
     }
+    register("publishApiToNexus") {
+        group = "publishing"
+        description = "Verifies and publishes the API and its domain dependency to Nexus."
+        dependsOn(":logincorex-api:publishApiPublicationToNexusRepository",
+            ":logincorex-domain:publishApiPublicationToNexusRepository")
+    }
 }
- tasks.register("publishApiToNexus") {
-    group = "publishing"
-    description = "Verifies and publishes the API and its domain dependency to Nexus."
-    dependsOn(":logincorex-api:publishApiPublicationToNexusRepository",
-        ":logincorex-domain:publishApiPublicationToNexusRepository")
-}
+
