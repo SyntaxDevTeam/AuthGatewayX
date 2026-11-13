@@ -20,7 +20,7 @@ class PaperRiskAlertDelivery(
 ) {
     fun deliver(alert: OfflineRiskAlert) {
         if (!current(alert)) return
-        console?.invoke(render(alert, revealIp = true, revealGeo = true))
+        console?.invoke(render(alert, revealIp = true, revealGeo = true, revealAlts = true))
         recipients().forEach { recipient ->
             entity(recipient, Runnable {
                 if (current(alert) && recipient.isOnline && active(recipient) &&
@@ -30,13 +30,14 @@ class PaperRiskAlertDelivery(
                         alert,
                         revealIp = recipient.hasPermission(VIEW_IP_PERMISSION),
                         revealGeo = recipient.hasPermission(VIEW_GEO_PERMISSION),
+                        revealAlts = recipient.hasPermission("logincorex.admin.alts"),
                     ))
                 }
             })
         }
     }
 
-    private fun render(alert: OfflineRiskAlert, revealIp: Boolean, revealGeo: Boolean): Component {
+    private fun render(alert: OfflineRiskAlert, revealIp: Boolean, revealGeo: Boolean, revealAlts: Boolean): Component {
         val session = alert.session
         var message = text.header.withText("<username>", session.username.value)
         message = message.line(text.identity
@@ -46,7 +47,7 @@ class PaperRiskAlertDelivery(
 
         if (revealIp) message = message.line(text.ip.withText("<ip>", session.sourceAddress.hostAddress))
 
-        alert.report?.takeIf { it.accounts.isNotEmpty() }?.let { report ->
+        alert.report?.takeIf { revealAlts && it.accounts.isNotEmpty() }?.let { report ->
             val accounts = report.accounts.take(5).joinToString(", ") {
                 "${it.username.value} (${it.sharedAddressCount} IP)"
             } + if (report.truncated || report.accounts.size > 5) " …" else ""
@@ -61,7 +62,7 @@ class PaperRiskAlertDelivery(
                 if (network.proxy == true) add("PROXY")
                 if (network.tor == true) add("TOR")
             }
-            if (signals.isNotEmpty()) {
+            if (revealGeo && signals.isNotEmpty()) {
                 message = message.line(text.network
                     .withText("<signals>", signals.joinToString(", "))
                     .withText("<confidence>", network.confidence?.let { "${it}%" } ?: "brak danych")

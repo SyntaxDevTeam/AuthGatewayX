@@ -14,10 +14,10 @@ Uprawnienie określa, kto może użyć danej funkcji. Zwykłe logowanie i rejest
 | `logincorex.command.logout` | Wylogowanie | Wszyscy gracze |
 | `logincorex.admin.info` | Podstawowy raport `/logincorex info <nick>` | Operatorzy serwera |
 | `logincorex.admin.alerts` | Odbiór automatycznych alertów po zalogowaniu | Operatorzy serwera |
-| `logincorex.admin.view-ip` | Pokazywanie źródłowego adresu IP w alertach administracyjnych | Operatorzy serwera |
-| `logincorex.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Operatorzy serwera |
-| `logincorex.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Operatorzy serwera |
-| `logincorex.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Operatorzy serwera |
+| `logincorex.admin.view-ip` | Pokazywanie źródłowego adresu IP w alertach administracyjnych | Wymaga jawnego nadania |
+| `logincorex.admin.view-geo` | Pokazywanie GeoIP, ASN, dostawcy/organizacji sieci i operatora anonimizującego | Wymaga jawnego nadania |
+| `logincorex.admin.view-security` | Licznik błędnych logowań, blokada i ostatnie zdarzenia audytu w raporcie konta | Wymaga jawnego nadania |
+| `logincorex.admin.alts` | Raport podejrzanych powiązań kont przez wspólne adresy | Wymaga jawnego nadania |
 | `logincorex.admin.password` | Ustawianie hasła konta wskazanego gracza | Operatorzy serwera |
 | `logincorex.admin.reload` | Przeładowanie ustawień obsługiwanych w runtime przez `/lcx reload` | Operatorzy serwera |
 | `logincorex.admin.migration.view` | Podgląd ticketów i diagnostyki providerów migracji UUID | Operatorzy serwera |
@@ -62,3 +62,5 @@ wyłącznie administratorom odpowiedzialnym za dane graczy.
 
 Konsola serwera może wykonywać wszystkie podkomendy migracji. Administrator w grze musi
 mieć aktywną, uwierzytelnioną sesję LoginCoreX; sama permisja nie omija logowania.
+
+Dane wrażliwe wymagają jawnego nadania uprawnień także operatorom Paper. `view-geo` obejmuje również VPN/proxy/Tor i ocenę ryzyka; `alts` kontroluje także listy powiązanych kont w alertach. `alerts` samo udostępnia jedynie ogólne powiadomienie. Sprawdź dziedziczenie i wildcardy w pluginie uprawnień; `*` może nadal przyznać dostęp. Uprawnienia na Velocity nadaje się osobno.

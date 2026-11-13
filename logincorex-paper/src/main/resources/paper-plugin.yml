@@ -44,7 +44,7 @@ permissions:
     default: op
   logincorex.admin.alts:
     description: Allows reviewing suspected account links by shared address history.
-    default: op
+    default: false
   logincorex.admin.migration.view:
     description: Allows inspecting premium migration tickets and provider diagnostics.
     default: op
@@ -56,13 +56,13 @@ permissions:
     default: op
   logincorex.admin.view-security:
     description: Reveals lock state, failed-login counters and recent security audit events in account reports.
-    default: op
+    default: false
   logincorex.admin.alerts:
     description: Receives advisory multi-account and VPN alerts after authentication.
     default: op
   logincorex.admin.view-ip:
-    description: Reveals source IP addresses inside LoginCoreX administrative alerts.
-    default: op
+    description: Reveals source IP addresses inside LoginCoreX administrative reports and alerts.
+    default: false
   logincorex.admin.view-geo:
-    description: Reveals GeoIP, ASN, provider and network operator metadata inside administrative alerts.
-    default: op
+    description: Reveals GeoIP, ASN, provider and network operator metadata and VPN/proxy/Tor risk inside administrative reports and alerts.
+    default: false

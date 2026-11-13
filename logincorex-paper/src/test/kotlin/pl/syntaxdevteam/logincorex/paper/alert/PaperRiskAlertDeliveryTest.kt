@@ -65,7 +65,7 @@ class PaperRiskAlertDeliveryTest {
         )
         val alert = OfflineRiskAlert(
             session,
-            null,
+            MultiAccountReport(listOf(RelatedOfflineAccount(AccountUsername.parse("LinkedAccount"), 1)), false),
             IpIntelligence(
                 vpn = true,
                 proxy = false,
@@ -111,7 +111,7 @@ class PaperRiskAlertDeliveryTest {
                 Component.text("HEADER"),
                 Component.text("IDENTITY"),
                 Component.text("IP=<ip>"),
-                Component.text("ACCOUNTS"),
+                Component.text("ACCOUNTS=<accounts>"),
                 Component.text("RISK=<signals>"),
                 Component.text("GEO=<city>"),
                 Component.text("OWNER=<asn>"),
@@ -129,11 +129,12 @@ class PaperRiskAlertDeliveryTest {
         }
 
         var rendered = deliverText()
-        assertContains(rendered, "RISK=")
+        assertFalse(rendered.contains("RISK="))
         assertFalse(rendered.contains("IP="))
         assertFalse(rendered.contains("GEO="))
         assertFalse(rendered.contains("OWNER="))
         assertFalse(rendered.contains("OP="))
+        assertFalse(rendered.contains("LinkedAccount"))
 
         permissions["logincorex.admin.view-ip"] = true
         rendered = deliverText()
@@ -144,9 +145,21 @@ class PaperRiskAlertDeliveryTest {
         permissions["logincorex.admin.view-geo"] = true
         rendered = deliverText()
         assertFalse(rendered.contains("IP="))
+        assertContains(rendered, "RISK=")
         assertContains(rendered, "GEO=")
         assertContains(rendered, "OWNER=")
         assertContains(rendered, "OP=")
+        assertFalse(rendered.contains("LinkedAccount"))
+        permissions["logincorex.admin.alts"] = true
+        assertContains(deliverText(), "LinkedAccount")
+        delivery.deliver(alert)
+        permissions["logincorex.admin.view-geo"] = false
+        permissions["logincorex.admin.alts"] = false
+        sent = null
+        tasks.removeFirst().run()
+        rendered = requireNotNull(sent).toString()
+        assertFalse(rendered.contains("RISK="))
+        assertFalse(rendered.contains("LinkedAccount"))
     }
 
 }

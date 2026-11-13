@@ -14,10 +14,10 @@ Ordinary registration and login dialogs need no extra permission. Assign exact p
 | `logincorex.command.privacy` | View the policy and manage acceptance | Everyone |
 | `logincorex.admin.info` | Basic account report | Operators |
 | `logincorex.admin.alerts` | Receive automatic alerts after authentication | Operators |
-| `logincorex.admin.view-ip` | View IP addresses in reports and alerts | Operators |
-| `logincorex.admin.view-geo` | View GeoIP, ASN, network provider and anonymizing operator | Operators |
-| `logincorex.admin.view-security` | View lockouts, failed attempts and recent audit events | Operators |
-| `logincorex.admin.alts` | Report related accounts and add the related-account section | Operators |
+| `logincorex.admin.view-ip` | View IP addresses in reports and alerts | Explicit grant required |
+| `logincorex.admin.view-geo` | View GeoIP, ASN, network provider and anonymizing operator | Explicit grant required |
+| `logincorex.admin.view-security` | View lockouts, failed attempts and recent audit events | Explicit grant required |
+| `logincorex.admin.alts` | Report related accounts and add the related-account section | Explicit grant required |
 | `logincorex.admin.password` | Reset another server account's password | Operators |
 | `logincorex.admin.reload` | Reload supported runtime settings | Operators |
 | `logincorex.admin.migration.view` | Inspect migration tickets and providers | Operators |
@@ -41,3 +41,5 @@ Administrators with a locally assigned identity need successful backend login an
 ## Migration access
 
 `migration.view` allows diagnosis without changing data. `migration.execute` retries a ticket; `migration.recover` creates recovery. The console may run all migration subcommands. In-game administrators still require an authenticated session.
+
+Sensitive permissions require explicit grants even for Paper operators. `view-geo` also controls VPN/proxy/Tor and risk scores; `alts` also controls account lists in alerts. `alerts` alone receives only general notifications. Review inherited and wildcard grants: `*` can still grant access. Configure Velocity permissions separately.

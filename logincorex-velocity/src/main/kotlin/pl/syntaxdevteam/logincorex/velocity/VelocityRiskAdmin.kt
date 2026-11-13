@@ -130,7 +130,7 @@ class VelocityRiskAdmin(
         nextAlert = now.plusSeconds(1)
 
         if (consoleAlerts) proxy.consoleCommandSource.sendMessage(
-            render(username, address, risk, denied, revealIp = true, revealGeo = true),
+            render(username, address, risk, denied, revealIp = true, revealGeo = true, revealAlts = true),
         )
         proxy.allPlayers.filter { it.isActive && it.hasPermission("logincorex.admin.alerts") }.forEach { recipient ->
             proof.authorize(recipient).thenAccept { authorized ->
@@ -142,6 +142,7 @@ class VelocityRiskAdmin(
                         denied,
                         revealIp = recipient.hasPermission(VIEW_IP_PERMISSION),
                         revealGeo = recipient.hasPermission(VIEW_GEO_PERMISSION),
+                        revealAlts = recipient.hasPermission("logincorex.admin.alts"),
                     ))
                 }
             }
@@ -155,12 +156,13 @@ class VelocityRiskAdmin(
         denied: Boolean,
         revealIp: Boolean,
         revealGeo: Boolean,
+        revealAlts: Boolean,
     ): Component {
         var message = text("announcement_header")
             .line(text(if (denied) "denied_alert" else "connection_alert").fill("username", username))
         if (revealIp) message = message.line(text("ip_alert").fill("ip", address.hostAddress))
 
-        risk.report?.takeIf { it.accounts.isNotEmpty() }?.let { report ->
+        risk.report?.takeIf { revealAlts && it.accounts.isNotEmpty() }?.let { report ->
             val accounts = report.accounts.take(5).joinToString(", ") {
                 "${it.username.value} (${it.sharedAddressCount} IP)"
             } + if (report.truncated || report.accounts.size > 5) " …" else ""
@@ -173,7 +175,7 @@ class VelocityRiskAdmin(
                 if (network.proxy == true) add("PROXY")
                 if (network.tor == true) add("TOR")
             }
-            if (signals.isNotEmpty()) {
+            if (revealGeo && signals.isNotEmpty()) {
                 message = message.line(text("network_alert")
                     .fill("signals", signals.joinToString(", "))
                     .fill("confidence", network.confidence?.let { "${it}%" } ?: "brak danych")
