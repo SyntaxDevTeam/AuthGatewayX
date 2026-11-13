@@ -9,7 +9,7 @@ permissions:
 jobs:
   package:
     name: Build ${{ matrix.id }}
-    runs-on: [self-hosted, linux, x64, syntaxdev-ci]
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
