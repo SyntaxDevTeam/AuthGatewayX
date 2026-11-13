@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.snakeyaml)
 
     implementation("net.byteflux:libby-velocity:1.3.2")
+    // Kept on runtimeClasspath for the generated loader manifest; excluded from shadowJar.
     implementation(libs.kotlin.stdlib)
 }
 
@@ -68,7 +69,7 @@ abstract class GenerateRuntimeManifest : DefaultTask() {
             val checksum = Base64.getEncoder().encodeToString(
                 MessageDigest.getInstance("SHA-256").digest(file.readBytes()))
             "$coordinate:$checksum"
-        }.sorted()
+        }.sortedWith(compareBy<String> { !it.startsWith("org.jetbrains.kotlin:") }.thenBy { it })
         manifestFile.get().asFile.apply {
             parentFile.mkdirs()
             writeText(entries.joinToString("\n"))

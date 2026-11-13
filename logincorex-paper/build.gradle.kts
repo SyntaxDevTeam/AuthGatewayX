@@ -29,7 +29,8 @@ dependencies {
     implementation(project(":logincorex-storage-jdbc"))
     implementation(project(":logincorex-storage-api"))
     implementation(project(":logincorex-integrations"))
-    implementation(libs.kotlin.stdlib)
+    // Available for compilation/tests; SyntaxLoader supplies it at runtime, shadowJar excludes it.
+    compileOnly(libs.kotlin.stdlib)
     compileOnly(libs.syntaxcore.paper)
     compileOnly(libs.messagehandler.paper)
     compileOnly(libs.luckperms.api)

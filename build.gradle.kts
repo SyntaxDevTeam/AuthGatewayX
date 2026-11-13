@@ -125,8 +125,10 @@ tasks {
         doLast {
             for (file in listOf(paper, velocity)) {
                 java.util.jar.JarFile(file).use { jar ->
-                    check(jar.getEntry("kotlin/Unit.class") == null || file == velocity) { "Paper bundles Kotlin" }
                     val names = jar.entries().asSequence().map { it.name }.toList()
+                    check(names.none { it.startsWith("kotlin/") && it.endsWith(".class") }) {
+                        "${file.name} bundles Kotlin runtime classes"
+                    }
                     check(names.size == names.toSet().size) { "Duplicate entries in ${file.name}" }
                     check(jar.getEntry("pl/syntaxdevteam/logincorex/domain/session/AuthSession.class") != null)
                     check(jar.getEntry("pl/syntaxdevteam/logincorex/storage/jdbc/JdbcAccountStorage.class") != null)
@@ -152,7 +154,13 @@ tasks {
                         check(descriptor.lineSequence().any {
                             it.trim() == "\"version\": \"$expectedVersion\","
                         }) { "Velocity descriptor version differs from project" }
-                        check(jar.getEntry("velocity-libraries.txt") != null)
+                        val manifest = jar.getInputStream(jar.getJarEntry("velocity-libraries.txt"))
+                            .bufferedReader().use { it.readLines() }
+                        val kotlinLibraries = manifest.filter { it.startsWith("org.jetbrains.kotlin:") }
+                        check(kotlinLibraries.isNotEmpty()) { "Velocity runtime manifest omits Kotlin" }
+                        check(manifest.take(kotlinLibraries.size) == kotlinLibraries) {
+                            "Velocity must load Kotlin before other runtime libraries"
+                        }
                         check(jar.getEntry("kotlin/Unit.class") == null)
                         check(jar.getEntry("com/zaxxer/hikari/HikariDataSource.class") == null)
                         check(jar.getEntry("pl/syntaxdevteam/logincorex/velocity/loader/SyntaxLoader.class") != null)
